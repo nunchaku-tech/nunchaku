@@ -33,13 +33,23 @@ if __name__ == "__main__":
         else:
             return []
 
-    CXX_FLAGS = ["-DBUILD_NUNCHAKU=1", "-fvisibility=hidden", "-g", "-std=c++20", "-UNDEBUG", "-Og", *INCLUDE_DIRS]
+    CXX_FLAGS = [
+        "-DBUILD_NUNCHAKU=1",
+        "-fvisibility=hidden",
+        "-g",
+        "-std=c++17",
+        "-UNDEBUG",
+        "-Og",
+        *INCLUDE_DIRS,
+    ]
     NVCC_FLAGS = [
         "-DBUILD_NUNCHAKU=1",
-        "-gencode", "arch=compute_86,code=sm_86",
-        "-gencode", "arch=compute_89,code=sm_89",
+        "-gencode",
+        "arch=compute_86,code=sm_86",
+        "-gencode",
+        "arch=compute_89,code=sm_89",
         "-g",
-        "-std=c++20",
+        "-std=c++17",
         "-UNDEBUG",
         "-Xcudafe",
         "--diag_suppress=20208",  # spdlog: 'long double' is treated as 'double' in device code
