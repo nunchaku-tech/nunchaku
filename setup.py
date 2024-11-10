@@ -19,7 +19,7 @@ if __name__ == "__main__":
 
     INCLUDE_DIRS = ["-I" + ROOT_DIR + "/" + dir for dir in INCLUDE_DIRS]
 
-    DEBUG = True
+    DEBUG = False
 
     def ncond(s) -> list:
         if DEBUG:
