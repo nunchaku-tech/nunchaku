@@ -37,7 +37,7 @@ if __name__ == "__main__":
         "-DBUILD_NUNCHAKU=1",
         "-fvisibility=hidden",
         "-g",
-        "-std=c++17",
+        "-std=c++20",
         "-UNDEBUG",
         "-Og",
         *INCLUDE_DIRS,
@@ -49,7 +49,7 @@ if __name__ == "__main__":
         "-gencode",
         "arch=compute_89,code=sm_89",
         "-g",
-        "-std=c++17",
+        "-std=c++20",
         "-UNDEBUG",
         "-Xcudafe",
         "--diag_suppress=20208",  # spdlog: 'long double' is treated as 'double' in device code
