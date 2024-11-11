@@ -43,13 +43,20 @@ class NunchakuFluxModel(nn.Module):
         assert image_rotary_emb.shape[1] == 1
         assert image_rotary_emb.shape[2] == batch_size * (txt_tokens + img_tokens)
         # [bs, tokens, head_dim / 2, 1, 2] (sincos)
-        image_rotary_emb = image_rotary_emb.reshape([batch_size, txt_tokens + img_tokens, *image_rotary_emb.shape[3:]])
+        image_rotary_emb = image_rotary_emb.reshape(
+            [batch_size, txt_tokens + img_tokens, *image_rotary_emb.shape[3:]]
+        )
         rotary_emb_txt = image_rotary_emb[:, :txt_tokens, ...]  # .to(self.dtype)
         rotary_emb_img = image_rotary_emb[:, txt_tokens:, ...]  # .to(self.dtype)
         rotary_emb_single = image_rotary_emb  # .to(self.dtype)
 
         hidden_states = self.m.forward(
-            hidden_states, encoder_hidden_states, temb, rotary_emb_img, rotary_emb_txt, rotary_emb_single
+            hidden_states,
+            encoder_hidden_states,
+            temb,
+            rotary_emb_img,
+            rotary_emb_txt,
+            rotary_emb_single,
         )
 
         hidden_states = hidden_states.to(original_dtype)
@@ -95,7 +102,10 @@ class EmbedND(torch.nn.Module):
         if Version(diffusers.__version__) >= Version("0.31.0"):
             ids = ids[None, ...]
         n_axes = ids.shape[-1]
-        emb = torch.cat([rope(ids[..., i], self.axes_dim[i], self.theta) for i in range(n_axes)], dim=-3)
+        emb = torch.cat(
+            [rope(ids[..., i], self.axes_dim[i], self.theta) for i in range(n_axes)],
+            dim=-3,
+        )
         return emb.unsqueeze(1)
 
 
@@ -135,3 +145,45 @@ def inject_pipeline(pipe: FluxPipeline, m: QuantizedFluxModel) -> FluxPipeline:
     net.nunchaku_set_lora_scale = types.MethodType(set_lora_scale, net)
 
     return pipe
+
+
+def inject_transformer(
+    transformer_model: FluxTransformer2DModel, m: QuantizedFluxModel
+) -> None:
+    """注入自定义transformer模型
+
+    Args:
+        transformer_model: 原始transformer模型
+        custom_model: 要注入的自定义模型
+    """
+    # 注入位置编码
+    transformer_model.pos_embed = EmbedND(
+        dim=transformer_model.inner_dim, theta=10000, axes_dim=[16, 56, 56]
+    )
+
+    # 替换transformer块
+    transformer_model.transformer_blocks = torch.nn.ModuleList([NunchakuFluxModel(m)])
+    transformer_model.single_transformer_blocks = torch.nn.ModuleList([])
+
+    def update_params(self: FluxTransformer2DModel, path: str):
+        if not os.path.exists(path):
+            hf_repo_id = os.path.dirname(path)
+            filename = os.path.basename(path)
+            path = hf_hub_download(repo_id=hf_repo_id, filename=filename)
+        block = self.transformer_blocks[0]
+        assert isinstance(block, NunchakuFluxModel)
+        block.m.load(path, True)
+
+    def set_lora_scale(self: FluxTransformer2DModel, scale: float):
+        block = self.transformer_blocks[0]
+        assert isinstance(block, NunchakuFluxModel)
+        block.m.setLoraScale(SVD_RANK, scale)
+
+    transformer_model.nunchaku_update_params = types.MethodType(
+        update_params, transformer_model
+    )
+    transformer_model.nunchaku_set_lora_scale = types.MethodType(
+        set_lora_scale, transformer_model
+    )
+
+    return transformer_model
