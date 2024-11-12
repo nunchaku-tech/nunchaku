@@ -4,7 +4,7 @@ import torch
 from diffusers import FluxPipeline
 from huggingface_hub import hf_hub_download
 
-from ..models.flux import inject_pipeline, load_quantized_model, inject_transformer
+from ..models.flux import inject_pipeline, load_quantized_model
 
 
 def from_pretrained(
