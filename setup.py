@@ -58,7 +58,6 @@ if __name__ == "__main__":
         "-std=c++20",
         "-UNDEBUG",
         "-Og",
-        "-Wno-sign-compare",  # 忽略符号比较警告
     ]
     MSVC_FLAGS = [
         "/DENABLE_BF16=1",
