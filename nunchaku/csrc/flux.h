@@ -185,6 +185,10 @@ public:
         });
     }
 
+    void forceFP16Attention(bool enable) {
+        Attention::setForceFP16(net.get(), enable);
+    }
+
 
 private:
     void checkModel() {

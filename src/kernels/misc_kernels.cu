@@ -188,6 +188,28 @@ Tensor quant_static_fuse_gelu(Tensor x, float scale) {
     return out;
 }
 
+void cast(Tensor input, Tensor output) {
+    assert(input.is_contiguous());
+    assert(output.is_contiguous());
+    assert(input.shape.dataExtent == output.shape.dataExtent);
+
+    auto stream = getCurrentCUDAStream();
+
+    dispatch(input.scalar_type(), [&]<typename input_t>() {
+        dispatch(output.scalar_type(), [&]<typename output_t>() {
+            constexpr int unroll = 16 / std::max(sizeof(input_t), sizeof(output_t));
+
+            int threadsPerBlock = 1024;
+            int blocksPerGrid = (int)ceilDiv<int64_t>(input.numel(), threadsPerBlock * unroll);
+
+            cast_kernel<input_t, output_t, unroll><<<blocksPerGrid, threadsPerBlock, 0, stream>>>(
+                input.data_ptr<input_t>(), output.data_ptr<output_t>(), input.numel());
+
+            checkCUDA(cudaGetLastError());
+        });
+    });
+}
+
 Tensor topk(Tensor x, int k) {
     constexpr int MAXK = 64 + 4;
 

@@ -7,7 +7,12 @@
 #include "dispatch_utils.h"
 
 #pragma nv_diag_suppress 177
+
+#ifdef _MSC_VER
+#define ALWAYSINLINE [[msvc::forceinline]]
+#else
 #define ALWAYSINLINE __attribute__((always_inline))
+#endif
 
 // #define ENABLE_NAN_CHECK 1
 #if ENABLE_NAN_CHECK
@@ -196,12 +201,12 @@ public:
                 : 
                 "=f"(psum.data[0]), "=f"(psum.data[1]), "=f"(psum.data[2]), "=f"(psum.data[3])
                 : 
-                "r"(*reinterpret_cast<uint *>(&a.data[0])), 
-                "r"(*reinterpret_cast<uint *>(&a.data[1])), 
-                "r"(*reinterpret_cast<uint *>(&a.data[2])), 
-                "r"(*reinterpret_cast<uint *>(&a.data[3])),
-                "r"(*reinterpret_cast<uint *>(&b.data[0])), 
-                "r"(*reinterpret_cast<uint *>(&b.data[1])),
+                "r"(*reinterpret_cast<unsigned int *>(&a.data[0])), 
+                "r"(*reinterpret_cast<unsigned int *>(&a.data[1])), 
+                "r"(*reinterpret_cast<unsigned int *>(&a.data[2])), 
+                "r"(*reinterpret_cast<unsigned int *>(&a.data[3])),
+                "r"(*reinterpret_cast<unsigned int *>(&b.data[0])), 
+                "r"(*reinterpret_cast<unsigned int *>(&b.data[1])),
 
                 // "r"(0), "r"(0), "r"(0), "r"(0)
                 "f"(psum.data[0]), "f"(psum.data[1]), "f"(psum.data[2]), "f"(psum.data[3])
@@ -215,12 +220,12 @@ public:
                 : 
                 "=f"(psum.data[4]), "=f"(psum.data[5]), "=f"(psum.data[6]), "=f"(psum.data[7])
                 : 
-                "r"(*reinterpret_cast<uint *>(&a.data[0])), 
-                "r"(*reinterpret_cast<uint *>(&a.data[1])), 
-                "r"(*reinterpret_cast<uint *>(&a.data[2])), 
-                "r"(*reinterpret_cast<uint *>(&a.data[3])),
-                "r"(*reinterpret_cast<uint *>(&b.data[2])), 
-                "r"(*reinterpret_cast<uint *>(&b.data[3])),
+                "r"(*reinterpret_cast<unsigned int *>(&a.data[0])), 
+                "r"(*reinterpret_cast<unsigned int *>(&a.data[1])), 
+                "r"(*reinterpret_cast<unsigned int *>(&a.data[2])), 
+                "r"(*reinterpret_cast<unsigned int *>(&a.data[3])),
+                "r"(*reinterpret_cast<unsigned int *>(&b.data[2])), 
+                "r"(*reinterpret_cast<unsigned int *>(&b.data[3])),
                 // "r"(0), "r"(0), "r"(0), "r"(0)
                 "f"(psum.data[4]), "f"(psum.data[5]), "f"(psum.data[6]), "f"(psum.data[7])
             );
@@ -236,12 +241,12 @@ public:
                 : 
                 "=f"(psum.data[0]), "=f"(psum.data[1]), "=f"(psum.data[2]), "=f"(psum.data[3])
                 : 
-                "r"(*reinterpret_cast<uint *>(&a.data[0])), 
-                "r"(*reinterpret_cast<uint *>(&a.data[1])), 
-                "r"(*reinterpret_cast<uint *>(&a.data[2])), 
-                "r"(*reinterpret_cast<uint *>(&a.data[3])),
-                "r"(*reinterpret_cast<uint *>(&b.data[0])), 
-                "r"(*reinterpret_cast<uint *>(&b.data[1])),
+                "r"(*reinterpret_cast<unsigned int *>(&a.data[0])), 
+                "r"(*reinterpret_cast<unsigned int *>(&a.data[1])), 
+                "r"(*reinterpret_cast<unsigned int *>(&a.data[2])), 
+                "r"(*reinterpret_cast<unsigned int *>(&a.data[3])),
+                "r"(*reinterpret_cast<unsigned int *>(&b.data[0])), 
+                "r"(*reinterpret_cast<unsigned int *>(&b.data[1])),
 
                 // "r"(0), "r"(0), "r"(0), "r"(0)
                 "f"(psum.data[0]), "f"(psum.data[1]), "f"(psum.data[2]), "f"(psum.data[3])
@@ -255,12 +260,12 @@ public:
                 : 
                 "=f"(psum.data[4]), "=f"(psum.data[5]), "=f"(psum.data[6]), "=f"(psum.data[7])
                 : 
-                "r"(*reinterpret_cast<uint *>(&a.data[0])), 
-                "r"(*reinterpret_cast<uint *>(&a.data[1])), 
-                "r"(*reinterpret_cast<uint *>(&a.data[2])), 
-                "r"(*reinterpret_cast<uint *>(&a.data[3])),
-                "r"(*reinterpret_cast<uint *>(&b.data[2])), 
-                "r"(*reinterpret_cast<uint *>(&b.data[3])),
+                "r"(*reinterpret_cast<unsigned int *>(&a.data[0])), 
+                "r"(*reinterpret_cast<unsigned int *>(&a.data[1])), 
+                "r"(*reinterpret_cast<unsigned int *>(&a.data[2])), 
+                "r"(*reinterpret_cast<unsigned int *>(&a.data[3])),
+                "r"(*reinterpret_cast<unsigned int *>(&b.data[2])), 
+                "r"(*reinterpret_cast<unsigned int *>(&b.data[3])),
                 // "r"(0), "r"(0), "r"(0), "r"(0)
                 "f"(psum.data[4]), "f"(psum.data[5]), "f"(psum.data[6]), "f"(psum.data[7])
             );
@@ -600,7 +605,8 @@ public:
     
 
     struct EpilogueDefault {
-        struct Arguments {};
+        // workaround for layout mismatch between host and device code
+        struct Arguments { size_t unused; };
 
         __device__ __forceinline__
         void operator()(const BlockInfo binfo, fpsum_warp fpsum, half_t *out, int M, int N, int K, Arguments args) {
@@ -612,7 +618,7 @@ public:
     };
 
     struct EpilogueNop {
-        struct Arguments {};
+        struct Arguments { size_t unused; };
 
         __device__ __forceinline__
         void operator()(const BlockInfo binfo, fpsum_warp fpsum, half_t *out, int M, int N, int K, Arguments args) {
@@ -1444,17 +1450,19 @@ public:
                 const int laneId = threadIdx.x % WARP_SIZE;
                 const int warpId = threadIdx.x / WARP_SIZE;
 
-                lora_act16_warp lora_act = load_lora_act(act + warpId * (LORA_M_TILES * LORA_R_TILES * 8 * WARP_SIZE), scales);
-                lora_wgt_warp lora_wgt   = load_lora_wgt(wgt);
-                for (int m = 0; m < LORA_M_TILES; m++) {
-                    for (int n = 0; n < LORA_N_TILES; n++) {
-                        packed_f32psum_t psum = packed_fp16_to_fp32(fpsum[m * WARP_N_TILES + n]);
-                        for (int r = 0; r < LORA_R_TILES; r++) {
-                            CHECK_NAN(lora_act[m * LORA_R_TILES + r], "lora_act");
-                            CHECK_NAN(lora_wgt[n * LORA_R_TILES + r], "lora_wgt");
-                            psum = mma_f16xf16_f32(lora_act[m * LORA_R_TILES + r], lora_wgt[n * LORA_R_TILES + r], psum);
+                if constexpr (rank > 0) {
+                    lora_act16_warp lora_act = load_lora_act(act + warpId * (LORA_M_TILES * LORA_R_TILES * 8 * WARP_SIZE), scales);
+                    lora_wgt_warp lora_wgt   = load_lora_wgt(wgt);
+                    for (int m = 0; m < LORA_M_TILES; m++) {
+                        for (int n = 0; n < LORA_N_TILES; n++) {
+                            packed_f32psum_t psum = packed_fp16_to_fp32(fpsum[m * WARP_N_TILES + n]);
+                            for (int r = 0; r < LORA_R_TILES; r++) {
+                                CHECK_NAN(lora_act[m * LORA_R_TILES + r], "lora_act");
+                                CHECK_NAN(lora_wgt[n * LORA_R_TILES + r], "lora_wgt");
+                                psum = mma_f16xf16_f32(lora_act[m * LORA_R_TILES + r], lora_wgt[n * LORA_R_TILES + r], psum);
+                            }
+                            fpsum[m * WARP_N_TILES + n] = packed_fp32_to_fp16(psum);
                         }
-                        fpsum[m * WARP_N_TILES + n] = packed_fp32_to_fp16(psum);
                     }
                 }
             }
@@ -1493,42 +1501,41 @@ public:
                 const int laneId = threadIdx.x % WARP_SIZE;
                 const int warpId = threadIdx.x / WARP_SIZE;
 
-                lora_act_warp lora_act;
-                lora_act.fill(packed_f32psum_t::zeros());
+                if constexpr (rank > 0) {
+                    lora_act_warp lora_act;
+                    lora_act.fill(packed_f32psum_t::zeros());
 
-                lora_wgt_warp lora_wgt = load_lora_wgt(wgt);
+                    lora_wgt_warp lora_wgt = load_lora_wgt(wgt);
 
-                // clock_t dummy = 0;
+                    // clock_t dummy = 0;
 
-            #pragma unroll
-                for (int m = 0; m < LORA_M_TILES; m++) {
-            #pragma unroll
-                    for (int n = 0; n < LORA_N_TILES; n++) {
-            #pragma unroll
-                        for (int r = 0; r < LORA_R_TILES; r++) {
-                            auto &psum = lora_act[m * LORA_R_TILES + r];
+                #pragma unroll
+                    for (int m = 0; m < LORA_M_TILES; m++) {
+                #pragma unroll
+                        for (int n = 0; n < LORA_N_TILES; n++) {
+                #pragma unroll
+                            for (int r = 0; r < LORA_R_TILES; r++) {
+                                auto &psum = lora_act[m * LORA_R_TILES + r];
 
-                            CHECK_NAN(fpsum[m * WARP_N_TILES + n], "apply_lora_down.fpsum");
-                            CHECK_NAN(lora_wgt[n * LORA_R_TILES + r], "apply_lora_down.lora_wgt");
+                                CHECK_NAN(fpsum[m * WARP_N_TILES + n], "apply_lora_down.fpsum");
+                                CHECK_NAN(lora_wgt[n * LORA_R_TILES + r], "apply_lora_down.lora_wgt");
 
-                            psum = mma_f16xf16_f32(fpsum[m * WARP_N_TILES + n], lora_wgt[n * LORA_R_TILES + r], psum);
+                                psum = mma_f16xf16_f32(fpsum[m * WARP_N_TILES + n], lora_wgt[n * LORA_R_TILES + r], psum);
 
-                            CHECK_NAN(psum, "apply_lora_down.psum");
+                                CHECK_NAN(psum, "apply_lora_down.psum");
+                            }
                         }
+                        // reduce_lora_act(act + warpId * (LORA_M_TILES * LORA_R_TILES * 8 * WARP_SIZE), lora_act, m);
+
+                        // if (alwaysfalse) {
+                        //     dummy = clock();
+                        // }
                     }
-                    // reduce_lora_act(act + warpId * (LORA_M_TILES * LORA_R_TILES * 8 * WARP_SIZE), lora_act, m);
 
-                    // if (alwaysfalse) {
-                    //     dummy = clock();
-                    // }
+                    reduce_lora_act(act + warpId * (LORA_M_TILES * LORA_R_TILES * 8 * WARP_SIZE), lora_act);
+
+                    // unused_var(dummy, alwaysfalse);
                 }
-
-                
-
-                reduce_lora_act(act + warpId * (LORA_M_TILES * LORA_R_TILES * 8 * WARP_SIZE), lora_act);
-
-
-                // unused_var(dummy, alwaysfalse);
 
             }
 
@@ -1625,6 +1632,10 @@ public:
         void apply_bias(fpsum_warp &fpsum, half_t *out, int M, int N, int K, const packed_wscale_t *bias) {
             const int laneId = threadIdx.x % WARP_SIZE;
 
+            // if (laneId == 0) {
+            //     printf("block.x=%d block.y=%d warpId=%d bias=%p\n", blockIdx.x, blockIdx.y, threadIdx.x / WARP_SIZE, bias);
+            // }
+
             wscale_warp b;
             load_wscale(bias, 0, N, b, true);
 
@@ -1654,7 +1665,7 @@ public:
     };
 
     struct EpilogueGelu {
-        struct Arguments {};
+        struct Arguments { size_t unused; };
 
         // static constexpr float SHIFT_VALUE = 0.171875f;
 
@@ -1878,6 +1889,8 @@ public:
             bool swapBlockXY,
             bool alwaysfalse)
         {
+            // printf("Device sizeof(args) = %d", (int)sizeof(epilogueArgs));
+
             BlockInfo binfo = {
                 .bm = (int)blockIdx.x,
                 .bn = (int)blockIdx.y,
@@ -2405,7 +2418,7 @@ public:
     
 
     struct EpilogueGLU {
-        struct Arguments {};
+        struct Arguments { size_t unused; };
 
         __device__ __forceinline__
         void operator()(const BlockInfo binfo, fpsum_warp fpsum, half_t *out, int M, int N, int K, Arguments args) {
@@ -2419,7 +2432,7 @@ public:
     };
 
     struct EpilogueSilu {
-        struct Arguments {};
+        struct Arguments { size_t unused; };
 
         __device__ __forceinline__
         void operator()(const BlockInfo binfo, fpsum_warp fpsum, half_t *out, int M, int N, int K, Arguments args) {
@@ -2648,6 +2661,24 @@ static void invoke_kernel(T ...args) {
     kernel()(args...);
 }
 
+template<typename T>
+__global__
+static void test_sizeof_device() {
+    printf("sizeof on device = %d\n", (int)sizeof(T));
+}
+
+template<typename T>
+static void test_sizeof_host() {
+    printf("sizeof on host = %d\n", (int)sizeof(T));
+}
+
+template<typename T>
+static void test_sizeof() {
+    printf("typeid = %s\n", typeid(T).name());
+    test_sizeof_host<T>();
+    test_sizeof_device<T><<<1, 1>>>();
+    checkCUDA(cudaDeviceSynchronize());
+}
 
 void gemm_w4a4(
         Tensor act,          // packed act [M, K / 2]
@@ -2677,6 +2708,13 @@ void gemm_w4a4(
     int K = act.shape[-1] * 2;
     assert(K == wgt.shape[1] * 2);
 
+    // spdlog::info("M={} N={} K={}", M, N, K);
+    // spdlog::info("act at {}", act.data_ptr());
+    // spdlog::info("wgt at {}", wgt.data_ptr());
+    // spdlog::info("ascales at {}", ascales.data_ptr());
+    // spdlog::info("wscales at {}", wscales.data_ptr());
+    // spdlog::info("bias at {}", bias.data_ptr());
+
     auto launch = [&]<typename Epilogue>(Epilogue::Arguments args) {
         dim3 grid(M / GEMM::BLOCK_M, N / GEMM::BLOCK_N);
 
@@ -2686,6 +2724,10 @@ void gemm_w4a4(
         }
 
         dispatchBool(act_unsigned, [&]<bool ACT_UNSIGNED>() {
+            // test_sizeof<typename Epilogue::Arguments>();
+            // std::apply([](auto ...args) {
+            //     (test_sizeof<decltype(args)>(), ...);
+            // }, args);
             invoke_kernel<GEMM::gemm_w4a4_kernel<Epilogue, ACT_UNSIGNED>><<<grid, GEMM::WARP_SIZE * GEMM::NUM_WARPS>>>(
                 act.data_ptr<GEMM::packed_act_t>(),
                 wgt.data_ptr<GEMM::packed_wgt_t>(),
@@ -2709,12 +2751,15 @@ void gemm_w4a4(
 
         assert(bias.numel() == N);
 
-        using Epilogue = GEMM::EpilogueCombination<GEMM::EpilogueBias, NextEpilogue>;
+        // append EpilgoueNop to workaround mismatched memory layout of std::tuple between device and host code on Windows
+        // ** sizeof(std::tuple<std::tuple<int>>) == 8 on device **
+        using Epilogue = GEMM::EpilogueCombination<GEMM::EpilogueBias, NextEpilogue, GEMM::EpilogueNop>;
         return launch.template operator()<Epilogue>({
             GEMM::EpilogueBias::Arguments{
                 .bias = bias.data_ptr<GEMM::packed_wscale_t>(),
             },
-            nextArgs
+            nextArgs,
+            {}
         });
     };
     // auto launch_bias = launch;
@@ -2748,7 +2793,7 @@ void gemm_w4a4(
             }
 
             if (!lora_down.valid()) {
-                using Epilogue = typename GEMM::EpilogueCombination<typename LoraUp::EpilogueLoraUp, MidEpilogue, NextEpilogue>;
+                using Epilogue = typename GEMM::EpilogueCombination<typename LoraUp::EpilogueLoraUp, MidEpilogue, NextEpilogue, GEMM::EpilogueNop>;
                 return launch_bias.template operator()<Epilogue>({
                     typename LoraUp::EpilogueLoraUp::Arguments{
                         .lora_act = lora_act_in.data_ptr<float>(),
@@ -2756,7 +2801,8 @@ void gemm_w4a4(
                         .scales = scales,
                     },
                     midArgs,
-                    nextArgs
+                    nextArgs,
+                    {}
                 });
             }
 
@@ -2774,7 +2820,7 @@ void gemm_w4a4(
             // dispatchVal(rank_down, std::integer_sequence<int, 16, 32, 48, 64, 80>(), [&]<int RANK_DOWN>() {
 
             using LoraDown = LoraUp; // GEMM::Lora<RANK_DOWN>;
-            using Epilogue = GEMM::EpilogueCombination<typename LoraUp::EpilogueLoraUp, MidEpilogue, typename LoraDown::EpilogueLoraDown, NextEpilogue>;
+            using Epilogue = GEMM::EpilogueCombination<typename LoraUp::EpilogueLoraUp, MidEpilogue, typename LoraDown::EpilogueLoraDown, NextEpilogue, GEMM::EpilogueNop>;
             return launch_bias.template operator()<Epilogue>({
                 typename LoraUp::EpilogueLoraUp::Arguments{
                     .lora_act = lora_act_in.data_ptr<float>(),
@@ -2786,7 +2832,8 @@ void gemm_w4a4(
                     .lora_wgt_down = lora_down.data_ptr<GEMM::packed_fpsum_t>(),
                     .lora_act = lora_act_out.data_ptr<float>(),
                 },
-                nextArgs
+                nextArgs,
+                {}
             });
 
             // });

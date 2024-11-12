@@ -3,6 +3,22 @@ import os
 import setuptools
 from torch.utils.cpp_extension import BuildExtension, CUDAExtension
 
+
+class CustomBuildExtension(BuildExtension):
+    def build_extensions(self):
+        for ext in self.extensions:
+            if not "cxx" in ext.extra_compile_args:
+                ext.extra_compile_args["cxx"] = []
+            if not "nvcc" in ext.extra_compile_args:
+                ext.extra_compile_args["nvcc"] = []
+            if self.compiler.compiler_type == "msvc":
+                ext.extra_compile_args["cxx"] += ext.extra_compile_args["msvc"]
+                ext.extra_compile_args["nvcc"] += ext.extra_compile_args["nvcc_msvc"]
+            else:
+                ext.extra_compile_args["cxx"] += ext.extra_compile_args["gcc"]
+        super().build_extensions()
+
+
 if __name__ == "__main__":
     fp = open("nunchaku/__version__.py", "r").read()
     version = eval(fp.strip().split()[-1])
@@ -15,9 +31,10 @@ if __name__ == "__main__":
         "third_party/json/include",
         "third_party/mio/include",
         "third_party/spdlog/include",
+        "third_party/Block-Sparse-Attention/csrc/block_sparse_attn",
     ]
 
-    INCLUDE_DIRS = ["-I" + ROOT_DIR + "/" + dir for dir in INCLUDE_DIRS]
+    INCLUDE_DIRS = [ROOT_DIR + "/" + dir for dir in INCLUDE_DIRS]
 
     DEBUG = False
 
@@ -33,16 +50,24 @@ if __name__ == "__main__":
         else:
             return []
 
-    CXX_FLAGS = [
+    GCC_FLAGS = [
+        "-DENABLE_BF16=1",
         "-DBUILD_NUNCHAKU=1",
         "-fvisibility=hidden",
         "-g",
         "-std=c++20",
         "-UNDEBUG",
         "-Og",
-        *INCLUDE_DIRS,
+    ]
+    MSVC_FLAGS = [
+        "/DENABLE_BF16=1",
+        "/DBUILD_NUNCHAKU=1",
+        "/std:c++20",
+        "/UNDEBUG",
+        "/Zc:__cplusplus",
     ]
     NVCC_FLAGS = [
+        "-DENABLE_BF16=1",
         "-DBUILD_NUNCHAKU=1",
         "-gencode",
         "arch=compute_86,code=sm_86",
@@ -67,8 +92,9 @@ if __name__ == "__main__":
         "--expt-extended-lambda",
         "--generate-line-info",
         "--ptxas-options=--allow-expensive-optimizations=true",
-        *INCLUDE_DIRS,
     ]
+    # https://github.com/NVIDIA/cutlass/pull/1479#issuecomment-2052300487
+    NVCC_MSVC_FLAGS = ["-Xcompiler", "/Zc:__cplusplus"]
 
     nunchaku_extension = CUDAExtension(
         name="nunchaku._C",
@@ -80,14 +106,30 @@ if __name__ == "__main__":
             "src/Linear.cpp",
             *ncond("src/FluxModel.cpp"),
             "src/Serialization.cpp",
-            *ncond("src/kernels/flash_attn/src/flash_fwd_hdim64_fp16_sm80.cu"),
-            *ncond("src/kernels/flash_attn/src/flash_fwd_hdim64_bf16_sm80.cu"),
-            *ncond("src/kernels/flash_attn/src/flash_fwd_hdim128_fp16_sm80.cu"),
-            *ncond("src/kernels/flash_attn/src/flash_fwd_hdim128_bf16_sm80.cu"),
-            *ncond("src/kernels/flash_attn/src/flash_fwd_block_hdim64_fp16_sm80.cu"),
-            *ncond("src/kernels/flash_attn/src/flash_fwd_block_hdim64_bf16_sm80.cu"),
-            *ncond("src/kernels/flash_attn/src/flash_fwd_block_hdim128_fp16_sm80.cu"),
-            *ncond("src/kernels/flash_attn/src/flash_fwd_block_hdim128_bf16_sm80.cu"),
+            *ncond(
+                "third_party/Block-Sparse-Attention/csrc/block_sparse_attn/src/flash_fwd_hdim64_fp16_sm80.cu"
+            ),
+            *ncond(
+                "third_party/Block-Sparse-Attention/csrc/block_sparse_attn/src/flash_fwd_hdim64_bf16_sm80.cu"
+            ),
+            *ncond(
+                "third_party/Block-Sparse-Attention/csrc/block_sparse_attn/src/flash_fwd_hdim128_fp16_sm80.cu"
+            ),
+            *ncond(
+                "third_party/Block-Sparse-Attention/csrc/block_sparse_attn/src/flash_fwd_hdim128_bf16_sm80.cu"
+            ),
+            *ncond(
+                "third_party/Block-Sparse-Attention/csrc/block_sparse_attn/src/flash_fwd_block_hdim64_fp16_sm80.cu"
+            ),
+            *ncond(
+                "third_party/Block-Sparse-Attention/csrc/block_sparse_attn/src/flash_fwd_block_hdim64_bf16_sm80.cu"
+            ),
+            *ncond(
+                "third_party/Block-Sparse-Attention/csrc/block_sparse_attn/src/flash_fwd_block_hdim128_fp16_sm80.cu"
+            ),
+            *ncond(
+                "third_party/Block-Sparse-Attention/csrc/block_sparse_attn/src/flash_fwd_block_hdim128_bf16_sm80.cu"
+            ),
             "src/kernels/activation_kernels.cu",
             "src/kernels/layernorm_kernels.cu",
             "src/kernels/misc_kernels.cu",
@@ -95,10 +137,20 @@ if __name__ == "__main__":
             "src/kernels/gemm_batched.cu",
             "src/kernels/gemm_f16.cu",
             "src/kernels/awq/gemv_awq.cu",
-            *ncond("src/kernels/flash_attn/flash_api.cpp"),
-            *ncond("src/kernels/flash_attn/flash_api_adapter.cpp"),
+            *ncond(
+                "third_party/Block-Sparse-Attention/csrc/block_sparse_attn/flash_api.cpp"
+            ),
+            *ncond(
+                "third_party/Block-Sparse-Attention/csrc/block_sparse_attn/flash_api_adapter.cpp"
+            ),
         ],
-        extra_compile_args={"cxx": CXX_FLAGS, "nvcc": NVCC_FLAGS},
+        extra_compile_args={
+            "gcc": GCC_FLAGS,
+            "msvc": MSVC_FLAGS,
+            "nvcc": NVCC_FLAGS,
+            "nvcc_msvc": NVCC_MSVC_FLAGS,
+        },
+        include_dirs=INCLUDE_DIRS,
     )
 
     setuptools.setup(
@@ -106,5 +158,5 @@ if __name__ == "__main__":
         version=version,
         packages=setuptools.find_packages(),
         ext_modules=[nunchaku_extension],
-        cmdclass={"build_ext": BuildExtension},
+        cmdclass={"build_ext": CustomBuildExtension},
     )

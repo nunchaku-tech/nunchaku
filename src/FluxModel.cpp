@@ -1,7 +1,7 @@
 #include "FluxModel.h"
 #include "kernels/misc_kernels.h"
-#include "kernels/flash_attn/flash_api.h"
 #include "kernels/gemm_batched.h"
+#include "flash_api.h"
 #include "activation.h"
 
 #include <nvtx3/nvToolsExt.h>
@@ -106,7 +106,7 @@ AdaLayerNormZero::Output AdaLayerNormZero::forward(Tensor x, Tensor emb) {
 
 
 Attention::Attention(int num_heads, int dim_head, Device device) : 
-    num_heads(num_heads), dim_head(dim_head) 
+    num_heads(num_heads), dim_head(dim_head), force_fp16(false)
 {
     headmask_type = Tensor::allocate({num_heads}, Tensor::INT32, Device::cpu());
     for (int i = 0; i < num_heads; i++) {
@@ -116,6 +116,8 @@ Attention::Attention(int num_heads, int dim_head, Device device) :
 }
 
 Tensor Attention::forward(Tensor qkv, Tensor pool_qkv, float sparsityRatio) {
+    const bool cast_fp16 = this->force_fp16 && qkv.scalar_type() != Tensor::FP16;
+
     assert(qkv.ndims() == 3);
 
     const Device device = qkv.device();
@@ -169,6 +171,14 @@ Tensor Attention::forward(Tensor qkv, Tensor pool_qkv, float sparsityRatio) {
         }
     }
 
+    if (cast_fp16) {
+        Tensor tmp = Tensor::empty(qkv.shape.dataExtent, Tensor::FP16, qkv.device());
+        cast(qkv, tmp);
+        qkv = tmp;
+    }
+
+    debug("qkv", qkv);
+
     Tensor cu_seqlens = cu_seqlens_cpu.copy(device);
 
     Tensor reshaped = qkv.view({batch_size * num_tokens, num_heads * 3, dim_head});
@@ -191,6 +201,14 @@ Tensor Attention::forward(Tensor qkv, Tensor pool_qkv, float sparsityRatio) {
         pow(q.shape[-1], (-0.5)),
         false, false, false, -1, -1
     ).front();
+
+    debug("raw_attn_output", raw_attn_output);
+
+    if (cast_fp16) {
+        Tensor tmp = Tensor::empty(raw_attn_output.shape.dataExtent, Tensor::BF16, raw_attn_output.device());
+        cast(raw_attn_output, tmp);
+        raw_attn_output = tmp;
+    }
 
     /**
     Tensor raw_attn_output = mha_varlen_fwd(q, k, v,
@@ -229,6 +247,16 @@ Tensor Attention::forward(Tensor qkv, Tensor pool_qkv, float sparsityRatio) {
     return raw_attn_output;
 }
 
+void Attention::setForceFP16(Module *module, bool value) {
+    spdlog::info("{} force fp16 attention", value ? "Enable" : "Disable");
+
+    module->traverse([&](Module *m) {
+        if (Attention *attn = dynamic_cast<Attention *>(m)) {
+            attn->force_fp16 = value;
+        }
+    });
+}
+
 FluxSingleTransformerBlock::FluxSingleTransformerBlock(int dim, int num_attention_heads, int attention_head_dim, int mlp_ratio, Tensor::ScalarType dtype, Device device) :
     dim(dim), 
     dim_head(attention_head_dim / num_attention_heads),
@@ -250,6 +278,7 @@ FluxSingleTransformerBlock::FluxSingleTransformerBlock(int dim, int num_attentio
         (qkv_proj, "qkv_proj")
         (norm_q, "norm_q")
         (norm_k, "norm_k")
+        (attn, "attn")
         (out_proj, "out_proj")
     ;
 }
@@ -328,6 +357,7 @@ JointTransformerBlock::JointTransformerBlock(int dim, int num_attention_heads, i
         (norm_k, "norm_k")
         (norm_added_q, "norm_added_q")
         (norm_added_k, "norm_added_k")
+        (attn, "attn")
         (out_proj, "out_proj")
         (out_proj_context, "out_proj_context")
         (norm2, "norm2")

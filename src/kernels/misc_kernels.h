@@ -11,6 +11,8 @@ void splitqkv(Tensor qkv, Tensor q, Tensor k, Tensor v);
 Tensor quant_static(Tensor x, float scale);
 Tensor quant_static_fuse_gelu(Tensor x, float scale);
 
+void cast(Tensor input, Tensor output);
+
 Tensor topk(Tensor x, int k);
 
 template<size_t N>

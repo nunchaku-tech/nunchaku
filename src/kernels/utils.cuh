@@ -8,6 +8,10 @@
 
 #include <cuda_fp16.h>
 
+#ifdef ENABLE_BF16
+#include <cuda_bf16.h>
+#endif
+
 template<typename T> struct num_elems;
 template <>          struct num_elems<float>           { static constexpr int value = 1; };
 template <>          struct num_elems<float2>          { static constexpr int value = 2; };

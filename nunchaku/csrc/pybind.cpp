@@ -26,6 +26,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
         .def("stopDebug", &QuantizedFluxModel::stopDebug)
         .def("getDebugResults", &QuantizedFluxModel::getDebugResults)
         .def("setLoraScale", &QuantizedFluxModel::setLoraScale)
+        .def("forceFP16Attention", &QuantizedFluxModel::forceFP16Attention)
     ;
     py::class_<QuantizedGEMM>(m, "QuantizedGEMM")
         // .def(torch::init<>())

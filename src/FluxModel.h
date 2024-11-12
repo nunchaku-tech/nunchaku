@@ -53,16 +53,19 @@ private:
     LayerNorm norm;
 };
 
-class Attention {
+class Attention : public Module {
 public:
     static constexpr int POOL_SIZE = 128;
     
     Attention(int num_heads, int dim_head, Device device);
     Tensor forward(Tensor qkv, Tensor pool_qkv, float sparsityRatio);
 
+    static void setForceFP16(Module *module, bool value);
+
 public:
     const int num_heads;
     const int dim_head;
+    bool force_fp16;
 
 private:
     Tensor cu_seqlens_cpu;

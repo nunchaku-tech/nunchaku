@@ -1,10 +1,12 @@
 #include "reduction_utils.cuh"
 #include <array>
 
+#include <cuda_fp16.h>
+#include <cuda_bf16.h>
+
 #include "utils.cuh"
 #include "activation_kernels_impl.cuh"
 
-#include <cuda_fp16.h>
 
 template<typename T>
 __global__ void add_kernel(T *a, T *b, T *c, size_t length) {
@@ -162,7 +164,27 @@ __global__ void quant_kernel_static_fuse_gelu(const T * input, int8_t * output, 
     *reinterpret_cast<I8vec *>(&output[i]) = routput;
 }
 
-#include <cstdio>
+template<typename Tin, typename Tout, int unroll>
+__global__ void cast_kernel(const Tin *input, Tout *output, size_t length) {
+    const int i = (blockIdx.x * blockDim.x + threadIdx.x) * unroll;
+
+    using Tvec_in = ::Tvec<Tin, unroll>;
+    using Tvec_out = ::Tvec<Tout, unroll>;
+
+    Tvec_in  rinput = *reinterpret_cast<const Tvec_in *>(&input[i]);
+    Tvec_out routput;
+
+#pragma unroll
+    for (int k = 0; k < unroll; k++) {
+        routput.data[k] = cuda_cast<Tout, Tin>(rinput.data[k]);
+        if constexpr (std::is_same_v<Tout, half>) {
+            routput.data[k] = __hmin(routput.data[k], (half)65504);
+            routput.data[k] = __hmax(routput.data[k], (half)-65504);
+        }
+    }
+
+    *reinterpret_cast<Tvec_out *>(&output[i]) = routput;
+}
 
 // input:  [..., N]
 // output: [..., K] of index in reverse order

@@ -27,7 +27,6 @@
 #include "gemv_awq.h"
 #include "../dispatch_utils.h"
 
-#define ENABLE_BF16 1
 #include "../utils.cuh"
 
 #include <cuda_fp16.h>

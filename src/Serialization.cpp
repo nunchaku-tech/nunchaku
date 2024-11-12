@@ -75,7 +75,7 @@ private:
 class SafeTensors::MMapImplPrivate : public SafeTensors::MMapImpl {
 public:
     MMapImplPrivate(const std::string &filename) {
-        throw std::runtime_error("MAP_PRIVATE is not implemented on this system")
+        throw std::runtime_error("MAP_PRIVATE is not implemented on this system");
     }
 
     virtual size_t size() override {

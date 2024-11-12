@@ -60,7 +60,7 @@ static void store(T *addr, T val) {
     }
 
     if constexpr (sizeof(T) == 4) {
-        __stcg(reinterpret_cast<uint *>(addr), *reinterpret_cast<uint *>(&val));
+        __stcg(reinterpret_cast<unsigned int *>(addr), *reinterpret_cast<unsigned int *>(&val));
         return;
     }
     if constexpr (sizeof(T) == 8) {
