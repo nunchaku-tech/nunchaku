@@ -62,6 +62,7 @@ SVDQuant is a post-training quantization technique for 4-bit weights and activat
 
 
 	MAX_JOBS=6 pip install --no-deps --no-build-isolation -e .
+	MAX_JOBS=6 pip install --no-deps --no-build-isolation -e . --no-compile
 
 	MAX_JOBS=6 python -m build --no-isolation -v
 
