@@ -486,7 +486,7 @@ std::tuple<Tensor, Tensor> JointTransformerBlock::forward(Tensor hidden_states, 
                 raw_attn_output_split.data_ptr(), 
                 num_tokens_img * num_heads * dim_head * raw_attn_output_split.scalar_size(),
                 raw_attn_output.data_ptr(),
-                (num_tokens_img + num_tokens_context) * num_heads * dim_head * raw_attn_output.scalar_size(),
+                (num_tokens_img + num_tokens_context) * num_heads * dim_head * raw_attn_output_split.scalar_size(),
                 num_tokens_img * num_heads * dim_head * raw_attn_output_split.scalar_size(),
                 batch_size,
                 cudaMemcpyDeviceToDevice, 
@@ -631,7 +631,9 @@ Tensor FluxModel::forward(
     Tensor rotary_emb_img,
     Tensor rotary_emb_context,
     Tensor rotary_emb_single,
-    float guidance_scale
+    float guidance_scale,
+    const std::vector<Tensor>* controlnet_block_samples,
+    const std::vector<Tensor>* controlnet_single_block_samples
 ) {
     const int batch_size = hidden_states.shape[0];
     const Tensor::ScalarType dtype = hidden_states.dtype();
@@ -643,8 +645,22 @@ Tensor FluxModel::forward(
     // 使用传入的guidance_scale参数或成员变量
     float effective_scale = guidance_scale > 0.0f ? guidance_scale : guidance_scale_;
 
-    for (auto &&block : transformer_blocks) {
-        std::tie(hidden_states, encoder_hidden_states) = block->forward(hidden_states, encoder_hidden_states, temb, rotary_emb_img, rotary_emb_context, effective_scale);
+    // Joint transformer blocks with controlnet
+    for (size_t i = 0; i < transformer_blocks.size(); i++) {
+        std::tie(hidden_states, encoder_hidden_states) = transformer_blocks[i]->forward(
+            hidden_states, encoder_hidden_states, temb, 
+            rotary_emb_img, rotary_emb_context, effective_scale
+        );
+
+        // Add controlnet residual if available
+        if (controlnet_block_samples && !controlnet_block_samples->empty()) {
+            int interval = std::ceil(
+                float(transformer_blocks.size()) / controlnet_block_samples->size()
+            );
+            if (i % interval == 0) {
+                hidden_states = hidden_states + (*controlnet_block_samples)[i / interval];
+            }
+        }
     }
 
     // txt first, same as diffusers
@@ -656,8 +672,29 @@ Tensor FluxModel::forward(
     hidden_states = concat;
     encoder_hidden_states = {};
 
-    for (auto &&block : single_transformer_blocks) {
-        hidden_states = block->forward(hidden_states, temb, rotary_emb_single);
+    // Single transformer blocks with controlnet
+    for (size_t i = 0; i < single_transformer_blocks.size(); i++) {
+        hidden_states = single_transformer_blocks[i]->forward(
+            hidden_states, temb, rotary_emb_single
+        );
+
+        // Add controlnet residual if available
+        if (controlnet_single_block_samples && !controlnet_single_block_samples->empty()) {
+            int interval = std::ceil(
+                float(single_transformer_blocks.size()) / controlnet_single_block_samples->size()
+            );
+            if (i % interval == 0) {
+                // Only apply to image tokens, not text tokens
+                Tensor img_states = hidden_states.slice(1, txt_tokens, txt_tokens + img_tokens);
+                img_states = img_states + (*controlnet_single_block_samples)[i / interval];
+                // Copy back
+                for (int b = 0; b < batch_size; b++) {
+                    hidden_states.slice(0, b, b + 1)
+                               .slice(1, txt_tokens, txt_tokens + img_tokens)
+                               .copy_(img_states.slice(0, b, b + 1));
+                }
+            }
+        }
     }
 
     return hidden_states;

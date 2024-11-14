@@ -137,7 +137,9 @@ public:
         Tensor rotary_emb_img,
         Tensor rotary_emb_context,
         Tensor rotary_emb_single,
-        float guidance_scale = 0.0f
+        float guidance_scale = 0.0f,
+        const std::vector<Tensor>* controlnet_block_samples = nullptr,
+        const std::vector<Tensor>* controlnet_single_block_samples = nullptr
     );
 
     void setGuidanceScale(float scale);
