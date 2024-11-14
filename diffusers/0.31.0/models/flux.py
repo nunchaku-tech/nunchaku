@@ -22,8 +22,8 @@ class NunchakuFluxModel(nn.Module):
         self,
         /,
         hidden_states: torch.Tensor,
-        encoder_hidden_states: torch.Tensor,
         temb: torch.Tensor,
+        encoder_hidden_states: torch.Tensor,
         image_rotary_emb: torch.Tensor,
         joint_attention_kwargs=None,
         controlnet_block_samples=None,
@@ -40,10 +40,8 @@ class NunchakuFluxModel(nn.Module):
         temb = temb.to(self.dtype)
 
         # Get sparsity ratio and guidance scale from joint_attention_kwargs if provided
-        sparsity_ratio = 0.0
         guidance_scale = 0.0
         if joint_attention_kwargs is not None:
-            sparsity_ratio = joint_attention_kwargs.get("sparsity_ratio", 0.0)
             guidance_scale = joint_attention_kwargs.get("guidance_scale", 0.0)
 
         rotary_emb_txt = image_rotary_emb[:, :txt_tokens]

@@ -137,18 +137,11 @@ public:
         Tensor rotary_emb_img,
         Tensor rotary_emb_context,
         Tensor rotary_emb_single,
-        float guidance_scale = 0.0f,
         const std::vector<Tensor>* controlnet_block_samples = nullptr,
         const std::vector<Tensor>* controlnet_single_block_samples = nullptr
     );
 
-    void setGuidanceScale(float scale);
-    float getGuidanceScale() const;
-
 public:
     std::vector<std::unique_ptr<JointTransformerBlock>> transformer_blocks;
     std::vector<std::unique_ptr<FluxSingleTransformerBlock>> single_transformer_blocks;
-    
-private:
-    float guidance_scale_;
 };
