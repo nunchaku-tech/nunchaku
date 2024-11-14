@@ -605,7 +605,7 @@ std::tuple<Tensor, Tensor> JointTransformerBlock::forward(Tensor hidden_states, 
     return { hidden_states, encoder_hidden_states };
 }
 
-FluxModel::FluxModel(Tensor::ScalarType dtype, Device device) {
+FluxModel::FluxModel(Tensor::ScalarType dtype, Device device) : guidance_scale_(0.0f) {
     for (int i = 0; i < 19; i++) {
         transformer_blocks.push_back(std::make_unique<JointTransformerBlock>(3072, 24, 3072, false, dtype, device));
         registerChildren(*transformer_blocks.back(), format("transformer_blocks.{}", i));
@@ -616,7 +616,23 @@ FluxModel::FluxModel(Tensor::ScalarType dtype, Device device) {
     }
 }
 
-Tensor FluxModel::forward(Tensor hidden_states, Tensor encoder_hidden_states, Tensor temb, Tensor rotary_emb_img, Tensor rotary_emb_context, Tensor rotary_emb_single) {
+void FluxModel::setGuidanceScale(float scale) {
+    guidance_scale_ = scale;
+}
+
+float FluxModel::getGuidanceScale() const {
+    return guidance_scale_;
+}
+
+Tensor FluxModel::forward(
+    Tensor hidden_states,
+    Tensor encoder_hidden_states,
+    Tensor temb,
+    Tensor rotary_emb_img,
+    Tensor rotary_emb_context,
+    Tensor rotary_emb_single,
+    float guidance_scale
+) {
     const int batch_size = hidden_states.shape[0];
     const Tensor::ScalarType dtype = hidden_states.dtype();
     const Device device = hidden_states.device();
@@ -624,8 +640,11 @@ Tensor FluxModel::forward(Tensor hidden_states, Tensor encoder_hidden_states, Te
     const int txt_tokens = encoder_hidden_states.shape[1];
     const int img_tokens = hidden_states.shape[1];
 
+    // 使用传入的guidance_scale参数或成员变量
+    float effective_scale = guidance_scale > 0.0f ? guidance_scale : guidance_scale_;
+
     for (auto &&block : transformer_blocks) {
-        std::tie(hidden_states, encoder_hidden_states) = block->forward(hidden_states, encoder_hidden_states, temb, rotary_emb_img, rotary_emb_context, 0.0f);
+        std::tie(hidden_states, encoder_hidden_states) = block->forward(hidden_states, encoder_hidden_states, temb, rotary_emb_img, rotary_emb_context, effective_scale);
     }
 
     // txt first, same as diffusers
