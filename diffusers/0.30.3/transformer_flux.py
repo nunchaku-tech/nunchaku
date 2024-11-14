@@ -1,51 +1,36 @@
-# Copyright 2024 Black Forest Labs, The HuggingFace Team. All rights reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-
 from typing import Any, Dict, List, Optional, Union
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from ...configuration_utils import ConfigMixin, register_to_config
-from ...loaders import FromOriginalModelMixin, PeftAdapterMixin
-from ...models.attention import FeedForward
-from ...models.attention_processor import (
+from diffusers.configuration_utils import ConfigMixin, register_to_config
+from diffusers.loaders import FromOriginalModelMixin, PeftAdapterMixin
+from diffusers.models.attention import FeedForward
+from diffusers.models.attention_processor import (
     Attention,
     FluxAttnProcessor2_0,
     FluxSingleAttnProcessor2_0,
 )
-from ...models.modeling_utils import ModelMixin
-from ...models.normalization import (
+from diffusers.models.modeling_utils import ModelMixin
+from diffusers.models.normalization import (
     AdaLayerNormContinuous,
     AdaLayerNormZero,
     AdaLayerNormZeroSingle,
 )
-from ...utils import (
+from diffusers.utils import (
     USE_PEFT_BACKEND,
     is_torch_version,
     logging,
     scale_lora_layers,
     unscale_lora_layers,
 )
-from ...utils.torch_utils import maybe_allow_in_graph
-from ..embeddings import (
+from diffusers.utils.torch_utils import maybe_allow_in_graph
+from diffusers.embeddings import (
     CombinedTimestepGuidanceTextProjEmbeddings,
     CombinedTimestepTextProjEmbeddings,
 )
-from ..modeling_outputs import Transformer2DModelOutput
+from diffusers.modeling_outputs import Transformer2DModelOutput
 
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
