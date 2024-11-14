@@ -150,24 +150,3 @@ public:
 private:
     float guidance_scale_;
 };
-
-// 添加辅助函数声明
-std::tuple<Tensor, Tensor> get_1d_rotary_pos_embed(
-    int dim,
-    Tensor pos,
-    bool repeat_interleave_real = true,
-    bool use_real = true,
-    Tensor::ScalarType freqs_dtype = Tensor::FP32
-);
-
-class FluxPosEmbed : public Module {
-public:
-    FluxPosEmbed(int theta, const std::vector<int>& axes_dim);
-    
-    // 返回 cos 和 sin 的元组
-    std::tuple<Tensor, Tensor> forward(Tensor ids);
-
-private:
-    int theta_;
-    std::vector<int> axes_dim_;
-};
