@@ -605,7 +605,7 @@ std::tuple<Tensor, Tensor> JointTransformerBlock::forward(Tensor hidden_states, 
     return { hidden_states, encoder_hidden_states };
 }
 
-FluxModel::FluxModel(Tensor::ScalarType dtype, Device device) : guidance_scale_(0.0f) {
+FluxModel::FluxModel(Tensor::ScalarType dtype, Device device) {
     for (int i = 0; i < 19; i++) {
         transformer_blocks.push_back(std::make_unique<JointTransformerBlock>(3072, 24, 3072, false, dtype, device));
         registerChildren(*transformer_blocks.back(), format("transformer_blocks.{}", i));
@@ -616,14 +616,6 @@ FluxModel::FluxModel(Tensor::ScalarType dtype, Device device) : guidance_scale_(
     }
 }
 
-void FluxModel::setGuidanceScale(float scale) {
-    guidance_scale_ = scale;
-}
-
-float FluxModel::getGuidanceScale() const {
-    return guidance_scale_;
-}
-
 Tensor FluxModel::forward(
     Tensor hidden_states,
     Tensor encoder_hidden_states,
@@ -631,9 +623,8 @@ Tensor FluxModel::forward(
     Tensor rotary_emb_img,
     Tensor rotary_emb_context,
     Tensor rotary_emb_single,
-    float guidance_scale,
-    const std::vector<Tensor>* controlnet_block_samples,
-    const std::vector<Tensor>* controlnet_single_block_samples
+    const std::vector<Tensor>* controlnet_block_samples = nullptr,
+    const std::vector<Tensor>* controlnet_single_block_samples = nullptr
 ) {
     const int batch_size = hidden_states.shape[0];
     const Tensor::ScalarType dtype = hidden_states.dtype();
@@ -642,14 +633,11 @@ Tensor FluxModel::forward(
     const int txt_tokens = encoder_hidden_states.shape[1];
     const int img_tokens = hidden_states.shape[1];
 
-    // 使用传入的guidance_scale参数或成员变量
-    float effective_scale = guidance_scale > 0.0f ? guidance_scale : guidance_scale_;
-
     // Joint transformer blocks with controlnet
     for (size_t i = 0; i < transformer_blocks.size(); i++) {
         std::tie(hidden_states, encoder_hidden_states) = transformer_blocks[i]->forward(
             hidden_states, encoder_hidden_states, temb, 
-            rotary_emb_img, rotary_emb_context, effective_scale
+            rotary_emb_img, rotary_emb_context, 0.0f
         );
 
         // Add controlnet residual if available
