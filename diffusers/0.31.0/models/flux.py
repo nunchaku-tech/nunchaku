@@ -114,7 +114,7 @@ def inject_transformer(
         transformer_model: 原始transformer模型
         custom_model: 要注入的自定义模型
     """
-    transformer_model.pos_embed = FluxPosEmbed(theta=10000, axes_dim=[16, 56, 56])
+    transformer_model.pos_embed = FluxPosEmbed(theta=10000, axes_dim=(16, 56, 56))
 
     # 替换transformer块
     transformer_model.transformer_blocks = torch.nn.ModuleList([NunchakuFluxModel(m)])
