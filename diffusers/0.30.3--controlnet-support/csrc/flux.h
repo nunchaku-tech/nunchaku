@@ -39,7 +39,9 @@ public:
         torch::Tensor temb, 
         torch::Tensor rotary_emb_img, 
         torch::Tensor rotary_emb_context, 
-        torch::Tensor rotary_emb_single) 
+        torch::Tensor rotary_emb_single,
+        const std::vector<torch::Tensor>* controlnet_block_samples = nullptr,
+        const std::vector<torch::Tensor>* controlnet_single_block_samples = nullptr) 
     {
         checkModel();
 
@@ -52,13 +54,31 @@ public:
         rotary_emb_context = rotary_emb_context.contiguous();
         rotary_emb_single = rotary_emb_single.contiguous();
 
+        // 转换controlnet samples
+        std::vector<Tensor> block_samples;
+        std::vector<Tensor> single_block_samples;
+        
+        if (controlnet_block_samples) {
+            for (const auto& t : *controlnet_block_samples) {
+                block_samples.push_back(from_torch(t));
+            }
+        }
+        
+        if (controlnet_single_block_samples) {
+            for (const auto& t : *controlnet_single_block_samples) {
+                single_block_samples.push_back(from_torch(t));
+            }
+        }
+
         Tensor result = net->forward(
             from_torch(hidden_states),
             from_torch(encoder_hidden_states),
             from_torch(temb),
             from_torch(rotary_emb_img),
             from_torch(rotary_emb_context),
-            from_torch(rotary_emb_single)
+            from_torch(rotary_emb_single),
+            block_samples.empty() ? nullptr : &block_samples,
+            single_block_samples.empty() ? nullptr : &single_block_samples
         );
 
         torch::Tensor output = to_torch(result);
