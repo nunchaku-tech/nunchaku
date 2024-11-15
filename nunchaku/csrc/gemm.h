@@ -86,7 +86,7 @@ public:
                     const int offset = ((bm * (K / WARP_K) + bn) * NUM_WARPS + warpId) * WARP_M_TILES * WARP_SIZE * 4;
 
                     for (int i = 0; i < 16; i++) {
-                        assert(static_cast<size_t>(offset + i) < x.numel() / 4);
+                        assert(offset + i < x.numel() / 4);
                         uint32_t val = x.data_ptr<uint32_t>()[offset + i];
                         ss << "{";
                         for (int j = 0; j < 8; j++) {
