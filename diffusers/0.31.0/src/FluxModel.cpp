@@ -301,7 +301,19 @@ Tensor FluxSingleTransformerBlock::forward(Tensor hidden_states, Tensor temb, Te
     // debug("qkv_raw", qkv);
 
     debug("rotary_emb", rotary_emb);
-    qkv_proj.forward(norm_hidden_states, qkv, {}, norm_q.weight, norm_k.weight, rotary_emb);
+
+    auto [rotary_cos, rotary_sin] = rotary_emb;
+    qkv_proj.forward(
+        norm_hidden_states,
+        qkv,
+        {},
+        norm_q.weight, 
+        norm_k.weight,
+        rotary_cos,
+        rotary_sin
+    );
+
+
     debug("qkv", qkv);
     // Tensor qkv = forward_fc(qkv_proj, norm_hidden_states);
     
@@ -438,7 +450,18 @@ std::tuple<Tensor, Tensor> JointTransformerBlock::forward(Tensor hidden_states, 
 
             debug("rotary_emb", rotary_emb);
 
-            qkv_proj.forward(norm1_output.x.slice(0, i, i + 1), qkv, pool_qkv, norm_q.weight, norm_k.weight, rotary_emb);
+            auto [rotary_cos, rotary_sin] = rotary_emb;
+            qkv_proj.forward(
+                norm1_output.x.slice(0, i, i + 1), 
+                qkv,
+                pool_qkv,
+                norm_q.weight,
+                norm_k.weight,
+                rotary_cos,  // cos分量
+                rotary_sin   // sin分量
+            );
+
+
             debug("qkv", qkv);
 
             // qkv_proj_context.forward(norm1_context_output.x.slice(0, i, i + 1), qkv_context);

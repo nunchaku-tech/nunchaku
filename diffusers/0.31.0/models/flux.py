@@ -1,5 +1,6 @@
 import os
 import types
+from typing import Tuple
 
 import torch
 from diffusers import FluxPipeline, FluxTransformer2DModel
@@ -24,7 +25,7 @@ class NunchakuFluxModel(nn.Module):
         hidden_states: torch.Tensor,
         temb: torch.Tensor,
         encoder_hidden_states: torch.Tensor,
-        image_rotary_emb: torch.Tensor,
+        image_rotary_emb: Tuple[torch.Tensor, torch.Tensor],
         joint_attention_kwargs=None,
         controlnet_block_samples=None,
         controlnet_single_block_samples=None,
@@ -44,17 +45,26 @@ class NunchakuFluxModel(nn.Module):
         if joint_attention_kwargs is not None:
             guidance_scale = joint_attention_kwargs.get("guidance_scale", 0.0)
 
-        rotary_emb_txt = image_rotary_emb[:, :txt_tokens]
-        rotary_emb_img = image_rotary_emb[:, txt_tokens:]
-        rotary_emb_single = image_rotary_emb
+        rotary_emb_cos_txt, rotary_emb_sin_txt = (
+            image_rotary_emb[0][:, :txt_tokens],
+            image_rotary_emb[1][:, :txt_tokens],
+        )
+        rotary_emb_cos_img, rotary_emb_sin_img = (
+            image_rotary_emb[0][:, txt_tokens:],
+            image_rotary_emb[1][:, txt_tokens:],
+        )
+        rotary_emb_cos_single, rotary_emb_sin_single = (
+            image_rotary_emb[0],
+            image_rotary_emb[1],
+        )
 
         hidden_states = self.m.forward(
             hidden_states,
             encoder_hidden_states,
             temb,
-            rotary_emb_img,
-            rotary_emb_txt,
-            rotary_emb_single,
+            (rotary_emb_cos_img, rotary_emb_sin_img),
+            (rotary_emb_cos_txt, rotary_emb_sin_txt),
+            (rotary_emb_cos_single, rotary_emb_sin_single),
             guidance_scale,
             controlnet_block_samples,
             controlnet_single_block_samples,
