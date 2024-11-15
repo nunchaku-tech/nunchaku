@@ -195,10 +195,11 @@ public:
             if (auto *m = dynamic_cast<GEMV_AWQ *>(module)) {
                 m->lora_scale = scale;
             } else if (auto *m = dynamic_cast<GEMM_W4A4 *>(module)) {
-                for (int i = 0; i < skipRanks / 16; i++) {
+                size_t skip_size = static_cast<size_t>(skipRanks / 16);
+                for (size_t i = 0; i < skip_size; i++) {
                     m->lora_scales[i] = 1.0f;
                 }
-                for (int i = skipRanks / 16; i < m->lora_scales.size(); i++) {
+                for (size_t i = skip_size; i < m->lora_scales.size(); i++) {
                     m->lora_scales[i] = scale;
                 }
             }
