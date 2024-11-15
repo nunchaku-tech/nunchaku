@@ -1,8 +1,8 @@
 [build-system]
 requires = [
     "setuptools",
-    "wheel",
     "torch",
+    "wheel",
     "ninja",
 ]
 build-backend = "setuptools.build_meta"
@@ -11,6 +11,7 @@ build-backend = "setuptools.build_meta"
 dynamic = ["version"]
 name = "nunchaku"
 dependencies = [
+    "torch>=2.4.1",
     "diffusers>=0.30.3",
     "transformers",
     "accelerate",
