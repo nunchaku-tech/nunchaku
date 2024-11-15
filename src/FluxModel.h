@@ -129,7 +129,10 @@ private:
 class FluxModel : public Module {
 public:
     FluxModel(Tensor::ScalarType dtype, Device device);
-    Tensor forward(Tensor hidden_states, Tensor encoder_hidden_states, Tensor temb, Tensor rotary_emb_img, Tensor rotary_emb_context, Tensor rotary_emb_single);
+    Tensor forward(Tensor hidden_states, Tensor encoder_hidden_states, Tensor temb, 
+    Tensor rotary_emb_img, Tensor rotary_emb_context, Tensor rotary_emb_single,
+    const std::vector<Tensor>* controlnet_block_samples = nullptr,
+    const std::vector<Tensor>* controlnet_single_block_samples = nullptr);
 
 public:
     std::vector<std::unique_ptr<JointTransformerBlock>> transformer_blocks;

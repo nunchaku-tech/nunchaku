@@ -27,6 +27,8 @@ class NunchakuFluxModel(nn.Module):
         encoder_hidden_states: torch.Tensor,
         image_rotary_emb: torch.Tensor,
         joint_attention_kwargs=None,
+        controlnet_block_samples=None,
+        controlnet_single_block_samples=None,
     ):
         batch_size = hidden_states.shape[0]
         txt_tokens = encoder_hidden_states.shape[1]
@@ -57,6 +59,8 @@ class NunchakuFluxModel(nn.Module):
             rotary_emb_img,
             rotary_emb_txt,
             rotary_emb_single,
+            controlnet_block_samples,
+            controlnet_single_block_samples,
         )
 
         hidden_states = hidden_states.to(original_dtype)

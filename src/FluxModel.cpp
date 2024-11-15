@@ -616,7 +616,18 @@ FluxModel::FluxModel(Tensor::ScalarType dtype, Device device) {
     }
 }
 
-Tensor FluxModel::forward(Tensor hidden_states, Tensor encoder_hidden_states, Tensor temb, Tensor rotary_emb_img, Tensor rotary_emb_context, Tensor rotary_emb_single) {
+
+Tensor FluxModel::forward(
+    Tensor hidden_states,
+    Tensor encoder_hidden_states,
+    Tensor temb,
+    Tensor rotary_emb_img,
+    Tensor rotary_emb_context,
+    Tensor rotary_emb_single,
+    const std::vector<Tensor>* controlnet_block_samples = nullptr,
+    const std::vector<Tensor>* controlnet_single_block_samples = nullptr
+) {
+
     const int batch_size = hidden_states.shape[0];
     const Tensor::ScalarType dtype = hidden_states.dtype();
     const Device device = hidden_states.device();
@@ -624,8 +635,26 @@ Tensor FluxModel::forward(Tensor hidden_states, Tensor encoder_hidden_states, Te
     const int txt_tokens = encoder_hidden_states.shape[1];
     const int img_tokens = hidden_states.shape[1];
 
-    for (auto &&block : transformer_blocks) {
-        std::tie(hidden_states, encoder_hidden_states) = block->forward(hidden_states, encoder_hidden_states, temb, rotary_emb_img, rotary_emb_context, 0.0f);
+    // for (auto &&block : transformer_blocks) {
+    //     std::tie(hidden_states, encoder_hidden_states) = block->forward(hidden_states, encoder_hidden_states, temb, rotary_emb_img, rotary_emb_context, 0.0f);
+    // }
+
+        // Joint transformer blocks with controlnet
+    for (size_t i = 0; i < transformer_blocks.size(); i++) {
+        std::tie(hidden_states, encoder_hidden_states) = transformer_blocks[i]->forward(
+            hidden_states, encoder_hidden_states, temb, 
+            rotary_emb_img, rotary_emb_context, 0.0f
+        );
+
+        // Add controlnet residual if available
+        if (controlnet_block_samples && !controlnet_block_samples->empty()) {
+            int interval = std::ceil(
+                float(transformer_blocks.size()) / controlnet_block_samples->size()
+            );
+            if (i % interval == 0) {
+                hidden_states = hidden_states + (*controlnet_block_samples)[i / interval];
+            }
+        }
     }
 
     // txt first, same as diffusers
@@ -637,8 +666,33 @@ Tensor FluxModel::forward(Tensor hidden_states, Tensor encoder_hidden_states, Te
     hidden_states = concat;
     encoder_hidden_states = {};
 
-    for (auto &&block : single_transformer_blocks) {
-        hidden_states = block->forward(hidden_states, temb, rotary_emb_single);
+    // for (auto &&block : single_transformer_blocks) {
+    //     hidden_states = block->forward(hidden_states, temb, rotary_emb_single);
+    // }
+
+    // Single transformer blocks with controlnet
+    for (size_t i = 0; i < single_transformer_blocks.size(); i++) {
+        hidden_states = single_transformer_blocks[i]->forward(
+            hidden_states, temb, rotary_emb_single
+        );
+
+        // Add controlnet residual if available
+        if (controlnet_single_block_samples && !controlnet_single_block_samples->empty()) {
+            int interval = std::ceil(
+                float(single_transformer_blocks.size()) / controlnet_single_block_samples->size()
+            );
+            if (i % interval == 0) {
+                // Only apply to image tokens, not text tokens
+                Tensor img_states = hidden_states.slice(1, txt_tokens, txt_tokens + img_tokens);
+                img_states = img_states + (*controlnet_single_block_samples)[i / interval];
+                // Copy back
+                for (int b = 0; b < batch_size; b++) {
+                    hidden_states.slice(0, b, b + 1)
+                               .slice(1, txt_tokens, txt_tokens + img_tokens)
+                               .copy_(img_states.slice(0, b, b + 1));
+                }
+            }
+        }
     }
 
     return hidden_states;
