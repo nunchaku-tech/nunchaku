@@ -624,8 +624,8 @@ Tensor FluxModel::forward(
     Tensor rotary_emb_img,
     Tensor rotary_emb_context,
     Tensor rotary_emb_single,
-    const std::vector<Tensor>* controlnet_block_samples = nullptr,
-    const std::vector<Tensor>* controlnet_single_block_samples = nullptr
+    const std::vector<Tensor>* controlnet_block_samples,
+    const std::vector<Tensor>* controlnet_single_block_samples
 ) {
 
     const int batch_size = hidden_states.shape[0];
@@ -652,7 +652,7 @@ Tensor FluxModel::forward(
                 float(transformer_blocks.size()) / controlnet_block_samples->size()
             );
             if (i % interval == 0) {
-                hidden_states = hidden_states + (*controlnet_block_samples)[i / interval];
+                hidden_states = add(hidden_states, (*controlnet_block_samples)[i / interval]);
             }
         }
     }
@@ -684,7 +684,7 @@ Tensor FluxModel::forward(
             if (i % interval == 0) {
                 // Only apply to image tokens, not text tokens
                 Tensor img_states = hidden_states.slice(1, txt_tokens, txt_tokens + img_tokens);
-                img_states = img_states + (*controlnet_single_block_samples)[i / interval];
+                img_states = add(img_states, (*controlnet_single_block_samples)[i / interval]);
                 // Copy back
                 for (int b = 0; b < batch_size; b++) {
                     hidden_states.slice(0, b, b + 1)
