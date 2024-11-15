@@ -58,7 +58,7 @@ SVDQuant is a post-training quantization technique for 4-bit weights and activat
     git submodule init
     git submodule update
 	# TMPDIR is used to avoid running out of disk space on shared servers
-	# TMPDIR=/root/autodl-tmp/pip-temp VERBOSE=1 PIP_CACHE_DIR=~/autodl-tmp/.cache/pip  MAX_JOBS=8 pip install  --no-deps --no-build-isolation -e .
+	# TMPDIR=/root/autodl-tmp/pip-temp VERBOSE=1 PIP_CACHE_DIR=~/autodl-tmp/.cache/pip  MAX_JOBS=6 pip install -v  --no-deps --no-build-isolation -e .
 
 
 	MAX_JOBS=6 pip install --no-deps --no-build-isolation -e .
