@@ -142,7 +142,7 @@ public:
         Tensor temb,
         std::tuple<Tensor,Tensor> rotary_emb_img,
         std::tuple<Tensor,Tensor> rotary_emb_context,
-        std::tuple<Tensor,Tensor> rotary_emb_single
+        std::tuple<Tensor,Tensor> rotary_emb_single,
         const std::vector<Tensor>* controlnet_block_samples = nullptr,
         const std::vector<Tensor>* controlnet_single_block_samples = nullptr
     );
