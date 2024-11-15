@@ -52,6 +52,11 @@ class NunchakuFluxModel(nn.Module):
         rotary_emb_img = image_rotary_emb[:, txt_tokens:, ...]  # .to(self.dtype)
         rotary_emb_single = image_rotary_emb  # .to(self.dtype)
 
+        if controlnet_block_samples is None:
+            controlnet_block_samples = []
+        if controlnet_single_block_samples is None:
+            controlnet_single_block_samples = []
+
         hidden_states = self.m.forward(
             hidden_states,
             encoder_hidden_states,
