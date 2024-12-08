@@ -11,6 +11,7 @@ from PIL import Image
 
 from flux_pix2pix_pipeline import FluxPix2pixTurboPipeline
 from nunchaku.models.safety_checker import SafetyChecker
+from nunchaku.models.transformer_flux import NunchakuFluxTransformer2dModel
 from utils import get_args
 from vars import DEFAULT_SKETCH_GUIDANCE, DEFAULT_STYLE_NAME, MAX_SEED, STYLE_NAMES, STYLES
 
@@ -24,18 +25,26 @@ args = get_args()
 if args.precision == "bf16":
     pipeline = FluxPix2pixTurboPipeline.from_pretrained("black-forest-labs/FLUX.1-schnell", torch_dtype=torch.bfloat16)
     pipeline = pipeline.to("cuda")
+    pipeline.precision = "bf16"
     pipeline.load_control_module(
         "mit-han-lab/svdquant-models", "flux.1-pix2pix-turbo-sketch2image.safetensors", alpha=DEFAULT_SKETCH_GUIDANCE
     )
 else:
     assert args.precision == "int4"
+    pipeline_init_kwargs = {}
+    transformer = NunchakuFluxTransformer2dModel.from_pretrained("mit-han-lab/svdq-int4-flux.1-schnell")
+    pipeline_init_kwargs["transformer"] = transformer
+    if args.use_qencoder:
+        from nunchaku.models.text_encoder import NunchakuT5EncoderModel
+
+        text_encoder_2 = NunchakuT5EncoderModel.from_pretrained("mit-han-lab/svdq-flux.1-t5")
+        pipeline_init_kwargs["text_encoder_2"] = text_encoder_2
+
     pipeline = FluxPix2pixTurboPipeline.from_pretrained(
-        "black-forest-labs/FLUX.1-schnell",
-        torch_dtype=torch.bfloat16,
-        qmodel_path="mit-han-lab/svdq-int4-flux.1-schnell",
-        qencoder_path="mit-han-lab/svdquant-models/svdq-w4a16-t5.pt" if args.use_qencoder else None,
+        "black-forest-labs/FLUX.1-schnell", torch_dtype=torch.bfloat16, **pipeline_init_kwargs
     )
     pipeline = pipeline.to("cuda")
+    pipeline.precision = "int4"
     pipeline.load_control_module(
         "mit-han-lab/svdquant-models",
         "flux.1-pix2pix-turbo-sketch2image.safetensors",
@@ -205,6 +214,8 @@ with gr.Blocks(css_paths="assets/style.css", title=f"SVDQuant Sketch-to-Image De
 
     download_sketch.click(fn=save_image, inputs=canvas, outputs=download_sketch)
     download_result.click(fn=save_image, inputs=result, outputs=download_result)
+    gr.Markdown("MIT Accessibility: https://accessibility.mit.edu/", elem_id="accessibility")
+
 
 if __name__ == "__main__":
     demo.queue().launch(debug=True, share=True)

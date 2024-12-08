@@ -4,6 +4,7 @@ Nunchaku is an inference engine designed for 4-bit diffusion models, as demonstr
 
 ### [Paper](http://arxiv.org/abs/2411.05007) | [Project](https://hanlab.mit.edu/projects/svdquant) | [Blog](https://hanlab.mit.edu/blog/svdquant) | [Demo](https://svdquant.mit.edu)
 
+- **[Dec 8, 2024]** Support [ComfyUI](https://github.com/comfyanonymous/ComfyUI). Please check [comfyui/README.md](comfyui/README.md) for the usage.
 - **[Nov 7, 2024]** 🔥 Our latest **W4A4** Diffusion model quantization work [**SVDQuant**](https://hanlab.mit.edu/projects/svdquant) is publicly released! Check [**DeepCompressor**](https://github.com/mit-han-lab/deepcompressor) for the quantization library.
 
 ![teaser](./assets/teaser.jpg)
@@ -14,7 +15,7 @@ SVDQuant is a post-training quantization technique for 4-bit weights and activat
 *MIT, NVIDIA, CMU, Princeton, UC Berkeley, SJTU, and Pika Labs* <br>
 
 <p align="center">
-  <img src="assets/demo.gif" width="70%"/>
+  <img src="assets/demo.gif" width="100%"/>
 </p>
 
 ## Method
@@ -72,19 +73,23 @@ In [example.py](example.py), we provide a minimal script for running INT4 FLUX.1
 
 ```python
 import torch
+from diffusers import FluxPipeline
 
-from nunchaku.pipelines import flux as nunchaku_flux
+from nunchaku.models.transformer_flux import NunchakuFluxTransformer2dModel
 
-pipeline = nunchaku_flux.from_pretrained(
-    "black-forest-labs/FLUX.1-schnell",
-    torch_dtype=torch.bfloat16,
-    qmodel_path="mit-han-lab/svdq-int4-flux.1-schnell",  # download from Huggingface
+transformer = NunchakuFluxTransformer2dModel.from_pretrained("mit-han-lab/svdq-int4-flux.1-schnell")
+pipeline = FluxPipeline.from_pretrained(
+    "black-forest-labs/FLUX.1-schnell", transformer=transformer, torch_dtype=torch.bfloat16
 ).to("cuda")
 image = pipeline("A cat holding a sign that says hello world", num_inference_steps=4, guidance_scale=0).images[0]
 image.save("example.png")
 ```
 
 Specifically, `nunchaku` shares the same APIs as [diffusers](https://github.com/huggingface/diffusers) and can be used in a similar way. The FLUX.1-dev model can be loaded in the same way by replace all `schnell` with `dev`.
+
+## ComfyUI
+
+Please refer to [comfyui/README.md](comfyui/README.md) for the usage in [ComfyUI](https://github.com/comfyanonymous/ComfyUI).
 
 ## Gradio Demos
 
@@ -118,7 +123,7 @@ Please refer to [app/t2i/README.md](app/t2i/README.md) for instructions on repro
 ## Roadmap
 
 - [ ] Easy installation
-- [ ] Comfy UI node
+- [x] Comfy UI node
 - [ ] Customized LoRA conversion instructions
 - [ ] Customized model quantization instructions
 - [ ] Modularization

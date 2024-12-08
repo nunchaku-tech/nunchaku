@@ -1,18 +1,13 @@
-import os
-from typing import Any, Callable, Optional, Union
+from typing import Any, Callable
 
 import torch
-import torchvision.transforms.functional as F
 import torchvision.utils
 from diffusers.pipelines.flux.pipeline_flux import FluxPipeline, FluxPipelineOutput, FluxTransformer2DModel
 from einops import rearrange
-from huggingface_hub import hf_hub_download, snapshot_download
 from peft.tuners import lora
 from PIL import Image
 from torch import nn
-
-from nunchaku.models.flux import inject_pipeline, load_quantized_model
-from nunchaku.pipelines.flux import quantize_t5
+from torchvision.transforms import functional as F
 
 
 class FluxPix2pixTurboPipeline(FluxPipeline):
@@ -31,7 +26,7 @@ class FluxPix2pixTurboPipeline(FluxPipeline):
                     m.scaling["default_0"] = alpha
         else:
             assert self.precision == "int4"
-            transformer.nunchaku_set_lora_scale(alpha)
+            transformer.set_lora_strength(alpha)
 
     def load_control_module(
         self,
@@ -60,7 +55,7 @@ class FluxPix2pixTurboPipeline(FluxPipeline):
             self.load_lora_into_transformer(state_dict, {}, transformer=transformer)
         else:
             assert svdq_lora_path is not None
-            self.transformer.nunchaku_update_params(svdq_lora_path)
+            self.transformer.update_lora_params(svdq_lora_path)
         self.update_alpha(alpha)
 
     @torch.no_grad()
@@ -212,37 +207,3 @@ class FluxPix2pixTurboPipeline(FluxPipeline):
             return (image,)
 
         return FluxPipelineOutput(images=image)
-
-    @classmethod
-    def from_pretrained(cls, pretrained_model_name_or_path: Optional[Union[str, os.PathLike]], **kwargs):
-        qmodel_device = kwargs.pop("qmodel_device", "cuda:0")
-        qmodel_device = torch.device(qmodel_device)
-        if qmodel_device.type != "cuda":
-            raise ValueError(f"qmodel_device = {qmodel_device} is not a CUDA device")
-
-        qmodel_path = kwargs.pop("qmodel_path", None)
-        qencoder_path = kwargs.pop("qencoder_path", None)
-
-        pipeline = super().from_pretrained(pretrained_model_name_or_path, **kwargs)
-        pipeline.precision = "bf16"
-
-        if qmodel_path is not None:
-            assert isinstance(qmodel_path, str)
-            if not os.path.exists(qmodel_path):
-                qmodel_path = snapshot_download(qmodel_path)
-            m = load_quantized_model(
-                os.path.join(qmodel_path, "transformer_blocks.safetensors"),
-                0 if qmodel_device.index is None else qmodel_device.index,
-            )
-            inject_pipeline(pipeline, m, qmodel_device)
-            pipeline.precision = "int4"
-
-        if qencoder_path is not None:
-            assert isinstance(qencoder_path, str)
-            if not os.path.exists(qencoder_path):
-                hf_repo_id = os.path.dirname(qencoder_path)
-                filename = os.path.basename(qencoder_path)
-                qencoder_path = hf_hub_download(repo_id=hf_repo_id, filename=filename)
-            quantize_t5(pipeline, qencoder_path)
-
-        return pipeline

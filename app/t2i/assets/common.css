@@ -2,3 +2,8 @@ h1{text-align:center}
 h2{text-align:center}
 
 #random_seed {height: 72px;}
+
+#accessibility {
+    text-align: center; /* Center-aligns the text */
+    margin: auto;       /* Centers the element horizontally */
+}

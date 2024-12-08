@@ -89,10 +89,10 @@ def generate(
             else:
                 assert precision == "int4"
                 if lora_name != "None":
-                    pipeline.transformer.nunchaku_update_params(SVDQ_LORA_PATHS[lora_name])
-                    pipeline.transformer.nunchaku_set_lora_scale(lora_weight)
+                    pipeline.transformer.update_lora_params(SVDQ_LORA_PATHS[lora_name])
+                    pipeline.transformer.set_lora_strength(lora_weight)
                 else:
-                    pipeline.transformer.nunchaku_set_lora_scale(0)
+                    pipeline.transformer.set_lora_strength(0)
         elif lora_name != "None":
             if precision == "bf16":
                 if pipeline.cur_lora_weight != lora_weight:
@@ -102,7 +102,7 @@ def generate(
                                 m.scaling[lora_name] = lora_weight
             else:
                 assert precision == "int4"
-                pipeline.transformer.nunchaku_set_lora_scale(lora_weight)
+                pipeline.transformer.set_lora_strength(lora_weight)
         pipeline.cur_lora_name = lora_name
         pipeline.cur_lora_weight = lora_weight
 
@@ -247,6 +247,8 @@ with gr.Blocks(
         ).then(
             fn=generate_func, inputs=input_args, outputs=[*image_results, *latency_results], api_name=False, queue=False
         )
+    gr.Markdown("MIT Accessibility: https://accessibility.mit.edu/", elem_id="accessibility")
+
 
 if __name__ == "__main__":
     demo.queue(max_size=20).launch(server_name="0.0.0.0", debug=True, share=True)

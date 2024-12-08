@@ -20,5 +20,10 @@ h1{text-align:center}
     width: 400px;
 }
 
+#accessibility {
+    text-align: center; /* Center-aligns the text */
+    margin: auto;       /* Centers the element horizontally */
+}
+
 #random_seed {height: 71px;}
 #run_button {height: 87px;}

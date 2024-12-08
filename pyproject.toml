@@ -17,4 +17,5 @@ dependencies = [
     "accelerate",
     "sentencepiece",
     "protobuf",
+    "huggingface_hub",
 ]

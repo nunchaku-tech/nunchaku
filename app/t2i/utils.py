@@ -2,7 +2,7 @@ import torch
 from diffusers import FluxPipeline
 from peft.tuners import lora
 
-from nunchaku.pipelines import flux as nunchaku_flux
+from nunchaku.models.transformer_flux import NunchakuFluxTransformer2dModel
 from vars import LORA_PATHS, SVDQ_LORA_PATHS
 
 
@@ -23,31 +23,37 @@ def get_pipeline(
     lora_weight: float = 1,
     device: str | torch.device = "cuda",
 ) -> FluxPipeline:
+    pipeline_init_kwargs = {}
     if model_name == "schnell":
         if precision == "int4":
             assert torch.device(device).type == "cuda", "int4 only supported on CUDA devices"
-            pipeline = nunchaku_flux.from_pretrained(
-                "black-forest-labs/FLUX.1-schnell",
-                torch_dtype=torch.bfloat16,
-                qmodel_path="mit-han-lab/svdq-int4-flux.1-schnell",
-                qencoder_path="mit-han-lab/svdquant-models/svdq-w4a16-t5.pt" if use_qencoder else None,
-                qmodel_device=device,
-            )
+            transformer = NunchakuFluxTransformer2dModel.from_pretrained("mit-han-lab/svdq-int4-flux.1-schnell")
+            pipeline_init_kwargs["transformer"] = transformer
+            if use_qencoder:
+                from nunchaku.models.text_encoder import NunchakuT5EncoderModel
+
+                text_encoder_2 = NunchakuT5EncoderModel.from_pretrained("mit-han-lab/svdq-flux.1-t5")
+                pipeline_init_kwargs["text_encoder_2"] = text_encoder_2
         else:
             assert precision == "bf16"
-            pipeline = FluxPipeline.from_pretrained("black-forest-labs/FLUX.1-schnell", torch_dtype=torch.bfloat16)
+        pipeline = FluxPipeline.from_pretrained(
+            "black-forest-labs/FLUX.1-schnell", torch_dtype=torch.bfloat16, **pipeline_init_kwargs
+        )
     elif model_name == "dev":
         if precision == "int4":
-            pipeline = nunchaku_flux.from_pretrained(
-                "black-forest-labs/FLUX.1-dev",
-                torch_dtype=torch.bfloat16,
-                qmodel_path="mit-han-lab/svdq-int4-flux.1-dev",
-                qencoder_path="mit-han-lab/svdquant-models/svdq-w4a16-t5.pt" if use_qencoder else None,
-                qmodel_device=device,
-            )
+            transformer = NunchakuFluxTransformer2dModel.from_pretrained("mit-han-lab/svdq-int4-flux.1-dev")
             if lora_name not in ["All", "None"]:
-                pipeline.transformer.nunchaku_update_params(SVDQ_LORA_PATHS[lora_name])
-                pipeline.transformer.nunchaku_set_lora_scale(lora_weight)
+                transformer.update_lora_params(SVDQ_LORA_PATHS[lora_name])
+                transformer.set_lora_strength(lora_weight)
+            pipeline_init_kwargs["transformer"] = transformer
+            if use_qencoder:
+                from nunchaku.models.text_encoder import NunchakuT5EncoderModel
+
+                text_encoder_2 = NunchakuT5EncoderModel.from_pretrained("mit-han-lab/svdq-flux.1-t5")
+                pipeline_init_kwargs["text_encoder_2"] = text_encoder_2
+            pipeline = FluxPipeline.from_pretrained(
+                "black-forest-labs/FLUX.1-dev", torch_dtype=torch.bfloat16, **pipeline_init_kwargs
+            )
         else:
             assert precision == "bf16"
             pipeline = FluxPipeline.from_pretrained("black-forest-labs/FLUX.1-dev", torch_dtype=torch.bfloat16)
