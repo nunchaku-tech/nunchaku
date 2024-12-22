@@ -73,11 +73,12 @@ RUN git clone https://github.com/mit-han-lab/nunchaku.git \
     && git submodule update \
     && python3 -m pip install -e .
 
-# Copy server code
+# Copy server code and safety checker
 COPY server.py .
+COPY safety_checker ./safety_checker
 
 # Expose the port
 EXPOSE 8000
 
 # Run the server
-CMD ["python3", "server.py"]
+CMD ["python3", "-m", "server"]

@@ -7,6 +7,7 @@ from pydantic import BaseModel
 import torch
 from diffusers import FluxPipeline
 from nunchaku.models.transformer_flux import NunchakuFluxTransformer2dModel
+from safety_checker.censor import check_safety
 
 app = FastAPI(title="FLUX Image Generation API")
 
@@ -20,6 +21,7 @@ class ImageRequest(BaseModel):
     height: int = 1024
     num_inference_steps: int = 4
     seed: int | None = None
+    safety_checker_adj: float = 0.5  # Controls sensitivity of NSFW detection
 
 class ImageResponse(BaseModel):
     image_path: str
@@ -89,6 +91,12 @@ async def predict(request: ImageRequest):
             height=height,
             num_inference_steps=request.num_inference_steps,
         )
+
+    # Check for NSFW content
+    image = output.images[0]
+    concepts, has_nsfw = check_safety([image], request.safety_checker_adj)
+    if has_nsfw[0]:
+        raise HTTPException(status_code=400, detail="Generated image contains NSFW content")
 
     # Create unique filename using timestamp and UUID
     timestamp = int(time.time())
