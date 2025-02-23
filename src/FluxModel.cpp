@@ -39,7 +39,7 @@ Tensor forward_fc(GEMM_W4A4 &fc, Tensor x) {
 AdaLayerNormZeroSingle::AdaLayerNormZeroSingle(int dim, Tensor::ScalarType dtype, Device device) :
     dim(dim),
     linear(dim, 3 * dim, true, dtype, device),
-    norm(dim, 1e-6, false, dtype, device) 
+    norm(dim, 1e-6, false, dtype, device)
 {
     registerChildren
         (linear, "linear")
@@ -58,12 +58,12 @@ AdaLayerNormZeroSingle::Output AdaLayerNormZeroSingle::forward(Tensor x, Tensor 
     debug("x", x);
     Tensor norm_x = norm.forward(x);
     debug("norm_x", norm_x);
-    
+
     kernels::mul_add(norm_x, scale_msa, shift_msa);
     return Output{norm_x, gate_msa};
 }
 
-AdaLayerNormZero::AdaLayerNormZero(int dim, bool pre_only, Tensor::ScalarType dtype, Device device) : 
+AdaLayerNormZero::AdaLayerNormZero(int dim, bool pre_only, Tensor::ScalarType dtype, Device device) :
     dim(dim), pre_only(pre_only),
     linear(dim, pre_only ? 2 * dim : 6 * dim, true, dtype, device),
     norm(dim, 1e-6, false, dtype, device)
@@ -90,7 +90,7 @@ AdaLayerNormZero::Output AdaLayerNormZero::forward(Tensor x, Tensor emb) {
 
         kernels::mul_add(norm_x, scale_msa, shift_msa);
         debug("norm_x_scaled", norm_x);
-        
+
         return Output{norm_x};
     } else {
         auto &&[shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp] = kernels::split_mod<6>(emb);
@@ -107,7 +107,7 @@ AdaLayerNormZero::Output AdaLayerNormZero::forward(Tensor x, Tensor emb) {
 }
 
 
-Attention::Attention(int num_heads, int dim_head, Device device) : 
+Attention::Attention(int num_heads, int dim_head, Device device) :
     num_heads(num_heads), dim_head(dim_head), force_fp16(false)
 {
     headmask_type = Tensor::allocate({num_heads}, Tensor::INT32, Device::cpu());
@@ -150,7 +150,7 @@ Tensor Attention::forward(Tensor qkv, Tensor pool_qkv, float sparsityRatio) {
             gemm_batched_fp16(pool_q, pool_k, pool_s);
         }
     }
-    
+
     blockmask = kernels::topk(pool_score, pool_tokens * (1 - sparsityRatio));
 
     if (cu_seqlens_cpu.valid()) {
@@ -226,9 +226,9 @@ Tensor Attention::forward(Tensor qkv, Tensor pool_qkv, float sparsityRatio) {
         false
     ).front();
 
-    Tensor raw_attn_output = mha_fwd(q, k, v, 
-        0.0f, 
-        pow(q.shape[-1], (-0.5)), 
+    Tensor raw_attn_output = mha_fwd(q, k, v,
+        0.0f,
+        pow(q.shape[-1], (-0.5)),
         false, -1, -1, false
     ).front();
 
@@ -260,7 +260,7 @@ void Attention::setForceFP16(Module *module, bool value) {
 }
 
 FluxSingleTransformerBlock::FluxSingleTransformerBlock(int dim, int num_attention_heads, int attention_head_dim, int mlp_ratio, bool use_fp4, Tensor::ScalarType dtype, Device device) :
-    dim(dim), 
+    dim(dim),
     dim_head(attention_head_dim / num_attention_heads),
     num_heads(num_attention_heads),
     mlp_hidden_dim(dim * mlp_ratio),
@@ -306,7 +306,7 @@ Tensor FluxSingleTransformerBlock::forward(Tensor hidden_states, Tensor temb, Te
     qkv_proj.forward(norm_hidden_states, qkv, {}, norm_q.weight, norm_k.weight, rotary_emb);
     debug("qkv", qkv);
     // Tensor qkv = forward_fc(qkv_proj, norm_hidden_states);
-    
+
     Tensor attn_output = attn.forward(qkv, {}, 0);
     attn_output = attn_output.reshape({batch_size, num_tokens, num_heads * dim_head});
     debug("raw_attn_output", attn_output);
@@ -319,7 +319,7 @@ Tensor FluxSingleTransformerBlock::forward(Tensor hidden_states, Tensor temb, Te
 
     hidden_states = kernels::add(attn_output, ff_output);
     debug("attn_ff_output", hidden_states);
-    
+
     kernels::mul_add(hidden_states, gate, residual);
 
     nvtxRangePop();
@@ -327,7 +327,7 @@ Tensor FluxSingleTransformerBlock::forward(Tensor hidden_states, Tensor temb, Te
     return hidden_states;
 }
 
-JointTransformerBlock::JointTransformerBlock(int dim, int num_attention_heads, int attention_head_dim, bool context_pre_only, bool use_fp4, Tensor::ScalarType dtype, Device device) : 
+JointTransformerBlock::JointTransformerBlock(int dim, int num_attention_heads, int attention_head_dim, bool context_pre_only, bool use_fp4, Tensor::ScalarType dtype, Device device) :
     dim(dim),
     dim_head(attention_head_dim / num_attention_heads),
     num_heads(num_attention_heads),
@@ -385,7 +385,7 @@ std::tuple<Tensor, Tensor> JointTransformerBlock::forward(Tensor hidden_states, 
 
     int num_tokens_img = hidden_states.shape[1];
     int num_tokens_context = encoder_hidden_states.shape[1];
-    
+
     assert(hidden_states.shape[2] == dim);
     assert(encoder_hidden_states.shape[2] == dim);
 
@@ -410,7 +410,7 @@ std::tuple<Tensor, Tensor> JointTransformerBlock::forward(Tensor hidden_states, 
     auto stream = getCurrentCUDAStream();
     Tensor concat;
     Tensor pool;
-    
+
     {
         nvtxRangePushA("qkv_proj");
 
@@ -422,16 +422,16 @@ std::tuple<Tensor, Tensor> JointTransformerBlock::forward(Tensor hidden_states, 
         pool = blockSparse
             ? Tensor::allocate({batch_size, poolTokens, dim * 3}, norm1_output.x.scalar_type(), norm1_output.x.device())
             : Tensor{};
-        
+
         for (int i = 0; i < batch_size; i++) {
             // img first
             Tensor qkv = concat.slice(0, i, i + 1).slice(1, 0, num_tokens_img);
             Tensor qkv_context = concat.slice(0, i, i + 1).slice(1, num_tokens_img, num_tokens_img + num_tokens_context);
 
-            Tensor pool_qkv = pool.valid() 
-                ? pool.slice(0, i, i + 1).slice(1, 0, num_tokens_img / POOL_SIZE) 
+            Tensor pool_qkv = pool.valid()
+                ? pool.slice(0, i, i + 1).slice(1, 0, num_tokens_img / POOL_SIZE)
                 : Tensor{};
-            Tensor pool_qkv_context = pool.valid() 
+            Tensor pool_qkv_context = pool.valid()
                 ? concat.slice(0, i, i + 1).slice(1, num_tokens_img / POOL_SIZE, num_tokens_img / POOL_SIZE + num_tokens_context / POOL_SIZE)
                 : Tensor{};
 
@@ -485,16 +485,16 @@ std::tuple<Tensor, Tensor> JointTransformerBlock::forward(Tensor hidden_states, 
         } else {
             raw_attn_output_split = Tensor::allocate({batch_size, num_tokens_img, num_heads * dim_head}, raw_attn_output.scalar_type(), raw_attn_output.device());
             checkCUDA(cudaMemcpy2DAsync(
-                raw_attn_output_split.data_ptr(), 
+                raw_attn_output_split.data_ptr(),
                 num_tokens_img * num_heads * dim_head * raw_attn_output_split.scalar_size(),
                 raw_attn_output.data_ptr(),
                 (num_tokens_img + num_tokens_context) * num_heads * dim_head * raw_attn_output.scalar_size(),
                 num_tokens_img * num_heads * dim_head * raw_attn_output_split.scalar_size(),
                 batch_size,
-                cudaMemcpyDeviceToDevice, 
+                cudaMemcpyDeviceToDevice,
                 stream));
         }
-        
+
 
         spdlog::debug("raw_attn_output_split={}", raw_attn_output_split.shape.str());
         debug("img.raw_attn_output_split", raw_attn_output_split);
@@ -550,16 +550,16 @@ std::tuple<Tensor, Tensor> JointTransformerBlock::forward(Tensor hidden_states, 
         } else {
             raw_attn_output_split = Tensor::allocate({batch_size, num_tokens_context, num_heads * dim_head}, raw_attn_output.scalar_type(), raw_attn_output.device());
             checkCUDA(cudaMemcpy2DAsync(
-                raw_attn_output_split.data_ptr(), 
+                raw_attn_output_split.data_ptr(),
                 num_tokens_context * num_heads * dim_head * raw_attn_output_split.scalar_size(),
                 raw_attn_output.data_ptr<char>() + num_tokens_img * num_heads * dim_head * raw_attn_output_split.scalar_size(),
                 (num_tokens_img + num_tokens_context) * num_heads * dim_head * raw_attn_output.scalar_size(),
                 num_tokens_context * num_heads * dim_head * raw_attn_output_split.scalar_size(),
                 batch_size,
-                cudaMemcpyDeviceToDevice, 
+                cudaMemcpyDeviceToDevice,
                 stream));
         }
-        
+
 
         spdlog::debug("raw_attn_output_split={}", raw_attn_output_split.shape.str());
         debug("context.raw_attn_output_split", raw_attn_output_split);
@@ -585,7 +585,7 @@ std::tuple<Tensor, Tensor> JointTransformerBlock::forward(Tensor hidden_states, 
 #else
         auto norm_hidden_states = encoder_hidden_states;
 #endif
-        
+
 
         // Tensor ff_output = mlp_context_fc2.forward(GELU::forward(mlp_context_fc1.forward(norm_hidden_states)));
         // Tensor ff_output = mlp_context_fc2.forward_quant(quant_static_fuse_gelu(mlp_context_fc1.forward(norm_hidden_states), 1.0));
@@ -618,7 +618,8 @@ FluxModel::FluxModel(bool use_fp4, Tensor::ScalarType dtype, Device device) {
     }
 }
 
-Tensor FluxModel::forward(Tensor hidden_states, Tensor encoder_hidden_states, Tensor temb, Tensor rotary_emb_img, Tensor rotary_emb_context, Tensor rotary_emb_single) {
+Tensor FluxModel::forward(Tensor hidden_states, Tensor encoder_hidden_states, Tensor temb, Tensor rotary_emb_img, Tensor rotary_emb_context, Tensor rotary_emb_single,
+                          bool skip_first_layer) {
     const int batch_size = hidden_states.shape[0];
     const Tensor::ScalarType dtype = hidden_states.dtype();
     const Device device = hidden_states.device();
@@ -626,7 +627,10 @@ Tensor FluxModel::forward(Tensor hidden_states, Tensor encoder_hidden_states, Te
     const int txt_tokens = encoder_hidden_states.shape[1];
     const int img_tokens = hidden_states.shape[1];
 
-    for (auto &&block : transformer_blocks) {
+    auto blocks_range = skip_first_layer ? std::ranges::subrange(std::next(transformer_blocks.begin()), transformer_blocks.end())
+                                         : std::ranges::subrange(transformer_blocks.begin(), transformer_blocks.end());
+
+    for (auto &&block : blocks_range) {
         std::tie(hidden_states, encoder_hidden_states) = block->forward(hidden_states, encoder_hidden_states, temb, rotary_emb_img, rotary_emb_context, 0.0f);
     }
 

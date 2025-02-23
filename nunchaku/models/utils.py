@@ -4,6 +4,7 @@ import torch
 from diffusers import __version__
 from huggingface_hub import constants, hf_hub_download
 from safetensors.torch import load_file
+from typing import Optional, Any
 
 
 class NunchakuModelLoaderMixin:
@@ -65,12 +66,10 @@ class NunchakuModelLoaderMixin:
 
         return transformer, transformer_block_path
 
-
 def ceil_div(x: int, y: int) -> int:
     return (x + y - 1) // y
 
-
-def pad_tensor(tensor: torch.Tensor | None, multiples: int, dim: int, fill=0) -> torch.Tensor:
+def pad_tensor(tensor: Optional[torch.Tensor], multiples: int, dim: int, fill: Any = 0) -> torch.Tensor:
     if multiples <= 1:
         return tensor
     if tensor is None:
