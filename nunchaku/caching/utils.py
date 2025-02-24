@@ -127,17 +127,11 @@ class CachedTransformerBlocks(torch.nn.Module):
         if self.residual_diff_threshold <= 0.0 or batch_size > 1:
             if batch_size > 1:
                 print("Batch size > 1 currently not supported")
-            for block in self.transformer_blocks:
-                hidden_states = block(hidden_states, encoder_hidden_states, *args, **kwargs)
-                if not isinstance(hidden_states, torch.Tensor):
-                    hidden_states, encoder_hidden_states = hidden_states
-                    if not self.return_hidden_states_first:
-                        hidden_states, encoder_hidden_states = encoder_hidden_states, hidden_states
-            if self.single_transformer_blocks is not None:
-                hidden_states = torch.cat([encoder_hidden_states, hidden_states], dim=1)
-                for block in self.single_transformer_blocks:
-                    hidden_states = block(hidden_states, *args, **kwargs)
-                hidden_states = hidden_states[:, encoder_hidden_states.shape[1] :]
+
+            first_transformer_block = self.transformer_blocks[0]
+            encoder_hidden_states, hidden_states = first_transformer_block(
+                hidden_states=hidden_states, encoder_hidden_states=encoder_hidden_states, *args, **kwargs)
+
             return (
                 hidden_states
                 if self.return_hidden_states_only

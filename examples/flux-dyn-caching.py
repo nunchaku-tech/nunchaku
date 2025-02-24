@@ -4,6 +4,7 @@ from diffusers import FluxPipeline
 from nunchaku.models.transformer_flux import NunchakuFluxTransformer2dModel
 from nunchaku.caching.diffusers_adapters import apply_cache_on_pipe
 
+import time
 
 transformer = NunchakuFluxTransformer2dModel.from_pretrained("mit-han-lab/svdq-int4-flux.1-schnell")
 pipeline = FluxPipeline.from_pretrained(
@@ -11,14 +12,12 @@ pipeline = FluxPipeline.from_pretrained(
 ).to("cuda")
 
 apply_cache_on_pipe(
-    pipeline, residual_diff_threshold=0.1)
-
+    pipeline, residual_diff_threshold=0.12)
 image = pipeline(
     ["A cat holding a sign that says hello world"],
     width=1024,
     height=1024,
-    num_inference_steps=50,
+    num_inference_steps=32,
     guidance_scale=0
 ).images[0]
-
-image.save("flux.1-schnell-int4.png")
+image.save("flux.1-schnell-int4-0.12.png")
