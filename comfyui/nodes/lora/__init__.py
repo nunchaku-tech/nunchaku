@@ -1,1 +1,1 @@
-from .flux import SVDQuantFluxLoraLoader
+from .flux import SVDQuantFluxLoraLoader, SVDQuantFluxLoraLoaderSimple
