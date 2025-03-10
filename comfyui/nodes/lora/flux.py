@@ -29,15 +29,15 @@ class SVDQuantFluxLoraLoader:
             "mit-han-lab/svdq-int4-flux.1-fill-dev",
         ]
         prefix = os.path.join(folder_paths.models_dir, "diffusion_models")
-        local_base_model_folders = os.listdir(prefix)
-        local_base_model_folders = sorted(
-            [
-                folder
-                for folder in local_base_model_folders
-                if not folder.startswith(".") and os.path.isdir(os.path.join(prefix, folder))
-            ]
-        )
-        base_model_paths = local_base_model_folders + base_model_paths
+        if os.path.exists(prefix):
+            local_base_model_folders = sorted(
+                [
+                    folder
+                    for folder in os.listdir(prefix)
+                    if not folder.startswith(".") and os.path.isdir(os.path.join(prefix, folder))
+                ]
+            )
+            base_model_paths = local_base_model_folders + base_model_paths
 
         return {
             "required": {
@@ -155,7 +155,7 @@ class SVDQuantFluxLoraLoaderSimple:
 
     CATEGORY = "SVDQuant"
     DESCRIPTION = (
-        "Use this node to load only converted LoRA's!\r"
+        "Use this node to load only converted LoRA's! "
         "LoRAs are used to modify the diffusion model, "
         "altering the way in which latents are denoised such as applying styles. "
         "Currently, only one LoRA node can be applied."

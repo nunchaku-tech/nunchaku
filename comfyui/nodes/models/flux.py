@@ -43,9 +43,9 @@ class ComfyUIFluxForwardWrapper(nn.Module):
         img_ids[:, :, 2] = img_ids[:, :, 2] + torch.linspace(
             0, w_len - 1, steps=w_len, device=x.device, dtype=x.dtype
         ).unsqueeze(0)
-        img_ids = repeat(img_ids, "h w c -> b (h w) c", b=bs)
+        img_ids = img_ids.reshape(-1, 3)
 
-        txt_ids = torch.zeros((bs, context.shape[1], 3), device=x.device, dtype=x.dtype)
+        txt_ids = torch.zeros(context.shape[1], 3).to(device=x.device, dtype=x.dtype)
         out = self.model(
             hidden_states=img,
             encoder_hidden_states=context,
@@ -134,25 +134,25 @@ class SVDQuantFluxDiTLoader:
         gpu_properties = torch.cuda.get_device_properties(device_id)
         gpu_memory = gpu_properties.total_memory / (1024 ** 2)  # 转换为 MB
         gpu_name = gpu_properties.name
-        print(f"GPU {device_id} ({gpu_name}) 显存: {gpu_memory} MB")
+        print(f"GPU {device_id} ({gpu_name}) VRAM: {gpu_memory} MB")
 
         # 确定 CPU offload 是否启用
         if cpu_offload == "auto":
             if gpu_memory < 14336:  # 14GB 阈值
                 cpu_offload_enabled = True
-                print("因显存小于14GB，启用 CPU offload")
+                print("Since the video memory is less than 14GB, CPU offload enabled")
             else:
                 cpu_offload_enabled = False
-                print("显存大于14GB，不启用 CPU offload")
+                print("Video memory is greater than 14GB, CPU offload not enabled")
         elif cpu_offload == "enable":
             cpu_offload_enabled = True
-            print("用户启用 CPU offload")
+            print("User enabled CPU offload")
         else:
             cpu_offload_enabled = False
-            print("用户禁用 CPU offload")
+            print("User disabled CPU offload")
 
         # 清理 GPU 缓存
-#        torch.cuda.empty_cache()
+        #torch.cuda.empty_cache()
 
         transformer = NunchakuFluxTransformer2dModel.from_pretrained(model_path, offload=cpu_offload_enabled)
         transformer = transformer.to(device)
