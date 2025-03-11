@@ -6,7 +6,6 @@ from safetensors.torch import save_file
 
 from nunchaku.lora.flux import comfyui2diffusers, convert_to_nunchaku_flux_lowrank_dict, detect_format, xlab2diffusers
 
-
 class SVDQuantFluxLoraLoader:
     def __init__(self):
         self.cur_lora_name = "None"
@@ -38,7 +37,7 @@ class SVDQuantFluxLoraLoader:
                 ]
             )
             base_model_paths = local_base_model_folders + base_model_paths
-
+        
         return {
             "required": {
                 "model": ("MODEL", {"tooltip": "The diffusion model the LoRA will be applied to."}),
@@ -63,6 +62,8 @@ class SVDQuantFluxLoraLoader:
                         "tooltip": "How strongly to modify the diffusion model. This value can be negative.",
                     },
                 ),
+                "converted_lora_sulfix" :("STRING", {"multiline": False, "default": "-converted"}),
+                "save_converted_lora": ("BOOLEAN", {"default": False,"tooltip": "Save the converted LoRA next to the original file with 'converted_lora_sulfix' text suffix."}),
             }
         }
 
@@ -75,10 +76,10 @@ class SVDQuantFluxLoraLoader:
     DESCRIPTION = (
         "LoRAs are used to modify the diffusion model, "
         "altering the way in which latents are denoised such as applying styles. "
-        "Currently, only one LoRA nodes can be applied."
+        "Currently, only one LoRA node can be applied."
     )
 
-    def load_lora(self, model, lora_name: str, lora_format: str, base_model_name: str, lora_strength: float):
+    def load_lora(self, model, lora_name: str, lora_format: str, base_model_name: str, lora_strength: float, save_converted_lora: bool, converted_lora_sulfix: str):
         if self.cur_lora_name == lora_name:
             if self.cur_lora_name == "None":
                 pass  # Do nothing since the lora is None
@@ -109,76 +110,18 @@ class SVDQuantFluxLoraLoader:
                         # download from huggingface
                         base_model_path = os.path.join(base_model_name, "transformer_blocks.safetensors")
                     state_dict = convert_to_nunchaku_flux_lowrank_dict(base_model_path, input_lora)
-
-                    with tempfile.NamedTemporaryFile(suffix=".safetensors", delete=True) as tmp_file:
+                    #the converted lora will be deleted on next comfyui startup as part of "temp" folder cleanup
+                    with tempfile.NamedTemporaryFile(suffix=".safetensors", dir=folder_paths.temp_directory, delete=False) as tmp_file: 
                         save_file(state_dict, tmp_file.name)
                         model.model.diffusion_model.model.update_lora_params(tmp_file.name)
+                    
+                    if save_converted_lora:
+                        converted_lora_path = lora_path.replace(".safetensors", converted_lora_sulfix + ".safetensors")
+                        save_file(state_dict, converted_lora_path)
+                        lora_name = os.path.basename(converted_lora_path)
                 else:
                     model.model.diffusion_model.model.update_lora_params(lora_path)
                 model.model.diffusion_model.model.set_lora_strength(lora_strength)
-            self.cur_lora_name = lora_name
-
-        return (model,)
-
-class SVDQuantFluxLoraLoaderSimple:
-    def __init__(self):
-        self.cur_lora_name = "None"
-
-    @classmethod
-    def INPUT_TYPES(s):
-        lora_name_list = [
-            "None",
-            *folder_paths.get_filename_list("loras"),
-        ]
-
-        return {
-            "required": {
-                "model": ("MODEL", {"tooltip": "The diffusion model the LoRA will be applied to."}),
-                "lora_name": (lora_name_list, {"tooltip": "The name of the LoRA."}),
-                "lora_strength": (
-                    "FLOAT",
-                    {
-                        "default": 1.0,
-                        "min": -100.0,
-                        "max": 100.0,
-                        "step": 0.01,
-                        "tooltip": "How strongly to modify the diffusion model. This value can be negative.",
-                    },
-                ),
-            }
-        }
-
-    RETURN_TYPES = ("MODEL",)
-    OUTPUT_TOOLTIPS = ("The modified diffusion model.",)
-    FUNCTION = "load_lora"
-    TITLE = "SVDQuant FLUX.1 LoRA Loader (Simple)"
-
-    CATEGORY = "SVDQuant"
-    DESCRIPTION = (
-        "Use this node to load only converted LoRA's! "
-        "LoRAs are used to modify the diffusion model, "
-        "altering the way in which latents are denoised such as applying styles. "
-        "Currently, only one LoRA node can be applied."
-    )
-
-    def load_lora(self, model, lora_name: str, lora_strength: float):
-        if self.cur_lora_name == lora_name:
-            if self.cur_lora_name == "None":
-                pass  # Do nothing since the lora is None
-            else:
-                model.model.diffusion_model.model.set_lora_strength(lora_strength)
-        else:
-            if lora_name == "None":
-                model.model.diffusion_model.model.set_lora_strength(0)
-            else:
-                try:
-                    lora_path = folder_paths.get_full_path_or_raise("loras", lora_name)
-                except FileNotFoundError:
-                    lora_path = lora_name
-                
-                model.model.diffusion_model.model.update_lora_params(lora_path)
-                model.model.diffusion_model.model.set_lora_strength(lora_strength)
-            
             self.cur_lora_name = lora_name
 
         return (model,)
