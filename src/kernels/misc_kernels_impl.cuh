@@ -9,6 +9,25 @@
 
 namespace nunchaku::kernels {
 
+template <typename T>
+__global__ void add_bias_dim0_kernel(
+    const T* __restrict__ x,     // [B,F]
+    const T* __restrict__ bias,  // [F]
+    T*       __restrict__ out,   // [B,F]
+    int B,
+    int F
+)
+{
+    int i = blockIdx.x; 
+    if (i >= B) return;
+
+    int tid = threadIdx.x;
+
+    for (int f = tid; f < F; f += blockDim.x) {
+        out[i * F + f] = x[i * F + f] + bias[f];
+    }
+}
+
 
 template<typename T>
 __global__ void add_kernel(T *a, T *b, T *c, size_t length) {

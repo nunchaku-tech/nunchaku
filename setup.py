@@ -1,3 +1,4 @@
+#python3 setup.py build_ext --inplace
 import os
 import re
 import subprocess

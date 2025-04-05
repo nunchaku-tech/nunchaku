@@ -4,6 +4,36 @@
 
 namespace nunchaku::kernels {
 
+Tensor add_bias_dim0(Tensor x, Tensor bias) {
+        assert(x.ndims() == 2);
+        assert(bias.ndims() == 1);
+        assert(x.shape[1] == bias.shape[0]); 
+        assert(x.is_contiguous());
+        assert(bias.is_contiguous());
+    
+        int B = x.shape[0];
+        int F = x.shape[1];
+    
+        Tensor out = Tensor::empty_like(x);
+    
+        int threads = (F < 1024) ? F : 1024;
+        dim3 grid(B);
+    
+        auto stream = getCurrentCUDAStream();
+    
+        dispatch(x.scalar_type(), [&]<typename scalar_t>() {
+            add_bias_dim0_kernel<scalar_t><<<grid, threads, 0, stream>>>(
+                x.data_ptr<scalar_t>(),
+                bias.data_ptr<scalar_t>(),
+                out.data_ptr<scalar_t>(),
+                B, 
+                F
+            );
+        });
+    
+        return out;
+}
+
 Tensor add(Tensor a, Tensor b) {
     assert(a.shape.dataExtent == b.shape.dataExtent);
     assert(a.dtype() == b.dtype());

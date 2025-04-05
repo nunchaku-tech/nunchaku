@@ -6,6 +6,7 @@
 #include "kernels/dwconv.h"
 
 #include <nvtx3/nvToolsExt.h>
+#include <iostream>
 
 using namespace nunchaku;
 
@@ -68,15 +69,35 @@ void GEMV_AWQ::loadParam(std::string key, Tensor &dst, Tensor src) {
 Tensor GEMV_AWQ::forward(Tensor x) {
     debug("x", x);
 
-    const int M = (int)x.numel() / x.shape[-1];
-    Tensor out = gemv_awq(x, this->qweight, this->wscales, this->wzeros, M, out_features, in_features, group_size);
+    //const int M = (int)x.numel() / x.shape[-1];
+    //Tensor out = gemv_awq(x, this->qweight, this->wscales, this->wzeros, M, out_features, in_features, group_size);
+    
+    const int B = x.shape[0];           
+    const int inDim  = x.shape[1];    
+
+    Tensor out = gemv_awq(
+        x, 
+        this->qweight,   // packed W4
+        this->wscales,
+        this->wzeros,
+        B,               // m
+        out_features,    // n
+        inDim,           // k
+        group_size
+    );
+
     if (bias.valid()) {
         // TODO: batch
-        assert(out.numel() == bias.numel());
-        out = kernels::add(out, bias.view(out.shape.dataExtent));
+        //std::cerr <<out.numel()<<std::endl;
+        //std::cerr <<bias.numel()<<std::endl;
+        //assert(out.numel() == bias.numel());
+        //out = kernels::add(out, bias.view(out.shape.dataExtent));
+
+        out = kernels::add_bias_dim0(out, bias);
     }
 
     debug("out_before_lora", out);
+    //std::cerr <<out.numel()<<std::endl;
 
     if (this->lora_rank > 0) {
         Tensor lora_act = gemm_f16(x, this->lora_down, {}, {}, 1.0f);
@@ -86,10 +107,10 @@ Tensor GEMV_AWQ::forward(Tensor x) {
         debug("lora_out", lora_out);
 
         out = kernels::add(out, lora_out);
+        
     }
 
     debug("out", out);
-    
     return out;
 }
 
