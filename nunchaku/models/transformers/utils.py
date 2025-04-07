@@ -83,3 +83,22 @@ def pad_tensor(tensor: torch.Tensor | None, multiples: int, dim: int, fill=0) ->
     result.fill_(fill)
     result[[slice(0, extent) for extent in tensor.shape]] = tensor
     return result
+
+
+
+def safe_save_fig(fig, save_path: str):
+
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    
+    _, ext = os.path.splitext(save_path)
+    
+    fd, temp_path = tempfile.mkstemp(suffix=ext, dir=os.path.dirname(save_path))
+    os.close(fd)  
+    try:
+        fig.savefig(temp_path)
+        os.replace(temp_path, save_path) 
+        print(f"Figure saved successfully at: {save_path}")
+    except Exception as e:
+        print(f"Error saving figure at {save_path}: {e}")
+        if os.path.exists(temp_path):
+            os.remove(temp_path)

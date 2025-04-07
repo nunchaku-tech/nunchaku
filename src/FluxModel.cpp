@@ -392,15 +392,10 @@ std::tuple<Tensor, Tensor> JointTransformerBlock::forward(Tensor hidden_states, 
     spdlog::debug("hidden_states={} encoder_hidden_states={} temb={}", hidden_states.shape.str(), encoder_hidden_states.shape.str(), temb.shape.str());
     spdlog::debug("batch_size={} num_tokens_img={} num_tokens_context={}", batch_size, num_tokens_img, num_tokens_context);
 
-    //std::cerr << "norm1forward" << std::endl;
-    //std::cerr << "hidden_states shape: " << hidden_states.shape.str() << std::endl;
-    //std::cerr << "encoder_hidden_states shape: " << encoder_hidden_states.shape.str() << std::endl;
-    //std::cerr << "temb shape: " << temb.shape.str() << std::endl;
-
-
     auto norm1_output = norm1.forward(hidden_states, temb);
-
     auto norm1_context_output = norm1_context.forward(encoder_hidden_states, temb);
+    
+
    
 #if 0
     norm1_output.x = hidden_states;
@@ -409,10 +404,7 @@ std::tuple<Tensor, Tensor> JointTransformerBlock::forward(Tensor hidden_states, 
 
     debug("norm_hidden_states", norm1_output.x);
     debug("norm_encoder_hidden_states", norm1_context_output.x);
-
-
     
-
     constexpr int POOL_SIZE = Attention::POOL_SIZE;
 
     nvtxRangePop();
@@ -420,14 +412,12 @@ std::tuple<Tensor, Tensor> JointTransformerBlock::forward(Tensor hidden_states, 
     auto stream = getCurrentCUDAStream();
     Tensor concat;
     Tensor pool;
-    
+      
     {
         nvtxRangePushA("qkv_proj");
 
+
         const bool blockSparse = sparsityRatio > 0;
-
-        
-
         const int poolTokens = num_tokens_img / POOL_SIZE + num_tokens_context / POOL_SIZE;
         concat = Tensor::allocate({batch_size, num_tokens_img + num_tokens_context, dim * 3}, norm1_output.x.scalar_type(), norm1_output.x.device());
 
@@ -451,9 +441,7 @@ std::tuple<Tensor, Tensor> JointTransformerBlock::forward(Tensor hidden_states, 
 
             // qkv_proj.forward(norm1_output.x.slice(0, i, i + 1), qkv);
             // debug("qkv_raw", qkv);
-            //std::cerr << "FluxModel::slice2" << std::endl;
             debug("rotary_emb", rotary_emb);
-            //std::cerr << norm1_output.x.shape.str() << std::endl; //**error**
             Tensor rotary_emb_slice = rotary_emb.slice(0, i, i + 1);
 
             qkv_proj.forward(norm1_output.x.slice(0, i, i + 1), qkv, pool_qkv, norm_q.weight, norm_k.weight, rotary_emb_slice);
@@ -463,16 +451,15 @@ std::tuple<Tensor, Tensor> JointTransformerBlock::forward(Tensor hidden_states, 
             // debug("qkv_context_raw", qkv_context);
 
             debug("rotary_emb_context", rotary_emb_context);
-            //std::cerr << "FluxModel::slice3" << std::endl;
             Tensor rotary_emb_context_slice = rotary_emb_context.slice(0, i, i + 1);
             qkv_proj_context.forward(norm1_context_output.x.slice(0, i, i + 1), qkv_context, pool_qkv_context, norm_added_q.weight, norm_added_k.weight, rotary_emb_context_slice);
             debug("qkv_context", qkv_context);
-            //std::cerr << "FluxModel::slice4" << std::endl;
         }
 
         nvtxRangePop();
     }
-    //std::cerr << "FluxModel::Concat" << std::endl;
+    
+
 
     spdlog::debug("concat={}", concat.shape.str());
     debug("concat", concat);
@@ -481,11 +468,57 @@ std::tuple<Tensor, Tensor> JointTransformerBlock::forward(Tensor hidden_states, 
 
     nvtxRangePushA("Attention");
 
-    //std::cerr << "FluxModel::raw_attn_output" << std::endl;
     Tensor raw_attn_output = attn.forward(concat, pool, sparsityRatio);
+    nvtxRangePop();
     
 
+   /* TODO : Batch Optimization : Issue(Black screen appears for images with batch dim 2 or more)
+    nvtxRangePushA("qkv_proj");
+    const bool blockSparse = (sparsityRatio > 0);
+    const int poolTokensImg     = ceilDiv(num_tokens_img,     POOL_SIZE);
+    const int poolTokensContext = ceilDiv(num_tokens_context, POOL_SIZE);
+    const int poolTokens        = poolTokensImg + poolTokensContext;
+    concat = Tensor::allocate(
+        {batch_size, num_tokens_img + num_tokens_context, dim * 3},
+        norm1_output.x.scalar_type(),
+        norm1_output.x.device()
+    );
+
+    pool = blockSparse
+        ? Tensor::allocate({batch_size, poolTokens, dim * 3},
+                        norm1_output.x.scalar_type(),
+                        norm1_output.x.device())
+        : Tensor{};  // invalid
+
+    Tensor imgQKV = concat.slice(1, 0, num_tokens_img);  // shape [B, num_tokens_img, dim*3]
+    Tensor ctxQKV = concat.slice(1, num_tokens_img, num_tokens_img + num_tokens_context); 
+
+    Tensor imgPool, ctxPool;
+    if (pool.valid()) {
+        imgPool = pool.slice(1, 0, poolTokensImg);  // shape [B, poolTokensImg, dim*3]
+        ctxPool = pool.slice(1, poolTokensImg, poolTokensImg + poolTokensContext);
+    }
+
+    
+    qkv_proj.forward(
+        norm1_output.x.slice(1, 0, num_tokens_img),imgQKV,imgPool,norm_q.weight, norm_k.weight,rotary_emb);
+
+
+    qkv_proj_context.forward(
+        norm1_context_output.x.slice(1, 0, num_tokens_context),ctxQKV,ctxPool,norm_added_q.weight, norm_added_k.weight,rotary_emb_context);
     nvtxRangePop();
+
+    spdlog::debug("concat={}", concat.shape.str());
+    debug("concat", concat);
+
+    assert(concat.shape[2] == num_heads * dim_head * 3);
+
+    nvtxRangePushA("Attention");
+
+    Tensor raw_attn_output = attn.forward(concat, pool, sparsityRatio);
+    nvtxRangePop();
+
+    */
 
     spdlog::debug("raw_attn_output={}", raw_attn_output.shape.str());
 
@@ -501,7 +534,6 @@ std::tuple<Tensor, Tensor> JointTransformerBlock::forward(Tensor hidden_states, 
         // raw_attn_output: [batch_size, num_tokens_img + num_tokens_context, num_heads * dim_head]
 
 
-        //std::cerr << "FluxModel::o_proj" << std::endl;
         Tensor raw_attn_output_split;
         if (batch_size == 1) {
             raw_attn_output_split = raw_attn_output.slice(1, 0, num_tokens_img).reshape({batch_size, num_tokens_img, num_heads * dim_head});
@@ -516,46 +548,6 @@ std::tuple<Tensor, Tensor> JointTransformerBlock::forward(Tensor hidden_states, 
                 batch_size,
                 cudaMemcpyDeviceToDevice, 
                 stream));
-
-
-            /*
-            raw_attn_output_split = Tensor::allocate(
-                {batch_size, num_tokens_img, num_heads * dim_head},
-                raw_attn_output.scalar_type(),
-                raw_attn_output.device()
-            );
-            //std::cerr << "raw_attn_output_split shape: " << raw_attn_output_split.shape.str() << std::endl;
-
-            auto element_size = raw_attn_output.scalar_size();
-            auto stream = getCurrentCUDAStream();
-
-            for (int b = 0; b < batch_size; b++) 
-            {
-                size_t src_offset_bytes = static_cast<size_t>(b)
-                    * (num_tokens_img + num_tokens_context) * num_heads * dim_head
-                    * element_size;
-
-                size_t dst_offset_bytes = static_cast<size_t>(b)
-                    * (num_tokens_img) * (num_heads * dim_head)
-                    * element_size;
-                
-                size_t copy_bytes_per_batch =
-                    static_cast<size_t>(num_tokens_img)
-                * (num_heads * dim_head)
-                * element_size;
-
-                void* src_ptr = static_cast<char*>(raw_attn_output.data_ptr()) + src_offset_bytes;
-                void* dst_ptr = static_cast<char*>(raw_attn_output_split.data_ptr()) + dst_offset_bytes;
-
-                checkCUDA(cudaMemcpyAsync(
-                    dst_ptr,
-                    src_ptr,
-                    copy_bytes_per_batch,
-                    cudaMemcpyDeviceToDevice,
-                    stream
-                ));
-            }
-            */    
         }
         
 
@@ -564,7 +556,6 @@ std::tuple<Tensor, Tensor> JointTransformerBlock::forward(Tensor hidden_states, 
 
         Tensor attn_output = forward_fc(out_proj, raw_attn_output_split); // std::get<Tensor>(out_proj.forward(raw_attn_output_split));
         debug("img.attn_output", attn_output);
-        //std::cerr << "FluxModol::o_proj " << std::endl;
 
 #if 1
         kernels::mul_add(attn_output, gate_msa, hidden_states);
@@ -633,7 +624,6 @@ std::tuple<Tensor, Tensor> JointTransformerBlock::forward(Tensor hidden_states, 
         Tensor attn_output = forward_fc(out_proj_context, raw_attn_output_split); // std::get<Tensor>(out_proj_context.forward(raw_attn_output_split));
         debug("context.attn_output", attn_output);
         
-        //std::cerr << "FluxModol::o_proj_context " << std::endl;
 
 #if 1
         kernels::mul_add(attn_output, gate_msa, encoder_hidden_states);
@@ -705,19 +695,18 @@ Tensor FluxModel::forward(Tensor hidden_states, Tensor encoder_hidden_states, Te
     const int numLayers = transformer_blocks.size() + single_transformer_blocks.size();
 
     Tensor concat;
-    //std::cerr << "FluxModel::Forward1" << std::endl;
 
     auto compute = [&](int layer) {
         if (size_t(layer) < transformer_blocks.size()) {
-            //std::cerr << "FluxModel::Forward2" << std::endl;
+            
             auto &block = transformer_blocks.at(layer);
             std::tie(hidden_states, encoder_hidden_states) = block->forward(hidden_states, encoder_hidden_states, temb, rotary_emb_img, rotary_emb_context, 0.0f);
         } else {
             if (size_t(layer) == transformer_blocks.size()) {
-                //std::cerr << "FluxModel::Forward3" << std::endl;
+                
                 // txt first, same as diffusers
                 concat = Tensor::allocate({batch_size, txt_tokens + img_tokens, 3072}, dtype, device);
-                //std::cerr << "FluxModel::Forward3::concat shape" << concat.shape.str() <<std::endl;
+    
                 for (int i = 0; i < batch_size; i++) {
                     /*
                     concat.slice(0, i, i + 1).slice(1, 0, txt_tokens).copy_(encoder_hidden_states);
@@ -738,7 +727,6 @@ Tensor FluxModel::forward(Tensor hidden_states, Tensor encoder_hidden_states, Te
                 }
                 hidden_states = concat;
                 encoder_hidden_states = {};
-                //std::cerr << "FluxModel::Concat" << std::endl;
             }
 
             auto &block = single_transformer_blocks.at(layer - transformer_blocks.size());
