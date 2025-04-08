@@ -7,8 +7,6 @@
 
 #include <nvtx3/nvToolsExt.h>
 
-#include <iostream>
-
 using spdlog::fmt_lib::format;
 using namespace nunchaku;
 
@@ -550,6 +548,7 @@ std::tuple<Tensor, Tensor> JointTransformerBlock::forward(Tensor hidden_states, 
         {
             nvtxRangePushA("qkv_proj");
 
+
             concat_q = Tensor::allocate({batch_size, num_heads, num_tokens_img_pad + num_tokens_txt_pad, dim_head}, Tensor::FP16, norm1_output.x.device());
             concat_k = Tensor::empty_like(concat_q);
             concat_v = Tensor::empty_like(concat_q);
@@ -598,6 +597,7 @@ std::tuple<Tensor, Tensor> JointTransformerBlock::forward(Tensor hidden_states, 
 
     {
         nvtxRangePushA("o_proj");
+
 
         auto &&[_, gate_msa, shift_mlp, scale_mlp, gate_mlp] = norm1_output;
 
@@ -786,18 +786,31 @@ Tensor FluxModel::forward(
 
                 hidden_states = kernels::add(hidden_states, controlnet_block_samples[block_index]);
             }
-        } else {
-            if (size_t(layer) == transformer_blocks.size()) {
-                // txt first, same as diffusers
-                concat = Tensor::allocate({batch_size, txt_tokens + img_tokens, 3072}, dtype, device);
-                for (int i = 0; i < batch_size; i++) {
-                    concat.slice(0, i, i + 1).slice(1, 0, txt_tokens).copy_(encoder_hidden_states);
-                    concat.slice(0, i, i + 1).slice(1, txt_tokens, txt_tokens + img_tokens).copy_(hidden_states);
-                }
-                hidden_states = concat;
-                encoder_hidden_states = {};
+        } else 
+            {
+                if (size_t(layer) == transformer_blocks.size()) 
+                {
+                    
+                    // txt first, same as diffusers
+                    concat = Tensor::allocate({batch_size, txt_tokens + img_tokens, 3072}, dtype, device);
+        
+                    for (int i = 0; i < batch_size; i++) {
+                    Tensor concat_txt_slice = concat.slice(0, i, i + 1)
+                                        .slice(1, 0, txt_tokens);
 
-            }
+                        Tensor enc_slice = encoder_hidden_states.slice(0, i, i + 1);
+
+                        concat_txt_slice.copy_(enc_slice);
+                        Tensor concat_img_slice = concat.slice(0, i, i + 1)
+                                                        .slice(1, txt_tokens, txt_tokens + img_tokens);
+
+                        Tensor hid_slice = hidden_states.slice(0, i, i + 1);
+
+                        concat_img_slice.copy_(hid_slice);
+                    }
+                    hidden_states = concat;
+                    encoder_hidden_states = {};
+                }
 
             auto &block = single_transformer_blocks.at(layer - transformer_blocks.size());
             hidden_states = block->forward(hidden_states, temb, rotary_emb_single);

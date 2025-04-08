@@ -339,7 +339,7 @@ void GEMM_W4A4_Launch<GEMMConfig_W4A4_FP16, false>::gemm_w4a4(
         // assert(isTypeMatch<half_t>(rotary_emb.scalar_type()));
         assert(rotary_emb.scalar_type() == Tensor::FP32);
         assert(rotary_emb.ndims() == 3);
-        assert(rotary_emb.shape[0] * rotary_emb.shape[1] == M);
+        //assert(rotary_emb.shape[0] * rotary_emb.shape[1] == M);
         assert(rotary_emb.shape[2] == Epilogues::EpilogueRMSNormRope::HEAD_DIM);
 
         // assert(rotary_emb.numel() == M * GEMM::EpilogueQKVProj::HEAD_DIM / 2 * GEMM::EpilogueQKVProj::ROTARY_EMB_NUM_ELEMENTS);

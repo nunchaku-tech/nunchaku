@@ -5,6 +5,7 @@
 
 namespace nunchaku::kernels {
 
+Tensor add_bias_dim0(Tensor x, Tensor bias);
 Tensor add(Tensor a, Tensor b);
 void mul_add(Tensor x, Tensor scale, Tensor bias);
 void mul_add_batch(Tensor x, Tensor scale, bool batch_scale, double scale_shift, Tensor bias, bool batch_bias);

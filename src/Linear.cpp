@@ -73,8 +73,9 @@ Tensor GEMV_AWQ::forward(Tensor x) {
     Tensor out = gemv_awq(x, this->qweight, this->wscales, this->wzeros, M, out_features, in_features, group_size);
     if (bias.valid()) {
         // TODO: batch
-        assert(out.numel() == bias.numel());
-        out = kernels::add(out, bias.view(out.shape.dataExtent));
+        //assert(out.numel() == bias.numel());
+        //out = kernels::add(out, bias.view(out.shape.dataExtent));
+        out = kernels::add_bias_dim0(out, bias);
     }
 
     debug("out_before_lora", out);
