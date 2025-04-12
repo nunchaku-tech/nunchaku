@@ -4,9 +4,10 @@
 #include "kernels/zgemm/zgemm.h"
 #include "flash_api.h"
 #include "activation.h"
-
 #include <nvtx3/nvToolsExt.h>
 
+#include <pybind11/functional.h>        
+           
 #include <iostream>
 
 using spdlog::fmt_lib::format;
@@ -786,6 +787,13 @@ Tensor FluxModel::forward(
 
                 hidden_states = kernels::add(hidden_states, controlnet_block_samples[block_index]);
             }
+            if (residual_callback && layer % 2 == 0) {
+                Tensor cpu_input = hidden_states.copy(Device::cpu());
+                pybind11::gil_scoped_acquire gil;
+                Tensor cpu_output = residual_callback(cpu_input);
+                Tensor residual = cpu_output.copy(Device::cuda());
+                hidden_states = kernels::add(hidden_states, residual);
+            }
         } else {
             if (size_t(layer) == transformer_blocks.size()) {
                 // txt first, same as diffusers
@@ -811,6 +819,31 @@ Tensor FluxModel::forward(
 
                 auto slice = hidden_states.slice(1, txt_tokens, txt_tokens + img_tokens);
                 slice = kernels::add(slice, controlnet_single_block_samples[block_index]);
+                hidden_states.slice(1, txt_tokens, txt_tokens + img_tokens).copy_(slice);
+            }   
+            size_t local_layer_idx = layer - transformer_blocks.size();
+            if (residual_callback && local_layer_idx % 4 == 0) {
+                Tensor callback_input = hidden_states.slice(1, txt_tokens, txt_tokens + img_tokens);
+                Tensor cpu_input = callback_input.copy(Device::cpu());
+                pybind11::gil_scoped_acquire gil;
+                Tensor cpu_output = residual_callback(cpu_input);
+                Tensor residual = cpu_output.copy(Device::cuda());
+
+                // spdlog::info(">> residual shape: {}, hidden_states shape: {}",
+                //     residual.shape.str(), hidden_states.shape.str());
+
+                // Tensor slice_cpu = callback_input.copy(Device::cpu());
+                // Tensor control_cpu = cpu_output.copy(Device::cpu());
+                // std::ostringstream slice_str, control_str;
+                // for (int i = 0; i < std::min(8, slice_cpu.shape[2]); ++i) {
+                //    slice_str << float(slice_cpu.at<__nv_bfloat16>({0, 0, i})) << " ";
+                //    control_str << float(control_cpu.at<__nv_bfloat16>({0, 0, i})) << " ";
+                // }
+                // spdlog::info(">> slice[0][0][:8]   = {}", slice_str.str());
+                // spdlog::info(">> residual[0][0][:8] = {}", control_str.str());
+
+                auto slice = hidden_states.slice(1, txt_tokens, txt_tokens + img_tokens);
+                slice = kernels::add(slice, residual);
                 hidden_states.slice(1, txt_tokens, txt_tokens + img_tokens).copy_(slice);
             }
         }
@@ -892,4 +925,7 @@ void FluxModel::setAttentionImpl(AttentionImpl impl) {
     for (auto &&block : this->single_transformer_blocks) {
         block->attnImpl = impl;
     }
+}
+void FluxModel::set_residual_callback(std::function<Tensor(const Tensor&)> cb) {
+    residual_callback = std::move(cb);
 }

@@ -13,7 +13,7 @@ if __name__ == "__main__":
     )
     pipeline = FluxPipeline.from_pretrained(
         "black-forest-labs/FLUX.1-schnell", transformer=transformer, torch_dtype=torch.bfloat16
-    )
+    ).to('cuda')
     pipeline.enable_sequential_cpu_offload()
     image = pipeline(
         "A cat holding a sign that says hello world", width=1024, height=1024, num_inference_steps=4, guidance_scale=0
