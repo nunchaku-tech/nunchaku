@@ -32,6 +32,14 @@ public:
         //spdlog::info(">>> [set_residual_callback] START");
     
         pybind11::gil_scoped_acquire gil;
+
+        if (!callback || callback.is_none()) {
+            residual_callback = pybind11::function();
+            if (net){
+                net->set_residual_callback(nullptr);
+            }
+            return;
+        }
         //spdlog::info(">>> [set_residual_callback] Acquired GIL");
     
         //spdlog::info(">>> [set_residual_callback] Callback repr (before store): {}", std::string(pybind11::str(callback)));

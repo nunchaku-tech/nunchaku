@@ -125,6 +125,9 @@ class NunchakuFluxTransformerBlocks(nn.Module):
             skip_first_layer
         )
 
+        if self.id_embeddings != None :
+            self.reset_residual_callback()
+
 
         hidden_states = hidden_states.to(original_dtype).to(original_device)
 
@@ -199,6 +202,10 @@ class NunchakuFluxTransformerBlocks(nn.Module):
             return ip
         self.callback_holder = callback  
         self.m.set_residual_callback(callback)
+    def reset_residual_callback(self):
+        self.callback_holder = None
+        self.m.set_residual_callback(None)
+
 ## copied from diffusers 0.30.3
 def rope(pos: torch.Tensor, dim: int, theta: int) -> torch.Tensor:
     assert dim % 2 == 0, "The dimension must be even."
