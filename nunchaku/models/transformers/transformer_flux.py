@@ -465,6 +465,12 @@ class NunchakuFluxTransformer2dModel(FluxTransformer2DModel, NunchakuModelLoader
 
         if len(self._unquantized_part_loras) > 0 or len(unquantized_part_loras) > 0:
             self._unquantized_part_loras = unquantized_part_loras
+
+            self._unquantized_part_sd = {
+                k: v for k, v in self._unquantized_part_sd.items()
+                if "pulid_ca" not in k
+            }
+            
             self._update_unquantized_part_lora_params(1)
 
         quantized_part_vectors = {}
