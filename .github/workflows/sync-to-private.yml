@@ -23,7 +23,6 @@ jobs:
       - name: Clone private repository
         run: |
           git clone https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/mit-han-lab/nunchaku-dev.git
-          cd nunchaku-dev
 
       - name: Add public remote and fetch
         run: |
