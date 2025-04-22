@@ -1,0 +1,55 @@
+name: Auto-merge main into dev
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  merge-main-into-dev:
+    runs-on: ubuntu-latest
+    if: github.repository == 'mit-han-lab/nunchaku'
+
+    steps:
+      - name: Set up Git User
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Checkout the repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GH_TOKEN }}
+
+      - name: Check if main and dev are already in sync
+        id: check_sync
+        run: |
+          git fetch origin main dev
+          MAIN_SHA=$(git rev-parse origin/main)
+          DEV_SHA=$(git rev-parse origin/dev)
+          echo "main sha: $MAIN_SHA"
+          echo "dev sha: $DEV_SHA"
+          if [ "$MAIN_SHA" = "$DEV_SHA" ]; then
+            echo "Branches are in sync. Skipping merge."
+            echo "skip_merge=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Branches differ. Proceeding with merge."
+            echo "skip_merge=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Merge main into dev
+        id: last_commit
+        if: steps.check_sync.outputs.skip_merge == 'false'
+        run: |
+          git fetch origin main
+          LAST_MSG=$(git log origin/main -1 --pretty=%s)
+          echo "Last commit message: $LAST_MSG"
+          set -e
+          git checkout dev
+          git merge origin/main -m "[Auto Merge] $LAST_MSG"
+          git push origin dev

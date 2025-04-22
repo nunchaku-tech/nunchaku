@@ -1,0 +1,103 @@
+name: Synchronize to Private Repository
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - dev
+
+permissions:
+  contents: write
+
+jobs:
+  cherry-pick-commits:
+    runs-on: ubuntu-latest
+    if: github.repository == 'mit-han-lab/nunchaku'
+
+    steps:
+      - name: Set up Git User
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Clone private repository
+        run: |
+          git clone https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/mit-han-lab/nunchaku-dev.git
+          cd nunchaku-dev
+
+      - name: Add public remote and fetch
+        run: |
+          cd nunchaku-dev
+          git remote add public https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/mit-han-lab/nunchaku.git
+          git fetch public dev
+
+      - name: Cherry-pick latest commit from public/dev
+        run: |
+          set -e
+          cd nunchaku-dev
+          COMMIT=$(git rev-parse public/dev)
+          COMMIT_MSG=$(git log -1 --pretty=%B $COMMIT)
+
+          echo "Latest commit: $COMMIT"
+          echo "Commit message: $COMMIT_MSG"
+
+          if [[ "$COMMIT_MSG" == "[Auto Sync]"* ]]; then
+            echo "Skipping [Auto Sync] commit."
+            exit 0
+          fi
+          
+          if [[ "$COMMIT_MSG" == *"[Dont Sync]"* ]]; then
+            echo "Skipping [Dont Sync] commit."
+            exit 0
+          fi
+          
+          # Preserve original author and amend commit message
+          GIT_AUTHOR_NAME=$(git log --format='%aN' -n 1 $COMMIT)
+          GIT_AUTHOR_EMAIL=$(git log --format='%aE' -n 1 $COMMIT)
+          NEW_MSG="[Auto Sync] ${COMMIT_MSG}"
+
+          PARENTS=$(git rev-list --parents -n 1 $COMMIT)
+          NUM_PARENTS=$(echo $PARENTS | wc -w)
+
+          IGNORED_FILES=(
+            ".github/workflows/sync-to-private.yml"
+            ".github/workflows/auto-merge-main-into-dev.yml"
+          )
+
+          echo "Attempting cherry-pick..."
+
+          if [ "$NUM_PARENTS" -gt 2 ]; then
+            echo "Merge commit detected. Using -m 1"
+            git cherry-pick --allow-empty -m 1 $COMMIT || (
+              echo "Cherry-pick failed. Removing ignored files and continuing..."
+              for file in "${IGNORED_FILES[@]}"; do
+                git rm -rf "$file" || true
+                rm -rf "$file" || true
+              done
+              git commit --allow-empty -m "$COMMIT_MSG"
+              echo "Conflict resolved."
+            )
+          else
+            echo "Normal commit. Cherry-picking directly."
+            git cherry-pick --allow-empty $COMMIT || (
+              echo "Cherry-pick failed. Removing ignored files and continuing..."
+              for file in "${IGNORED_FILES[@]}"; do
+                git rm -rf "$file" || true
+                rm -rf "$file" || true
+              done
+              git commit --allow-empty -m "$COMMIT_MSG"
+              echo "Conflict resolved."
+            )
+          fi
+
+          for file in "${IGNORED_FILES[@]}"; do
+            git rm -rf "$file" || true
+            rm -rf "$file" || true
+          done
+
+          git commit --amend --allow-empty -m "$NEW_MSG" --author="$GIT_AUTHOR_NAME <$GIT_AUTHOR_EMAIL>"
+
+      - name: Push to the private main branch
+        run: |
+          cd nunchaku-dev
+          git push
