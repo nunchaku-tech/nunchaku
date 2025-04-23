@@ -187,9 +187,10 @@ class NunchakuFluxTransformerBlocks(nn.Module):
     def norm1(
         self,
         hidden_states: torch.Tensor,
-        emb: torch.Tensor
+        emb: torch.Tensor,
+        idx: int = 0,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-        return self.m.norm1_forward(0, hidden_states, emb)
+        return self.m.norm1_forward(idx, hidden_states, emb)
 
 
 ## copied from diffusers 0.30.3
