@@ -135,7 +135,7 @@ public:
 
     // expose the norm1 forward method of the transformer blocks
     // this is used by TeaCache to get the norm1 output
-    std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor> norm1_forward(
+    std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor> norm_one_forward(
         int64_t idx,
         torch::Tensor hidden_states,
         torch::Tensor temb
