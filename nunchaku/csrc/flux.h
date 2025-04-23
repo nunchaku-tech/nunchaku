@@ -44,7 +44,7 @@ public:
     
         //spdlog::info(">>> [set_residual_callback] Callback repr (before store): {}", std::string(pybind11::str(callback)));
     
-        residual_callback = std::move(callback);  // 保存一份，防止 lambda 中悬挂
+        residual_callback = std::move(callback);  
         //spdlog::info(">>> [set_residual_callback] Stored to residual_callback");
     
         if (net) {

@@ -12,10 +12,10 @@ from safetensors.torch import load_file
 from torchvision.transforms import InterpolationMode
 from torchvision.transforms.functional import normalize, resize
 
-from .eva_clip import create_model_and_transforms
-from .eva_clip.constants import OPENAI_DATASET_MEAN, OPENAI_DATASET_STD
-from .encoders_transformer import IDFormer, PerceiverAttentionCA
-from .utils import img2tensor, tensor2img
+from ..models.pulid.eva_clip import create_model_and_transforms
+from ..models.pulid.eva_clip.constants import OPENAI_DATASET_MEAN, OPENAI_DATASET_STD
+from ..models.pulid.encoders_transformer import IDFormer, PerceiverAttentionCA
+from ..models.pulid.utils import img2tensor, tensor2img
 
 from diffusers import FluxPipeline
 from diffusers.image_processor import PipelineImageInput
@@ -33,7 +33,7 @@ from diffusers.utils import (
     unscale_lora_layers,
 )
 from diffusers.pipelines.flux.pipeline_flux import EXAMPLE_DOC_STRING, calculate_shift, retrieve_timesteps 
-from .utils import resize_numpy_image_long
+from ..models.pulid.utils import resize_numpy_image_long
 
 class PuLIDPipeline(nn.Module):
     def __init__(self, dit, device, weight_dtype=torch.bfloat16, onnx_provider='gpu', *args, **kwargs):
@@ -411,8 +411,8 @@ class PuLIDFluxPipeline(FluxPipeline):
         width = width or self.default_sample_size * self.vae_scale_factor
 
         if id_image is not None:
-            pil_image = Image.open(id_image)
-            pil_image = pil_image.convert('RGB')
+            #pil_image = Image.open(id_image)
+            pil_image = id_image.convert('RGB')
             numpy_image = np.array(pil_image)
             id_image = resize_numpy_image_long(numpy_image, 1024)
             id_embeddings, uncond_id_embeddings = self.pulid_model.get_id_embedding(id_image)
@@ -571,7 +571,6 @@ class PuLIDFluxPipeline(FluxPipeline):
                     self._joint_attention_kwargs["ip_adapter_image_embeds"] = image_embeds
                 # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
                 timestep = t.expand(latents.shape[0]).to(latents.dtype)
-#这里要深入到transformer内部去，每隔几个残差块注入一次ip，而不是在降噪循环中操作
                 noise_pred = self.transformer(
                     hidden_states=latents,
                     id_embeddings = id_embeddings,
