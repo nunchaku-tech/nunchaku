@@ -883,13 +883,27 @@ std::tuple<Tensor, Tensor> FluxModel::forward_layer(
         Tensor controlnet_block_samples,
         Tensor controlnet_single_block_samples) {
 
+    if (layer < transformer_blocks.size()){
+        std::tie(hidden_states, encoder_hidden_states) = transformer_blocks.at(layer)->forward(
+            hidden_states,
+            encoder_hidden_states,
+            temb,
+            rotary_emb_img,
+            rotary_emb_context, 0.0f);
+    }
+    else {
+        std::tie(hidden_states, encoder_hidden_states) = transformer_blocks.at(layer - transformer_blocks.size())->forward(
+            hidden_states,
+            encoder_hidden_states,
+            temb,
+            rotary_emb_img,
+            rotary_emb_context, 0.0f);
+    }
+
     const int txt_tokens = encoder_hidden_states.shape[1];
     const int img_tokens = hidden_states.shape[1];
-    const int batch_size = hidden_states.shape[0];
 
     if (layer < transformer_blocks.size() && controlnet_block_samples.valid()) {
-        auto &block = transformer_blocks.at(layer);
-        std::tie(hidden_states, encoder_hidden_states) = block->forward(hidden_states, encoder_hidden_states, temb, rotary_emb_img, rotary_emb_context, 0.0f);
         const int num_controlnet_block_samples = controlnet_block_samples.shape[0];
 
         int interval_control = ceilDiv(transformer_blocks.size(), static_cast<size_t>(num_controlnet_block_samples));
@@ -898,34 +912,19 @@ std::tuple<Tensor, Tensor> FluxModel::forward_layer(
         // block_index = layer % num_controlnet_block_samples;
 
         hidden_states = kernels::add(hidden_states, controlnet_block_samples[block_index]);
-    } else {
-            if (layer == transformer_blocks.size()) {
-                // txt first, same as diffusers
-                concat = Tensor::allocate({batch_size, txt_tokens + img_tokens, 3072}, dtype, device);
-                for (int i = 0; i < batch_size; i++) {
-                    concat.slice(0, i, i + 1).slice(1, 0, txt_tokens).copy_(encoder_hidden_states.slice(0, i, i + 1));
-                    concat.slice(0, i, i + 1).slice(1, txt_tokens, txt_tokens + img_tokens).copy_(hidden_states.slice(0, i, i + 1));
-                }
-                hidden_states = concat;
-                encoder_hidden_states = {};
+    } else if (layer >= transformer_blocks.size() && controlnet_single_block_samples.valid()) {
+        const int num_controlnet_single_block_samples = controlnet_single_block_samples.shape[0];
 
-            }
+        int interval_control = ceilDiv(single_transformer_blocks.size(), static_cast<size_t>(num_controlnet_single_block_samples));
+        int block_index = (layer - transformer_blocks.size()) / interval_control;
+        // Xlabs ControlNet
+        // block_index = layer % num_controlnet_single_block_samples
 
-            auto &block = single_transformer_blocks.at(layer - transformer_blocks.size());
-            hidden_states = block->forward(hidden_states, temb, rotary_emb_single);
-            if (controlnet_single_block_samples.valid()) {
-                const int num_controlnet_single_block_samples = controlnet_single_block_samples.shape[0];
-
-                int interval_control = ceilDiv(single_transformer_blocks.size(), static_cast<size_t>(num_controlnet_single_block_samples));
-                int block_index = (layer - transformer_blocks.size()) / interval_control;
-                // Xlabs ControlNet
-                // block_index = layer % num_controlnet_single_block_samples
-
-                auto slice = hidden_states.slice(1, txt_tokens, txt_tokens + img_tokens);
-                slice = kernels::add(slice, controlnet_single_block_samples[block_index]);
-                hidden_states.slice(1, txt_tokens, txt_tokens + img_tokens).copy_(slice);
-            }       
+        auto slice = hidden_states.slice(1, txt_tokens, txt_tokens + img_tokens);
+        slice = kernels::add(slice, controlnet_single_block_samples[block_index]);
+        hidden_states.slice(1, txt_tokens, txt_tokens + img_tokens).copy_(slice);
     }
+
     return { hidden_states, encoder_hidden_states };
 }
 
