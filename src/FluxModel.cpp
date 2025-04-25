@@ -526,7 +526,7 @@ std::tuple<Tensor, Tensor> JointTransformerBlock::forward(Tensor hidden_states, 
                     ? pool.slice(0, i, i + 1).slice(1, 0, num_tokens_img / POOL_SIZE)
                     : Tensor{};
                 Tensor pool_qkv_context = pool.valid()
-                    ? concat.slice(0, i, i + 1).slice(1, num_tokens_img / POOL_SIZE, num_tokens_img / POOL_SIZE + num_tokens_txt / POOL_SIZE)
+                    ? pool.slice(0, i, i + 1).slice(1, num_tokens_img / POOL_SIZE, num_tokens_img / POOL_SIZE + num_tokens_txt / POOL_SIZE)
                     : Tensor{};
 
                 // qkv_proj.forward(norm1_output.x.slice(0, i, i + 1), qkv);
