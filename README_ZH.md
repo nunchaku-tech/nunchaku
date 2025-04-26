@@ -309,7 +309,7 @@ Nunchaku 支持 [FLUX.1-tools](https://blackforestlabs.ai/flux-1-tools/) 和 [FL
 
 ## 问题排查
 
-使用 Nunchaku 时遇到问题？请先查阅我们的[常见问题解答](docs/faq.md)寻找解决方案。若仍需要帮助，可通过[open an issue](https://github.com/mit-han-lab/nunchaku/issues)联系我们。也欢迎您通过 [**Slack**](https://join.slack.com/t/nunchaku/shared_invite/zt-3170agzoz-NgZzWaTrEj~n2KEV3Hpl5Q)、[**Discord**](https://discord.gg/Wk6PnwX9Sm) 或 [**微信**](./assets/wechat.jpg) 加入我们的社区讨论。
+使用 Nunchaku 时遇到问题？请先查阅我们的[常见问题解答](docs/faq_ZH.md)寻找解决方案。若仍需要帮助，可通过[open an issue](https://github.com/mit-han-lab/nunchaku/issues)联系我们。也欢迎您通过 [**Slack**](https://join.slack.com/t/nunchaku/shared_invite/zt-3170agzoz-NgZzWaTrEj~n2KEV3Hpl5Q)、[**Discord**](https://discord.gg/Wk6PnwX9Sm) 或 [**微信**](./assets/wechat.jpg) 加入我们的社区讨论。
 
 ## 联系我们
 
