@@ -308,22 +308,12 @@ Please refer to [app/flux/t2i/README.md](app/flux/t2i/README.md) for instruction
 
 Please check [here](https://github.com/mit-han-lab/nunchaku/issues/266) for the roadmap for April.
 
-## Citation
-
-If you find `nunchaku` useful or relevant to your research, please cite our paper:
-
-```bibtex
-@inproceedings{
-  li2024svdquant,
-  title={SVDQuant: Absorbing Outliers by Low-Rank Components for 4-Bit Diffusion Models},
-  author={Li*, Muyang and Lin*, Yujun and Zhang*, Zhekai and Cai, Tianle and Li, Xiuyu and Guo, Junxian and Xie, Enze and Meng, Chenlin and Zhu, Jun-Yan and Han, Song},
-  booktitle={The Thirteenth International Conference on Learning Representations},
-  year={2025}
-}
-```
-
 ## Contribution
 We warmly welcome contributions from the community! To get started, please refer to our [contribution guide](docs/contribution_guide.md) for instructions on how to contribute code to Nunchaku.
+
+## Troubleshooting
+
+Encountering issues while using Nunchaku? Start by browsing our [FAQ](docs/faq.md) for common solutions. If you still need help, feel free to [open an issue](https://github.com/mit-han-lab/nunchaku/issues). You’re also welcome to join our community discussions on [**Slack**](https://join.slack.com/t/nunchaku/shared_invite/zt-3170agzoz-NgZzWaTrEj~n2KEV3Hpl5Q), [**Discord**](https://discord.gg/Wk6PnwX9Sm), or [**WeChat**](./assets/wechat.jpg).
 
 ## Contact Us
 
@@ -338,6 +328,21 @@ For enterprises interested in adopting SVDQuant or Nunchaku, including technical
 * [DistriFusion: Distributed Parallel Inference for High-Resolution Diffusion Models](https://arxiv.org/abs/2402.19481), CVPR 2024
 * [QServe: W4A8KV4 Quantization and System Co-design for Efficient LLM Serving](https://arxiv.org/abs/2405.04532), MLSys 2025
 * [SANA: Efficient High-Resolution Image Synthesis with Linear Diffusion Transformers](https://arxiv.org/abs/2410.10629), ICLR 2025
+
+## Citation
+
+If you find `nunchaku` useful or relevant to your research, please cite our paper:
+
+```bibtex
+@inproceedings{
+  li2024svdquant,
+  title={SVDQuant: Absorbing Outliers by Low-Rank Components for 4-Bit Diffusion Models},
+  author={Li*, Muyang and Lin*, Yujun and Zhang*, Zhekai and Cai, Tianle and Li, Xiuyu and Guo, Junxian and Xie, Enze and Meng, Chenlin and Zhu, Jun-Yan and Han, Song},
+  booktitle={The Thirteenth International Conference on Learning Representations},
+  year={2025}
+}
+```
+
 ## Acknowledgments
 
 We thank MIT-IBM Watson AI Lab, MIT and Amazon Science Hub, MIT AI Hardware Program, National Science Foundation, Packard Foundation, Dell, LG, Hyundai, and Samsung for supporting this research. We thank NVIDIA for donating the DGX server.
