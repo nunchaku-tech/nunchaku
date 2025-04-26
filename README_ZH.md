@@ -305,7 +305,7 @@ Nunchaku 支持 [FLUX.1-tools](https://blackforestlabs.ai/flux-1-tools/) 和 [FL
 请查看 [此处](https://github.com/mit-han-lab/nunchaku/issues/266) 获取四月的路线图。
 
 ## 贡献
-我们诚挚欢迎社区贡献！请参阅[Contribution Guide](docs/contribution_guide.md)/[贡献指南](docs/contribution_guide_ZH.md)了解如何为 Nunchaku 贡献代码。
+我们诚挚欢迎社区贡献！请参阅[贡献指南](docs/contribution_guide_ZH.md)了解如何为 Nunchaku 贡献代码。
 
 ## 问题排查
 
