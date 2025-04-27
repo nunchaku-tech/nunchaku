@@ -27,7 +27,7 @@ def is_torch2_available():
 
 def instantiate_from_config(config):
     if "target" not in config:
-        if config == '__is_first_stage__' or config == "__is_unconditional__":
+        if config == "__is_first_stage__" or config == "__is_unconditional__":
             return None
         raise KeyError("Expected key `target` to instantiate.")
     return get_obj_from_str(config["target"])(**config.get("params", {}))
@@ -49,12 +49,8 @@ def drop_seq_token(seq, drop_rate=0.5):
     return seq
 
 
-def import_model_class_from_model_name_or_path(
-    pretrained_model_name_or_path: str, revision: str, subfolder: str = "text_encoder"
-):
-    text_encoder_config = PretrainedConfig.from_pretrained(
-        pretrained_model_name_or_path, subfolder=subfolder, revision=revision
-    )
+def import_model_class_from_model_name_or_path(pretrained_model_name_or_path: str, revision: str, subfolder: str = "text_encoder"):
+    text_encoder_config = PretrainedConfig.from_pretrained(pretrained_model_name_or_path, subfolder=subfolder, revision=revision)
     model_class = text_encoder_config.architectures[0]
 
     if model_class == "CLIPTextModel":
@@ -96,8 +92,8 @@ def img2tensor(imgs, bgr2rgb=True, float32=True):
 
     def _totensor(img, bgr2rgb, float32):
         if img.shape[2] == 3 and bgr2rgb:
-            if img.dtype == 'float64':
-                img = img.astype('float32')
+            if img.dtype == "float64":
+                img = img.astype("float32")
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         img = torch.from_numpy(img.transpose(2, 0, 1))
         if float32:
@@ -131,7 +127,7 @@ def tensor2img(tensor, rgb2bgr=True, out_type=np.uint8, min_max=(0, 1)):
         shape (H x W). The channel order is BGR.
     """
     if not (torch.is_tensor(tensor) or (isinstance(tensor, list) and all(torch.is_tensor(t) for t in tensor))):
-        raise TypeError(f'tensor or list of tensors expected, got {type(tensor)}')
+        raise TypeError(f"tensor or list of tensors expected, got {type(tensor)}")
 
     if torch.is_tensor(tensor):
         tensor = [tensor]
@@ -157,7 +153,7 @@ def tensor2img(tensor, rgb2bgr=True, out_type=np.uint8, min_max=(0, 1)):
         elif n_dim == 2:
             img_np = _tensor.numpy()
         else:
-            raise TypeError(f'Only support 4D, 3D or 2D tensor. But received with dimension: {n_dim}')
+            raise TypeError(f"Only support 4D, 3D or 2D tensor. But received with dimension: {n_dim}")
         if out_type == np.uint8:
             # Unlike MATLAB, numpy.unit8() WILL NOT round by default.
             img_np = (img_np * 255.0).round()
@@ -176,11 +172,11 @@ def append_dims(x, target_dims):
     """Appends dimensions to the end of a tensor until it has target_dims dimensions."""
     dims_to_append = target_dims - x.ndim
     if dims_to_append < 0:
-        raise ValueError(f'input has {x.ndim} dims but target_dims is {target_dims}, which is less')
+        raise ValueError(f"input has {x.ndim} dims but target_dims is {target_dims}, which is less")
     expanded = x[(...,) + (None,) * dims_to_append]
     # MPS will get inf values if it tries to index into the new axes, but detaching fixes this.
     # https://github.com/pytorch/pytorch/issues/84364
-    return expanded.detach().clone() if expanded.device.type == 'mps' else expanded
+    return expanded.detach().clone() if expanded.device.type == "mps" else expanded
 
 
 def to_d(x, sigma, denoised):
@@ -206,7 +202,7 @@ class BatchedBrownianTree:
         if "cpu" in kwargs:
             self.cpu_tree = kwargs.pop("cpu")
         t0, t1, self.sign = self.sort(t0, t1)
-        w0 = kwargs.get('w0', torch.zeros_like(x))
+        w0 = kwargs.get("w0", torch.zeros_like(x))
         if seed is None:
             seed = torch.randint(0, 2**63 - 1, []).item()
         self.batched = True
@@ -228,9 +224,9 @@ class BatchedBrownianTree:
     def __call__(self, t0, t1):
         t0, t1, sign = self.sort(t0, t1)
         if self.cpu_tree:
-            w = torch.stack(
-                [tree(t0.cpu().float(), t1.cpu().float()).to(t0.dtype).to(t0.device) for tree in self.trees]
-            ) * (self.sign * sign)
+            w = torch.stack([tree(t0.cpu().float(), t1.cpu().float()).to(t0.dtype).to(t0.device) for tree in self.trees]) * (
+                self.sign * sign
+            )
         else:
             w = torch.stack([tree(t0, t1) for tree in self.trees]) * (self.sign * sign)
 
@@ -267,14 +263,16 @@ def sample_dpmpp_2m(model, x, sigmas, extra_args=None, callback=None, disable=No
     """DPM-Solver++(2M)."""
     extra_args = {} if extra_args is None else extra_args
     s_in = x.new_ones([x.shape[0]])
-    sigma_fn = lambda t: t.neg().exp()
-    t_fn = lambda sigma: sigma.log().neg()
+    def sigma_fn(t):
+        return t.neg().exp()
+    def t_fn(sigma):
+        return sigma.log().neg()
     old_denoised = None
 
     for i in trange(len(sigmas) - 1, disable=disable):
         denoised = model(x, sigmas[i] * s_in, **extra_args)
         if callback is not None:
-            callback({'x': x, 'i': i, 'sigma': sigmas[i], 'sigma_hat': sigmas[i], 'denoised': denoised})
+            callback({"x": x, "i": i, "sigma": sigmas[i], "sigma_hat": sigmas[i], "denoised": denoised})
         t, t_next = t_fn(sigmas[i]), t_fn(sigmas[i + 1])
         h = t_next - t
         if old_denoised is None or sigmas[i + 1] == 0:
@@ -289,26 +287,22 @@ def sample_dpmpp_2m(model, x, sigmas, extra_args=None, callback=None, disable=No
 
 
 @torch.no_grad()
-def sample_dpmpp_sde(
-    model, x, sigmas, extra_args=None, callback=None, disable=None, eta=1.0, s_noise=1.0, noise_sampler=None, r=1 / 2
-):
+def sample_dpmpp_sde(model, x, sigmas, extra_args=None, callback=None, disable=None, eta=1.0, s_noise=1.0, noise_sampler=None, r=1 / 2):
     """DPM-Solver++ (stochastic)."""
     sigma_min, sigma_max = sigmas[sigmas > 0].min(), sigmas.max()
     seed = extra_args.get("seed", None)
-    noise_sampler = (
-        BrownianTreeNoiseSampler(x, sigma_min, sigma_max, seed=seed, cpu=False)
-        if noise_sampler is None
-        else noise_sampler
-    )
+    noise_sampler = BrownianTreeNoiseSampler(x, sigma_min, sigma_max, seed=seed, cpu=False) if noise_sampler is None else noise_sampler
     extra_args = {} if extra_args is None else extra_args
     s_in = x.new_ones([x.shape[0]])
-    sigma_fn = lambda t: t.neg().exp()
-    t_fn = lambda sigma: sigma.log().neg()
+    def sigma_fn(t):
+        return t.neg().exp()
+    def t_fn(sigma):
+        return sigma.log().neg()
 
     for i in trange(len(sigmas) - 1, disable=disable):
         denoised = model(x, sigmas[i] * s_in, **extra_args)
         if callback is not None:
-            callback({'x': x, 'i': i, 'sigma': sigmas[i], 'sigma_hat': sigmas[i], 'denoised': denoised})
+            callback({"x": x, "i": i, "sigma": sigmas[i], "sigma_hat": sigmas[i], "denoised": denoised})
         if sigmas[i + 1] == 0:
             # Euler method
             d = to_d(x, sigmas[i], denoised)

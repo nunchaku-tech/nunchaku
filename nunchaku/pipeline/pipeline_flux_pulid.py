@@ -32,7 +32,7 @@ from diffusers.utils import (
     scale_lora_layers,
     unscale_lora_layers,
 )
-from diffusers.pipelines.flux.pipeline_flux import EXAMPLE_DOC_STRING, calculate_shift, retrieve_timesteps 
+from diffusers.pipelines.flux.pipeline_flux import EXAMPLE_DOC_STRING, calculate_shift, retrieve_timesteps
 from ..models.pulid.utils import resize_numpy_image_long
 
 class PuLIDPipeline(nn.Module):
@@ -251,7 +251,6 @@ class PuLIDFluxPipeline(FluxPipeline):
             onnx_provider=self.onnx_provider,
         )
         self.pulid_model.load_pretrain(pretrained_model)
-    
     @torch.no_grad()
     @replace_example_docstring(EXAMPLE_DOC_STRING)
     def __call__(
@@ -272,7 +271,6 @@ class PuLIDFluxPipeline(FluxPipeline):
         prompt_embeds: Optional[torch.FloatTensor] = None,
         pooled_prompt_embeds: Optional[torch.FloatTensor] = None,
         ip_adapter_image: Optional[PipelineImageInput] = None,
-        
         id_image = None,
         id_weight = 1.0,
         start_step = 0,
@@ -291,7 +289,6 @@ class PuLIDFluxPipeline(FluxPipeline):
     ):
         r"""
         Function invoked when calling the pipeline for generation.
-
         Args:
             prompt (`str` or `List[str]`, *optional*):
                 The prompt or prompts to guide the image generation. If not defined, one has to pass `prompt_embeds`.

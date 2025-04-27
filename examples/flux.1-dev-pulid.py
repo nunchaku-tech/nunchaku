@@ -14,5 +14,10 @@ pipe.transformer.forward = MethodType(forward, pipe.transformer)
 
 id_image = load_image("https://github.com/ToTheBeginning/PuLID/blob/main/example_inputs/liuyifei.png?raw=true")
 
-image = pipe("A woman holding a sign that says hello world", id_image=id_image, id_weight=1, num_inference_steps=12, guidance_scale=3.5).images[0]
+image = pipe(
+    "A woman holding a sign that says hello world",
+    id_image=id_image,
+    id_weight=1,
+    num_inference_steps=12,
+    guidance_scale=3.5).images[0]
 image.save("./flux.1-dev-pulid.png")

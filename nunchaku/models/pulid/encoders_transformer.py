@@ -29,7 +29,7 @@ def reshape_tensor(x, heads):
 class PerceiverAttentionCA(nn.Module):
     def __init__(self, *, dim=3072, dim_head=128, heads=16, kv_dim=2048):
         super().__init__()
-        self.scale = dim_head ** -0.5
+        self.scale = dim_head**-0.5
         self.dim_head = dim_head
         self.heads = heads
         inner_dim = dim_head * heads
@@ -75,7 +75,7 @@ class PerceiverAttentionCA(nn.Module):
 class PerceiverAttention(nn.Module):
     def __init__(self, *, dim, dim_head=64, heads=8, kv_dim=None):
         super().__init__()
-        self.scale = dim_head ** -0.5
+        self.scale = dim_head**-0.5
         self.dim_head = dim_head
         self.heads = heads
         inner_dim = dim_head * heads
@@ -127,16 +127,17 @@ class IDFormer(nn.Module):
     - vit features are multi-scaled and inserted into IDFormer in order, currently, each scale corresponds to two
       IDFormer layers
     """
+
     def __init__(
-            self,
-            dim=1024,
-            depth=10,
-            dim_head=64,
-            heads=16,
-            num_id_token=5,
-            num_queries=32,
-            output_dim=2048,
-            ff_mult=4,
+        self,
+        dim=1024,
+        depth=10,
+        dim_head=64,
+        heads=16,
+        num_id_token=5,
+        num_queries=32,
+        output_dim=2048,
+        ff_mult=4,
     ):
         super().__init__()
 
@@ -145,7 +146,7 @@ class IDFormer(nn.Module):
         self.num_queries = num_queries
         assert depth % 5 == 0
         self.depth = depth // 5
-        scale = dim ** -0.5
+        scale = dim**-0.5
 
         self.latents = nn.Parameter(torch.randn(1, num_queries, dim) * scale)
         self.proj_out = nn.Parameter(scale * torch.randn(dim, output_dim))
@@ -164,7 +165,7 @@ class IDFormer(nn.Module):
         for i in range(5):
             setattr(
                 self,
-                f'mapping_{i}',
+                f"mapping_{i}",
                 nn.Sequential(
                     nn.Linear(1024, 1024),
                     nn.LayerNorm(1024),
@@ -187,7 +188,6 @@ class IDFormer(nn.Module):
         )
 
     def forward(self, x, y):
-
         latents = self.latents.repeat(x.size(0), 1, 1)
 
         num_duotu = x.shape[1] if x.ndim == 3 else 1
@@ -198,12 +198,12 @@ class IDFormer(nn.Module):
         latents = torch.cat((latents, x), dim=1)
 
         for i in range(5):
-            vit_feature = getattr(self, f'mapping_{i}')(y[i])
+            vit_feature = getattr(self, f"mapping_{i}")(y[i])
             ctx_feature = torch.cat((x, vit_feature), dim=1)
-            for attn, ff in self.layers[i * self.depth: (i + 1) * self.depth]:
+            for attn, ff in self.layers[i * self.depth : (i + 1) * self.depth]:
                 latents = attn(ctx_feature, latents) + latents
                 latents = ff(latents) + latents
 
-        latents = latents[:, :self.num_queries]
+        latents = latents[:, : self.num_queries]
         latents = latents @ self.proj_out
         return latents
