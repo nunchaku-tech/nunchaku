@@ -251,26 +251,6 @@ class PuLIDFluxPipeline(FluxPipeline):
             onnx_provider=self.onnx_provider,
         )
         self.pulid_model.load_pretrain(pretrained_model)
-
-    # @classmethod
-    # def from_pretrained(cls, pretrained_model_name_or_path, *args, **kwargs):
-    #     # Load the base pipeline
-    #     base = super().from_pretrained(pretrained_model_name_or_path, *args, **kwargs)
-
-    #     return cls(
-    #         scheduler=base.scheduler,
-    #         vae=base.vae,
-    #         text_encoder=base.text_encoder,
-    #         tokenizer=base.tokenizer,
-    #         text_encoder_2=base.text_encoder_2,
-    #         tokenizer_2=base.tokenizer_2,
-    #         transformer=base.transformer,
-    #         image_encoder=base.image_encoder,
-    #         feature_extractor=base.feature_extractor,
-    #         pulid_device = kwargs.get("device", "cuda"),
-    #         weight_dtype = kwargs.get("torch_dtype", "torch.float32"),
-    #         onnx_provider=kwargs.get("onnx_provider", "gpu"),
-    #     )
     
     @torch.no_grad()
     @replace_example_docstring(EXAMPLE_DOC_STRING)

@@ -828,20 +828,6 @@ Tensor FluxModel::forward(
                 pybind11::gil_scoped_acquire gil;
                 Tensor cpu_output = residual_callback(cpu_input);
                 Tensor residual = cpu_output.copy(Device::cuda());
-
-                // spdlog::info(">> residual shape: {}, hidden_states shape: {}",
-                //     residual.shape.str(), hidden_states.shape.str());
-
-                // Tensor slice_cpu = callback_input.copy(Device::cpu());
-                // Tensor control_cpu = cpu_output.copy(Device::cpu());
-                // std::ostringstream slice_str, control_str;
-                // for (int i = 0; i < std::min(8, slice_cpu.shape[2]); ++i) {
-                //    slice_str << float(slice_cpu.at<__nv_bfloat16>({0, 0, i})) << " ";
-                //    control_str << float(control_cpu.at<__nv_bfloat16>({0, 0, i})) << " ";
-                // }
-                // spdlog::info(">> slice[0][0][:8]   = {}", slice_str.str());
-                // spdlog::info(">> residual[0][0][:8] = {}", control_str.str());
-
                 auto slice = hidden_states.slice(1, txt_tokens, txt_tokens + img_tokens);
                 slice = kernels::add(slice, residual);
                 hidden_states.slice(1, txt_tokens, txt_tokens + img_tokens).copy_(slice);

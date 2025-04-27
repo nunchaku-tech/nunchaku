@@ -28,63 +28,28 @@ public:
         return net->dtype == Tensor::BF16;
     }
     pybind11::function residual_callback;
-    void set_residual_callback(pybind11::function callback) {
-        //spdlog::info(">>> [set_residual_callback] START");
-    
+    void set_residual_callback(pybind11::function callback) {    
         pybind11::gil_scoped_acquire gil;
-
         if (!callback || callback.is_none()) {
             residual_callback = pybind11::function();
             if (net){
                 net->set_residual_callback(nullptr);
             }
             return;
-        }
-        //spdlog::info(">>> [set_residual_callback] Acquired GIL");
-    
-        //spdlog::info(">>> [set_residual_callback] Callback repr (before store): {}", std::string(pybind11::str(callback)));
-    
-        residual_callback = std::move(callback);  
-        //spdlog::info(">>> [set_residual_callback] Stored to residual_callback");
-    
+        }    
+        residual_callback = std::move(callback);      
         if (net) {
-            pybind11::object cb = residual_callback;
-            //spdlog::info(">>> [set_residual_callback] Captured as pybind11::object, ptr={}", (void*)cb.ptr());
-    
-            net->set_residual_callback([cb](const Tensor &x) -> Tensor {
-                //spdlog::info(">>> [lambda] ENTER");
-    
+            pybind11::object cb = residual_callback;    
+            net->set_residual_callback([cb](const Tensor &x) -> Tensor {    
                 pybind11::gil_scoped_acquire gil;
-                //spdlog::info(">>> [lambda] GIL acquired");
-    
-                //spdlog::info(">>> [lambda] cb repr: {}", std::string(pybind11::str(cb)));
-                //spdlog::info(">>> [lambda] cb ptr: {}", (void*)cb.ptr());
-
-                //spdlog::info(">>> [lambda] x shape: {}", x.shape.str());
-    
                 torch::Tensor torch_x = to_torch(x);
-                //spdlog::info(">>> [lambda] Converted to torch_x");
-    
                 pybind11::object result = cb(torch_x);
-                //spdlog::info(">>> [lambda] Callback called, got result");
-
-    
                 torch::Tensor torch_y = result.cast<torch::Tensor>();
-                //spdlog::info(">>> [lambda] Casted to torch::Tensor");
-    
                 Tensor y = from_torch(torch_y);
-                //spdlog::info(">>> [lambda] Converted back to Tensor");
-                //spdlog::info(">>> [lambda] Converted back to Tensor, shape: {}", y.shape.str());
-    
                 return y;
             });
-    
-            //spdlog::info(">>> [set_residual_callback] Callback set on net");
         } else {
-            //spdlog::warn(">>> [set_residual_callback] net is null!");
         }
-    
-        //spdlog::info(">>> [set_residual_callback] END");
     }
 
     torch::Tensor forward(
