@@ -203,3 +203,8 @@ cython_debug/
 *.pt
 *.nsys-rep
 *.ncu-rep
+
+# Pulid
+*.safetensors
+*.onnx
+.gitattributes
