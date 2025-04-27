@@ -9,7 +9,7 @@
 <a href="README.md"><b>English</b></a> | <a href="README_ZH.md"><b>中文</b></a>
 </h3>
 
-**Nunchaku**是一款专为4-bit神经网络优化的高性能推理引擎，基于我们的论文 [SVDQuant](http://arxiv.org/abs/2411.05007) 提出。底层量化库请参考 [DeepCompressor](https://github.com/mit-han-lab/deepcompressor)。
+**Nunchaku** 是一款专为4-bit神经网络优化的高性能推理引擎，基于我们的论文 [SVDQuant](http://arxiv.org/abs/2411.05007) 提出。底层量化库请参考 [DeepCompressor](https://github.com/mit-han-lab/deepcompressor)。
 
 欢迎加入我们的用户群：[**Slack**](https://join.slack.com/t/nunchaku/shared_invite/zt-3170agzoz-NgZzWaTrEj~n2KEV3Hpl5Q)、[**Discord**](https://discord.gg/Wk6PnwX9Sm) 和 [**微信**](./assets/wechat.jpg)，与社区交流！更多详情请见[此处](https://github.com/mit-han-lab/nunchaku/issues/149)。如有任何问题、建议或贡献意向，欢迎随时联系！
 
