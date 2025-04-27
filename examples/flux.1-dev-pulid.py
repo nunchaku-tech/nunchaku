@@ -1,4 +1,4 @@
-from nunchaku.nunchaku.pipeline.pipeline_flux_pulid import PuLIDFluxPipeline
+from nunchaku.pipeline.pipeline_flux_pulid import PuLIDFluxPipeline
 from nunchaku.models.pulid.pulid_forward import forward
 import torch
 from types import MethodType

@@ -11,10 +11,8 @@ import torch
 from .constants import OPENAI_DATASET_MEAN, OPENAI_DATASET_STD
 from .model import CLIP, CustomCLIP, convert_weights_to_lp, convert_to_custom_text_state_dict,\
     get_cast_dtype
-from .openai import load_openai_model
 from .pretrained import is_pretrained_cfg, get_pretrained_cfg, download_pretrained, list_pretrained_tags_by_model
 from .transform import image_transform
-from .tokenizer import HFTokenizer, tokenize
 from .utils import resize_clip_pos_embed, resize_evaclip_pos_embed, resize_visual_pos_embed, resize_eva_pos_embed
 
 
@@ -70,10 +68,7 @@ def get_model_config(model_name):
         return None
 
 
-def get_tokenizer(model_name):
-    config = get_model_config(model_name)
-    tokenizer = HFTokenizer(config['text_cfg']['hf_tokenizer_name']) if 'hf_tokenizer_name' in config['text_cfg'] else tokenize
-    return tokenizer
+
 
 
 # loading openai CLIP weights when is_openai=True for training
@@ -230,14 +225,7 @@ def create_model(
         device = torch.device(device)
 
     if pretrained and pretrained.lower() == 'openai':
-        logging.info(f'Loading pretrained {model_name} from OpenAI.')
-        model = load_openai_model(
-            model_name,
-            precision=precision,
-            device=device,
-            jit=jit,
-            cache_dir=cache_dir,
-        )
+        pass
     else:
         model_cfg = get_model_config(model_name)
         if model_cfg is not None:

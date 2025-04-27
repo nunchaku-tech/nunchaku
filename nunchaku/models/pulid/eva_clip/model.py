@@ -17,7 +17,6 @@ try:
 except:
     HFTextEncoder = None
 from .modified_resnet import ModifiedResNet
-from .timm_model import TimmModel
 from .eva_vit_model import EVAVisionTransformer
 from .transformer import LayerNorm, QuickGELU, Attention, VisionTransformer, TextTransformer
 
@@ -128,16 +127,6 @@ def _build_vision_tower(
             intp_freq= vision_cfg.intp_freq,
             naiveswiglu= vision_cfg.naiveswiglu,
             subln= vision_cfg.subln
-        )
-    elif vision_cfg.timm_model_name:
-        visual = TimmModel(
-            vision_cfg.timm_model_name,
-            pretrained=vision_cfg.timm_model_pretrained,
-            pool=vision_cfg.timm_pool,
-            proj=vision_cfg.timm_proj,
-            proj_bias=vision_cfg.timm_proj_bias,
-            embed_dim=embed_dim,
-            image_size=vision_cfg.image_size
         )
         act_layer = nn.GELU  # so that text transformer doesn't use QuickGELU w/ timm models
     elif isinstance(vision_cfg.layers, (tuple, list)):
