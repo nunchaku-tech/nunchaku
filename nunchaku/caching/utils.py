@@ -4,6 +4,7 @@ import contextlib
 import dataclasses
 from collections import defaultdict
 from typing import DefaultDict, Dict, Optional, Tuple
+
 import torch
 from torch import nn
 
@@ -85,13 +86,13 @@ def are_two_tensors_similar(t1, t2, *, threshold, parallelized=False):
 
 @torch.compiler.disable
 def apply_prev_hidden_states_residual(
-    hidden_states: torch.Tensor, encoder_hidden_states: torch.Tensor = None, mode: str = "multi",
+    hidden_states: torch.Tensor,
+    encoder_hidden_states: torch.Tensor = None,
+    mode: str = "multi",
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     if mode == "multi":
         hidden_states_residual = get_buffer("multi_hidden_states_residual")
-        assert hidden_states_residual is not None, (
-            "multi_hidden_states_residual must be set before"
-        )
+        assert hidden_states_residual is not None, "multi_hidden_states_residual must be set before"
         hidden_states = hidden_states + hidden_states_residual
         hidden_states = hidden_states.contiguous()
 
@@ -118,7 +119,9 @@ def apply_prev_hidden_states_residual(
 
 
 @torch.compiler.disable
-def get_can_use_cache(first_hidden_states_residual: torch.Tensor, threshold: float, parallelized: bool = False, mode: str = "multi"):
+def get_can_use_cache(
+    first_hidden_states_residual: torch.Tensor, threshold: float, parallelized: bool = False, mode: str = "multi"
+):
     if mode == "multi":
         buffer_name = "first_multi_hidden_states_residual"
     elif mode == "single":
@@ -162,20 +165,16 @@ def check_and_apply_cache(
 
     if can_use_cache:
         if verbose:
-            print(f"[{mode.upper()}] Cache hit! diff={diff:.4f}, "
-                  f"new threshold={threshold:.4f}")
+            print(f"[{mode.upper()}] Cache hit! diff={diff:.4f}, " f"new threshold={threshold:.4f}")
 
-        out = apply_prev_hidden_states_residual(
-            hidden_states, encoder_hidden_states, mode=mode
-        )
+        out = apply_prev_hidden_states_residual(hidden_states, encoder_hidden_states, mode=mode)
         updated_h, updated_enc = out if isinstance(out, tuple) else (out, None)
         return updated_h, updated_enc, threshold
 
     old_threshold = threshold
 
     if verbose:
-        print(f"[{mode.upper()}] Cache miss. diff={diff:.4f}, "
-              f"was={old_threshold:.4f} => now={threshold:.4f}")
+        print(f"[{mode.upper()}] Cache miss. diff={diff:.4f}, " f"was={old_threshold:.4f} => now={threshold:.4f}")
 
     if mode == "multi":
         set_buffer("first_multi_hidden_states_residual", first_residual)
@@ -183,9 +182,7 @@ def check_and_apply_cache(
         set_buffer("first_single_hidden_states_residual", first_residual)
 
     result = call_remaining_fn(
-        hidden_states=hidden_states,
-        encoder_hidden_states=encoder_hidden_states,
-        **remaining_kwargs
+        hidden_states=hidden_states, encoder_hidden_states=encoder_hidden_states, **remaining_kwargs
     )
 
     if mode == "multi":
@@ -369,10 +366,7 @@ class FluxCachedTransformerBlocks(nn.Module):
         return rotemb
 
     def update_residual_diff_threshold(
-        self,
-        use_double_fb_cache=True,
-        residual_diff_threshold_multi=0.12,
-        residual_diff_threshold_single=0.09
+        self, use_double_fb_cache=True, residual_diff_threshold_multi=0.12, residual_diff_threshold_single=0.09
     ):
         self.use_double_fb_cache = use_double_fb_cache
         self.residual_diff_threshold_multi = residual_diff_threshold_multi
@@ -420,9 +414,7 @@ class FluxCachedTransformerBlocks(nn.Module):
         total_tokens = txt_tokens + img_tokens
         assert image_rotary_emb.shape[2] == 1 * total_tokens
 
-        image_rotary_emb = image_rotary_emb.reshape(
-            [1, txt_tokens + img_tokens, *image_rotary_emb.shape[3:]]
-        )
+        image_rotary_emb = image_rotary_emb.reshape([1, txt_tokens + img_tokens, *image_rotary_emb.shape[3:]])
         rotary_emb_txt = image_rotary_emb[:, :txt_tokens, ...]
         rotary_emb_img = image_rotary_emb[:, txt_tokens:, ...]
         rotary_emb_single = image_rotary_emb
@@ -495,10 +487,7 @@ class FluxCachedTransformerBlocks(nn.Module):
             hidden_states=hidden_states,
             encoder_hidden_states=encoder_hidden_states,
             threshold=self.residual_diff_threshold_multi,
-            parallelized=(
-                self.transformer is not None
-                and getattr(self.transformer, "_is_parallelized", False)
-            ),
+            parallelized=(self.transformer is not None and getattr(self.transformer, "_is_parallelized", False)),
             mode="multi",
             verbose=self.verbose,
             call_remaining_fn=call_remaining_fn,
@@ -515,9 +504,7 @@ class FluxCachedTransformerBlocks(nn.Module):
         # DoubleFBCache
         cat_hidden_states = torch.cat([updated_enc, updated_h], dim=1)
         original_cat = cat_hidden_states
-        cat_hidden_states = self.m.forward_single_layer(
-            0, cat_hidden_states, temb, rotary_emb_single
-        )
+        cat_hidden_states = self.m.forward_single_layer(0, cat_hidden_states, temb, rotary_emb_single)
 
         first_hidden_states_residual_single = cat_hidden_states - original_cat
         del original_cat
@@ -529,10 +516,7 @@ class FluxCachedTransformerBlocks(nn.Module):
             hidden_states=cat_hidden_states,
             encoder_hidden_states=None,
             threshold=self.residual_diff_threshold_single,
-            parallelized=(
-                self.transformer is not None
-                and getattr(self.transformer, "_is_parallelized", False)
-            ),
+            parallelized=(self.transformer is not None and getattr(self.transformer, "_is_parallelized", False)),
             mode="single",
             verbose=self.verbose,
             call_remaining_fn=call_remaining_fn_single,

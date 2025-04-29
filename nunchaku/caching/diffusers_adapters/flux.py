@@ -14,12 +14,14 @@ def apply_cache_on_transformer(
     residual_diff_threshold: float = 0.12,
     residual_diff_threshold_multi: float | None = None,
     residual_diff_threshold_single: float = 0.1,
-    ):
+):
     if residual_diff_threshold_multi is None:
         residual_diff_threshold_multi = residual_diff_threshold
 
     if getattr(transformer, "_is_cached", False):
-        transformer.cached_transformer_blocks[0].update_residual_diff_threshold(use_double_fb_cache,residual_diff_threshold_multi,residual_diff_threshold_single)
+        transformer.cached_transformer_blocks[0].update_residual_diff_threshold(
+            use_double_fb_cache, residual_diff_threshold_multi, residual_diff_threshold_single
+        )
         return transformer
 
     cached_transformer_blocks = nn.ModuleList(
