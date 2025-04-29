@@ -46,9 +46,7 @@ SVDQuant 是一种支持4-bit权重和激活的后训练量化技术，能有效
 [Muyang Li](https://lmxyy.me)\*, [Yujun Lin](https://yujunlin.com)\*, [Zhekai Zhang](https://hanlab.mit.edu/team/zhekai-zhang)\*, [Tianle Cai](https://www.tianle.website/#/), [Xiuyu Li](https://xiuyuli.com), [Junxian Guo](https://github.com/JerryGJX), [Enze Xie](https://xieenze.github.io), [Chenlin Meng](https://cs.stanford.edu/~chenlin/), [Jun-Yan Zhu](https://www.cs.cmu.edu/~junyanz/), [Song Han](https://hanlab.mit.edu/songhan) <br>
 *麻省理工学院、英伟达、卡内基梅隆大学、普林斯顿大学、加州大学伯克利分校、上海交通大学、pika实验室* <br>
 
-<p align="center">
-  <img src="assets/demo.gif" width="100%"/>
-</p>
+https://github.com/user-attachments/assets/fdd4ab68-6489-4c65-8768-259bd866e8f8
 
 ## 方法原理
 
