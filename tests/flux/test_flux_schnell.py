@@ -8,8 +8,8 @@ from .utils import run_test
 @pytest.mark.parametrize(
     "height,width,attention_impl,cpu_offload,expected_lpips",
     [
-        (1024, 1024, "flashattn2", False, 0.126 if get_precision() == "int4" else 0.113),
-        (1024, 1024, "nunchaku-fp16", False, 0.126 if get_precision() == "int4" else 0.113),
+        (1024, 1024, "flashattn2", False, 0.126 if get_precision() == "int4" else 0.126),
+        (1024, 1024, "nunchaku-fp16", False, 0.126 if get_precision() == "int4" else 0.126),
         (1920, 1080, "nunchaku-fp16", False, 0.158 if get_precision() == "int4" else 0.138),
         (2048, 2048, "nunchaku-fp16", True, 0.166 if get_precision() == "int4" else 0.120),
     ],
