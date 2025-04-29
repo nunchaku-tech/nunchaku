@@ -2,7 +2,7 @@
 
 ## Text-to-Image Gradio Demo
 
-![demo](./assets/demo.jpg)
+![demo](https://huggingface.co/mit-han-lab/nunchaku-artifacts/resolve/main/nunchaku/app/flux.1/t2i/assets/demo.jpg)
 
 This interactive Gradio application can generate an image based on your provided text prompt. The base model can be either [FLUX.1-schnell](https://huggingface.co/black-forest-labs/FLUX.1-schnell) or [FLUX.1-dev](https://huggingface.co/black-forest-labs/FLUX.1-dev).
 
