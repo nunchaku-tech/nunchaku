@@ -1,6 +1,6 @@
 # Nunchaku INT4 FLUX.1 Sketch-to-Image Demo
 
-![demo](./assets/demo.jpg)
+![demo](https://huggingface.co/mit-han-lab/nunchaku-artifacts/resolve/main/nunchaku/app/flux.1/sketch/assets/demo.jpg)
 
 This interactive Gradio application transforms your drawing scribbles into realistic images given a text prompt. The base model is [FLUX.1-schnell](https://huggingface.co/black-forest-labs/FLUX.1-schnell) with the [pix2pix-Turbo](https://github.com/GaParmar/img2img-turbo) sketch LoRA.
 
