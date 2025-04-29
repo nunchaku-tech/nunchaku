@@ -15,11 +15,6 @@ jobs:
     if: github.repository == 'mit-han-lab/nunchaku'
 
     steps:
-      - name: Set up Git User
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-
       - name: Checkout the repository
         uses: actions/checkout@v4
         with:
@@ -45,11 +40,19 @@ jobs:
       - name: Merge main into dev
         id: last_commit
         if: steps.check_sync.outputs.skip_merge == 'false'
-        run: |
-          git fetch origin main
+        run: |          
+          # Get author name and email from last commit on main
+          AUTHOR_NAME=$(git log origin/main -1 --pretty=format:'%an')
+          AUTHOR_EMAIL=$(git log origin/main -1 --pretty=format:'%ae')
           LAST_MSG=$(git log origin/main -1 --pretty=%s)
+
+          echo "Author: $AUTHOR_NAME <$AUTHOR_EMAIL>"
           echo "Last commit message: $LAST_MSG"
-          set -e
+          
+          # Set Git user to last author
+          git config --global user.name "$AUTHOR_NAME"
+          git config --global user.email "$AUTHOR_EMAIL"
+          
           git checkout dev
           git merge origin/main -m "[Auto Merge] $LAST_MSG"
           git push origin dev

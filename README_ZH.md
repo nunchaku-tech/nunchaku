@@ -8,7 +8,8 @@
 <h3 align="center"> 
 <a href="README.md"><b>English</b></a> | <a href="README_ZH.md"><b>中文</b></a>
 </h3>
-**Nunchaku** 是一款专为4-bit神经网络优化的高性能推理引擎，基于我们的论文 [SVDQuant](http://arxiv.org/abs/2411.05007) 提出。底层量化库请参考 [DeepCompressor](https://github.com/mit-han-lab/deepcompressor)。
+
+**Nunchaku**是一款专为4-bit神经网络优化的高性能推理引擎，基于我们的论文 [SVDQuant](http://arxiv.org/abs/2411.05007) 提出。底层量化库请参考 [DeepCompressor](https://github.com/mit-han-lab/deepcompressor)。
 
 欢迎加入我们的用户群：[**Slack**](https://join.slack.com/t/nunchaku/shared_invite/zt-3170agzoz-NgZzWaTrEj~n2KEV3Hpl5Q)、[**Discord**](https://discord.gg/Wk6PnwX9Sm) 和 [**微信**](./assets/wechat.jpg)，与社区交流！更多详情请见[此处](https://github.com/mit-han-lab/nunchaku/issues/149)。如有任何问题、建议或贡献意向，欢迎随时联系！
 
@@ -303,6 +304,27 @@ Nunchaku 支持 [FLUX.1-tools](https://blackforestlabs.ai/flux-1-tools/) 和 [FL
 
 请查看 [此处](https://github.com/mit-han-lab/nunchaku/issues/266) 获取四月的路线图。
 
+## 贡献
+我们诚挚欢迎社区贡献！请参阅[贡献指南](docs/contribution_guide_ZH.md)了解如何为 Nunchaku 贡献代码。
+
+## 问题排查
+
+使用 Nunchaku 时遇到问题？请先查阅我们的[常见问题解答](docs/faq_ZH.md)寻找解决方案。若仍需要帮助，可通过[open an issue](https://github.com/mit-han-lab/nunchaku/issues)联系我们。也欢迎您通过 [**Slack**](https://join.slack.com/t/nunchaku/shared_invite/zt-3170agzoz-NgZzWaTrEj~n2KEV3Hpl5Q)、[**Discord**](https://discord.gg/Wk6PnwX9Sm) 或 [**微信**](./assets/wechat.jpg) 加入我们的社区讨论。
+
+## 联系我们
+
+有意采用 SVDQuant 或 Nunchaku 的企业，包括技术咨询、赞助机会或合作咨询，请联系 muyangli@mit.edu。
+
+## 相关项目
+
+* [Efficient Spatially Sparse Inference for Conditional GANs and Diffusion Models](https://arxiv.org/abs/2211.02048), NeurIPS 2022 & T-PAMI 2023
+* [SmoothQuant: Accurate and Efficient Post-Training Quantization for Large Language Models](https://arxiv.org/abs/2211.10438), ICML 2023
+* [Q-Diffusion: Quantizing Diffusion Models](https://arxiv.org/abs/2302.04304), ICCV 2023
+* [AWQ: Activation-aware Weight Quantization for LLM Compression and Acceleration](https://arxiv.org/abs/2306.00978), MLSys 2024
+* [DistriFusion: Distributed Parallel Inference for High-Resolution Diffusion Models](https://arxiv.org/abs/2402.19481), CVPR 2024
+* [QServe: W4A8KV4 Quantization and System Co-design for Efficient LLM Serving](https://arxiv.org/abs/2405.04532), MLSys 2025
+* [SANA: Efficient High-Resolution Image Synthesis with Linear Diffusion Transformers](https://arxiv.org/abs/2410.10629), ICLR 2025
+
 ## 引用
 
 如果你觉得 `nunchaku` 对你的研究有用或相关，请引用我们的论文：
@@ -316,20 +338,6 @@ Nunchaku 支持 [FLUX.1-tools](https://blackforestlabs.ai/flux-1-tools/) 和 [FL
   year={2025}
 }
 ```
-
-## 相关项目
-
-* [Efficient Spatially Sparse Inference for Conditional GANs and Diffusion Models](https://arxiv.org/abs/2211.02048), NeurIPS 2022 & T-PAMI 2023
-* [SmoothQuant: Accurate and Efficient Post-Training Quantization for Large Language Models](https://arxiv.org/abs/2211.10438), ICML 2023
-* [Q-Diffusion: Quantizing Diffusion Models](https://arxiv.org/abs/2302.04304), ICCV 2023
-* [AWQ: Activation-aware Weight Quantization for LLM Compression and Acceleration](https://arxiv.org/abs/2306.00978), MLSys 2024
-* [DistriFusion: Distributed Parallel Inference for High-Resolution Diffusion Models](https://arxiv.org/abs/2402.19481), CVPR 2024
-* [QServe: W4A8KV4 Quantization and System Co-design for Efficient LLM Serving](https://arxiv.org/abs/2405.04532), MLSys 2025
-* [SANA: Efficient High-Resolution Image Synthesis with Linear Diffusion Transformers](https://arxiv.org/abs/2410.10629), ICLR 2025
-
-## 联系我们
-
-对于有兴趣采用 SVDQuant 或 Nunchaku 的企业，包括技术咨询、赞助机会或合作意向，请联系 muyangli@mit.edu。
 
 ## 致谢
 

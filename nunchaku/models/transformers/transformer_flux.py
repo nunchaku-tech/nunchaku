@@ -1,7 +1,6 @@
-from typing import Any, Dict, Optional, Union
-
 import logging
 import os
+from typing import Any, Dict, Optional, Union
 
 import diffusers
 import torch
@@ -10,7 +9,7 @@ from diffusers.configuration_utils import register_to_config
 from diffusers.models.modeling_outputs import Transformer2DModelOutput
 from huggingface_hub import utils
 from packaging.version import Version
-from safetensors.torch import load_file, save_file
+from safetensors.torch import load_file
 from torch import nn
 
 from .utils import NunchakuModelLoaderMixin, pad_tensor

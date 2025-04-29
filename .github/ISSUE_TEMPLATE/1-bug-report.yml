@@ -9,7 +9,7 @@ body:
   attributes:
     label: Checklist
     options:
-    - label: 1. I have searched for related issues and FAQs (https://github.com/mit-han-lab/nunchaku/discussions/262) but was unable to find a solution.
+    - label: 1. I have searched for related issues and FAQs (https://github.com/mit-han-lab/nunchaku/blob/main/docs/faq.md) but was unable to find a solution.
     - label: 2. The issue persists in the latest version.
     - label: 3. Please note that without environment information and a minimal reproducible example, it will be difficult for us to reproduce and address the issue, which may delay our response.
     - label: 4. If your report is a question rather than a bug, please submit it as a discussion at https://github.com/mit-han-lab/nunchaku/discussions/new/choose. Otherwise, this issue will be closed.

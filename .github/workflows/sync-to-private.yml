@@ -15,11 +15,6 @@ jobs:
     if: github.repository == 'mit-han-lab/nunchaku'
 
     steps:
-      - name: Set up Git User
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-
       - name: Clone private repository
         run: |
           git clone https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/mit-han-lab/nunchaku-dev.git
@@ -53,6 +48,10 @@ jobs:
           # Preserve original author and amend commit message
           GIT_AUTHOR_NAME=$(git log --format='%aN' -n 1 $COMMIT)
           GIT_AUTHOR_EMAIL=$(git log --format='%aE' -n 1 $COMMIT)
+          
+          git config --global user.name "$GIT_AUTHOR_NAME"
+          git config --global user.email "$GIT_AUTHOR_EMAIL"          
+          
           NEW_MSG="[Auto Sync] ${COMMIT_MSG}"
 
           PARENTS=$(git rev-list --parents -n 1 $COMMIT)

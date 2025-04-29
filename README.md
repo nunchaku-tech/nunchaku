@@ -145,7 +145,7 @@ If you're using a Blackwell GPU (e.g., 50-series GPUs), install a wheel with PyT
     conda install -c conda-forge gxx=11 gcc=11
     ```
 
-    For Windows users, you can download and install the lastest [Visual Studio](https://visualstudio.microsoft.com/thank-you-downloading-visual-studio/?sku=Community&channel=Release&version=VS2022&source=VSLandingPage&cid=2030&passive=false).
+    For Windows users, you can download and install the latest [Visual Studio](https://visualstudio.microsoft.com/thank-you-downloading-visual-studio/?sku=Community&channel=Release&version=VS2022&source=VSLandingPage&cid=2030&passive=false).
     
     Then build the package from source with
     
@@ -308,6 +308,27 @@ Please refer to [app/flux/t2i/README.md](app/flux/t2i/README.md) for instruction
 
 Please check [here](https://github.com/mit-han-lab/nunchaku/issues/266) for the roadmap for April.
 
+## Contribution
+We warmly welcome contributions from the community! To get started, please refer to our [contribution guide](docs/contribution_guide.md) for instructions on how to contribute code to Nunchaku.
+
+## Troubleshooting
+
+Encountering issues while using Nunchaku? Start by browsing our [FAQ](docs/faq.md) for common solutions. If you still need help, feel free to [open an issue](https://github.com/mit-han-lab/nunchaku/issues). You’re also welcome to join our community discussions on [**Slack**](https://join.slack.com/t/nunchaku/shared_invite/zt-3170agzoz-NgZzWaTrEj~n2KEV3Hpl5Q), [**Discord**](https://discord.gg/Wk6PnwX9Sm), or [**WeChat**](./assets/wechat.jpg).
+
+## Contact Us
+
+For enterprises interested in adopting SVDQuant or Nunchaku, including technical consulting, sponsorship opportunities, or partnership inquiries, please contact us at muyangli@mit.edu.
+
+## Related Projects
+
+* [Efficient Spatially Sparse Inference for Conditional GANs and Diffusion Models](https://arxiv.org/abs/2211.02048), NeurIPS 2022 & T-PAMI 2023
+* [SmoothQuant: Accurate and Efficient Post-Training Quantization for Large Language Models](https://arxiv.org/abs/2211.10438), ICML 2023
+* [Q-Diffusion: Quantizing Diffusion Models](https://arxiv.org/abs/2302.04304), ICCV 2023
+* [AWQ: Activation-aware Weight Quantization for LLM Compression and Acceleration](https://arxiv.org/abs/2306.00978), MLSys 2024
+* [DistriFusion: Distributed Parallel Inference for High-Resolution Diffusion Models](https://arxiv.org/abs/2402.19481), CVPR 2024
+* [QServe: W4A8KV4 Quantization and System Co-design for Efficient LLM Serving](https://arxiv.org/abs/2405.04532), MLSys 2025
+* [SANA: Efficient High-Resolution Image Synthesis with Linear Diffusion Transformers](https://arxiv.org/abs/2410.10629), ICLR 2025
+
 ## Citation
 
 If you find `nunchaku` useful or relevant to your research, please cite our paper:
@@ -321,19 +342,6 @@ If you find `nunchaku` useful or relevant to your research, please cite our pape
   year={2025}
 }
 ```
-
-## Related Projects
-
-* [Efficient Spatially Sparse Inference for Conditional GANs and Diffusion Models](https://arxiv.org/abs/2211.02048), NeurIPS 2022 & T-PAMI 2023
-* [SmoothQuant: Accurate and Efficient Post-Training Quantization for Large Language Models](https://arxiv.org/abs/2211.10438), ICML 2023
-* [Q-Diffusion: Quantizing Diffusion Models](https://arxiv.org/abs/2302.04304), ICCV 2023
-* [AWQ: Activation-aware Weight Quantization for LLM Compression and Acceleration](https://arxiv.org/abs/2306.00978), MLSys 2024
-* [DistriFusion: Distributed Parallel Inference for High-Resolution Diffusion Models](https://arxiv.org/abs/2402.19481), CVPR 2024
-* [QServe: W4A8KV4 Quantization and System Co-design for Efficient LLM Serving](https://arxiv.org/abs/2405.04532), MLSys 2025
-* [SANA: Efficient High-Resolution Image Synthesis with Linear Diffusion Transformers](https://arxiv.org/abs/2410.10629), ICLR 2025
-
-## Contact Us
-For enterprises interested in adopting SVDQuant or Nunchaku, including technical consulting, sponsorship opportunities, or partnership inquiries, please contact us at muyangli@mit.edu.
 
 ## Acknowledgments
 

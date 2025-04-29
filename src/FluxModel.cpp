@@ -526,7 +526,7 @@ std::tuple<Tensor, Tensor> JointTransformerBlock::forward(Tensor hidden_states, 
                     ? pool.slice(0, i, i + 1).slice(1, 0, num_tokens_img / POOL_SIZE)
                     : Tensor{};
                 Tensor pool_qkv_context = pool.valid()
-                    ? concat.slice(0, i, i + 1).slice(1, num_tokens_img / POOL_SIZE, num_tokens_img / POOL_SIZE + num_tokens_txt / POOL_SIZE)
+                    ? pool.slice(0, i, i + 1).slice(1, num_tokens_img / POOL_SIZE, num_tokens_img / POOL_SIZE + num_tokens_txt / POOL_SIZE)
                     : Tensor{};
 
                 // qkv_proj.forward(norm1_output.x.slice(0, i, i + 1), qkv);
@@ -883,12 +883,22 @@ std::tuple<Tensor, Tensor> FluxModel::forward_layer(
         Tensor controlnet_block_samples,
         Tensor controlnet_single_block_samples) {
 
-    std::tie(hidden_states, encoder_hidden_states) = transformer_blocks.at(layer)->forward(
-        hidden_states,
-        encoder_hidden_states,
-        temb,
-        rotary_emb_img,
-        rotary_emb_context, 0.0f);
+    if (layer < transformer_blocks.size()){
+        std::tie(hidden_states, encoder_hidden_states) = transformer_blocks.at(layer)->forward(
+            hidden_states,
+            encoder_hidden_states,
+            temb,
+            rotary_emb_img,
+            rotary_emb_context, 0.0f);
+    }
+    else {
+        std::tie(hidden_states, encoder_hidden_states) = transformer_blocks.at(layer - transformer_blocks.size())->forward(
+            hidden_states,
+            encoder_hidden_states,
+            temb,
+            rotary_emb_img,
+            rotary_emb_context, 0.0f);
+    }
 
     const int txt_tokens = encoder_hidden_states.shape[1];
     const int img_tokens = hidden_states.shape[1];
