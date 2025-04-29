@@ -88,6 +88,10 @@ def test_flux_teacache(
                 result.save(os.path.join(results_dir_16_bit, f"{name}_{seed}.png"))
 
         # Clean up the 16-bit model
+        del pipeline.transformer
+        del pipeline.text_encoder
+        del pipeline.text_encoder_2
+        del pipeline.vae
         del pipeline
         del result
         gc.collect()
@@ -121,6 +125,10 @@ def test_flux_teacache(
                 result.save(os.path.join(results_dir_4_bit, f"{name}_{seed}.png"))
 
         # Clean up the 4-bit model
+        del pipeline.transformer
+        del pipeline.text_encoder
+        del pipeline.text_encoder_2
+        del pipeline.vae
         del pipeline
         del transformer
         del result
