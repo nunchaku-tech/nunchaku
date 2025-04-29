@@ -12,8 +12,8 @@ from tqdm import tqdm
 
 import nunchaku
 from nunchaku import NunchakuFluxTransformer2dModel, NunchakuT5EncoderModel
-from nunchaku.lora.flux.compose import compose_lora
 from nunchaku.caching.diffusers_adapters import apply_cache_on_pipe
+from nunchaku.lora.flux.compose import compose_lora
 from ..data import get_dataset
 from ..utils import already_generate, compute_lpips, hash_str_to_int
 
@@ -143,8 +143,8 @@ def run_test(
     cpu_offload: bool = False,
     cache_threshold: float = 0,
     use_double_fb_cache: bool = False,
-    residual_diff_threshold_multi : float = 0,
-    residual_diff_threshold_single : float = 0,
+    residual_diff_threshold_multi: float = 0,
+    residual_diff_threshold_single: float = 0,
     lora_names: str | list[str] | None = None,
     lora_strengths: float | list[float] = 1.0,
     max_dataset_size: int = 4,
@@ -319,7 +319,8 @@ def run_test(
                 pipeline,
                 use_double_fb_cache=use_double_fb_cache,
                 residual_diff_threshold_multi=residual_diff_threshold_multi,
-                residual_diff_threshold_single=residual_diff_threshold_single)
+                residual_diff_threshold_single=residual_diff_threshold_single,
+            )
 
         run_pipeline(
             batch_size=batch_size,
