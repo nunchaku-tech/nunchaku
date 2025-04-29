@@ -95,7 +95,7 @@ jobs:
           which python
           conda install -c conda-forge gxx=11 gcc=11
           echo "Installing dependencies"
-          pip install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu128
+          pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
           pip install ninja wheel diffusers transformers accelerate sentencepiece protobuf huggingface_hub
   
 
