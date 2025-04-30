@@ -5,9 +5,6 @@ import time
 from datetime import datetime
 
 import GPUtil
-
-# import gradio last to avoid conflicts with other imports
-import gradio as gr
 import torch
 from controlnet_aux import CannyDetector
 from diffusers import FluxControlPipeline
@@ -30,6 +27,9 @@ from vars import (
 
 from nunchaku.models.safety_checker import SafetyChecker
 from nunchaku.models.transformers.transformer_flux import NunchakuFluxTransformer2dModel
+
+# import gradio last to avoid conflicts with other imports
+import gradio as gr  # noqa: isort: skip
 
 args = get_args()
 

@@ -5,9 +5,6 @@ import time
 from datetime import datetime
 
 import GPUtil
-
-# import gradio last to avoid conflicts with other imports
-import gradio as gr
 import torch
 from diffusers import FluxFillPipeline
 from PIL import Image
@@ -16,6 +13,9 @@ from vars import DEFAULT_GUIDANCE, DEFAULT_INFERENCE_STEP, DEFAULT_STYLE_NAME, E
 
 from nunchaku.models.safety_checker import SafetyChecker
 from nunchaku.models.transformers.transformer_flux import NunchakuFluxTransformer2dModel
+
+# import gradio last to avoid conflicts with other imports
+import gradio as gr  # noqa: isort: skip
 
 args = get_args()
 

@@ -6,9 +6,6 @@ import time
 from datetime import datetime
 
 import GPUtil
-
-# import gradio last to avoid conflicts with other imports
-import gradio as gr
 import numpy as np
 import torch
 from flux_pix2pix_pipeline import FluxPix2pixTurboPipeline
@@ -18,6 +15,9 @@ from vars import DEFAULT_SKETCH_GUIDANCE, DEFAULT_STYLE_NAME, MAX_SEED, STYLE_NA
 
 from nunchaku.models.safety_checker import SafetyChecker
 from nunchaku.models.transformers.transformer_flux import NunchakuFluxTransformer2dModel
+
+# import gradio last to avoid conflicts with other imports
+import gradio as gr  # noqa: isort: skip
 
 blank_image = Image.new("RGB", (1024, 1024), (255, 255, 255))
 
