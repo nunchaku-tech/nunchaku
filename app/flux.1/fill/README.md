@@ -1,6 +1,6 @@
 # Nunchaku INT4 FLUX.1 Inpainting Demo
 
-![demo](./assets/demo.jpg)
+![demo](https://huggingface.co/mit-han-lab/nunchaku-artifacts/resolve/main/nunchaku/app/flux.1/fill/assets/demo.jpg)
 
 This interactive Gradio application allows you to interactively inpaint an uploaded image based on a text prompt. The base model is [FLUX.1-Fill-dev](https://huggingface.co/black-forest-labs/FLUX.1-Depth-dev). To launch the application, run:
 

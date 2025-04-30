@@ -1,6 +1,6 @@
 # Nunchaku INT4 FLUX.1 Depth/Canny-to-Image Demo
 
-![demo](./assets/demo.jpg)
+![demo](https://huggingface.co/mit-han-lab/nunchaku-artifacts/resolve/main/nunchaku/app/flux.1/depth_canny/assets/demo.jpg)
 
 This interactive Gradio application transforms your uploaded image into a different style based on a text prompt. The generated image preserves either the depth map or Canny edge of the original image, depending on the selected model.
 
