@@ -11,7 +11,7 @@ Tensor add(Tensor a, Tensor b) {
     assert(b.is_contiguous());
 
     int threadsPerBlock = 1024;
-    int blocksPerGrid = (a.numel() + threadsPerBlock - 1) / threadsPerBlock;
+    int blocksPerGrid   = (a.numel() + threadsPerBlock - 1) / threadsPerBlock;
 
     auto stream = getCurrentCUDAStream();
 
@@ -44,14 +44,23 @@ void mul_add(Tensor x, Tensor scale, Tensor bias) {
     assert(bias.numel() % unroll == 0);
 
     int threadsPerBlock = 1024;
-    int blocksPerGrid = (x.numel() + threadsPerBlock * unroll - 1) / (threadsPerBlock * unroll);
+    int blocksPerGrid   = (x.numel() + threadsPerBlock * unroll - 1) / (threadsPerBlock * unroll);
 
     auto stream = getCurrentCUDAStream();
 
     dispatch(x.scalar_type(), [&]<typename scalar_t>() {
         if (scale.valid()) {
-            mul_add_kernel<scalar_t, unroll, false><<<blocksPerGrid, threadsPerBlock, 0, stream>>>(
-                x.data_ptr<scalar_t>(), scale.data_ptr<scalar_t>(), bias.data_ptr<scalar_t>(), 0, x.numel(), scale.numel(), bias.numel(), 0, 0, 0);
+            mul_add_kernel<scalar_t, unroll, false>
+                <<<blocksPerGrid, threadsPerBlock, 0, stream>>>(x.data_ptr<scalar_t>(),
+                                                                scale.data_ptr<scalar_t>(),
+                                                                bias.data_ptr<scalar_t>(),
+                                                                0,
+                                                                x.numel(),
+                                                                scale.numel(),
+                                                                bias.numel(),
+                                                                0,
+                                                                0,
+                                                                0);
         } else {
             mul_add_kernel<scalar_t, unroll, true><<<blocksPerGrid, threadsPerBlock, 0, stream>>>(
                 x.data_ptr<scalar_t>(), nullptr, bias.data_ptr<scalar_t>(), 0, x.numel(), 1, bias.numel(), 0, 0, 0);
@@ -65,7 +74,7 @@ void mul_add_batch(Tensor x, Tensor scale, bool batch_scale, double scale_shift,
     assert(!batch_scale || scale.shape[0] == batch_size);
     assert(!batch_bias || bias.shape[0] == batch_size);
 
-    const int numel = x.numel() / batch_size;
+    const int numel       = x.numel() / batch_size;
     const int numel_scale = scale.valid() ? (scale.numel() / (batch_scale ? batch_size : 1)) : 1;
     const int numel_bias  = bias.numel() / (batch_bias ? batch_size : 1);
 
@@ -91,17 +100,29 @@ void mul_add_batch(Tensor x, Tensor scale, bool batch_scale, double scale_shift,
 
     dispatch(x.scalar_type(), [&]<typename scalar_t>() {
         if (scale.valid()) {
-            mul_add_kernel<scalar_t, unroll, false><<<grid, threadsPerBlock, 0, stream>>>(
-                x.data_ptr<scalar_t>(), scale.data_ptr<scalar_t>(), bias.data_ptr<scalar_t>(), 
-                (scalar_t)scale_shift,
-                numel, numel_scale, numel_bias, 
-                x.stride(0), batch_scale ? scale.stride(0) : 0, batch_bias ? bias.stride(0) : 0);
+            mul_add_kernel<scalar_t, unroll, false>
+                <<<grid, threadsPerBlock, 0, stream>>>(x.data_ptr<scalar_t>(),
+                                                       scale.data_ptr<scalar_t>(),
+                                                       bias.data_ptr<scalar_t>(),
+                                                       (scalar_t)scale_shift,
+                                                       numel,
+                                                       numel_scale,
+                                                       numel_bias,
+                                                       x.stride(0),
+                                                       batch_scale ? scale.stride(0) : 0,
+                                                       batch_bias ? bias.stride(0) : 0);
         } else {
-            mul_add_kernel<scalar_t, unroll, true><<<grid, threadsPerBlock, 0, stream>>>(
-                x.data_ptr<scalar_t>(), nullptr, bias.data_ptr<scalar_t>(), 
-                (scalar_t)scale_shift,
-                numel, 1, numel_bias, 
-                x.stride(0), 0, batch_bias ? bias.stride(0) : 0);
+            mul_add_kernel<scalar_t, unroll, true>
+                <<<grid, threadsPerBlock, 0, stream>>>(x.data_ptr<scalar_t>(),
+                                                       nullptr,
+                                                       bias.data_ptr<scalar_t>(),
+                                                       (scalar_t)scale_shift,
+                                                       numel,
+                                                       1,
+                                                       numel_bias,
+                                                       x.stride(0),
+                                                       0,
+                                                       batch_bias ? bias.stride(0) : 0);
         }
     });
 }
@@ -134,8 +155,7 @@ Tensor argmax_sample(Tensor logits) {
 
     dispatch(logits.scalar_type(), [&]<typename scalar_t>() {
         argmax_sample_kernel<<<logits.shape[0], std::min(logits.shape[1], 1024), 0, stream>>>(
-            logits.data_ptr<scalar_t>(), out.data_ptr<int32_t>(), logits.shape[1]
-        );
+            logits.data_ptr<scalar_t>(), out.data_ptr<int32_t>(), logits.shape[1]);
     });
 
     return out;
@@ -155,20 +175,17 @@ void splitqkv(Tensor qkv, Tensor q, Tensor k, Tensor v) {
 
     assert(dim_k == dim_v);
     assert(dim_q + dim_k + dim_v == qkv.shape[-1]);
-    
+
     int num_tokens = qkv.numel() / qkv.shape[-1];
 
     dispatch(qkv.scalar_type(), [&]<typename scalar_t>() {
-        splitqkv_kernel<<<num_tokens, std::min(qkv.shape[-1], 1024), 0, stream>>>(
-            qkv.data_ptr<scalar_t>(),
-            q.data_ptr<scalar_t>(),
-            k.data_ptr<scalar_t>(),
-            v.data_ptr<scalar_t>(),
-            dim_q,
-            dim_k
-        );
+        splitqkv_kernel<<<num_tokens, std::min(qkv.shape[-1], 1024), 0, stream>>>(qkv.data_ptr<scalar_t>(),
+                                                                                  q.data_ptr<scalar_t>(),
+                                                                                  k.data_ptr<scalar_t>(),
+                                                                                  v.data_ptr<scalar_t>(),
+                                                                                  dim_q,
+                                                                                  dim_k);
     });
-
 }
 
 template<size_t N>
@@ -176,7 +193,7 @@ std::array<Tensor, N> split_mod(Tensor input) {
     assert(input.shape[-1] % N == 0);
 
     int threadsPerBlock = 1024;
-    int blocksPerGrid = (input.numel() + threadsPerBlock - 1) / threadsPerBlock;
+    int blocksPerGrid   = (input.numel() + threadsPerBlock - 1) / threadsPerBlock;
 
     auto stream = getCurrentCUDAStream();
 
@@ -194,8 +211,7 @@ std::array<Tensor, N> split_mod(Tensor input) {
             outPtr[k] = out[k].template data_ptr<scalar_t>();
         }
         split_mod_kernel<<<blocksPerGrid, threadsPerBlock, 0, stream>>>(
-            input.data_ptr<scalar_t>(),
-            outPtr, input.numel());
+            input.data_ptr<scalar_t>(), outPtr, input.numel());
     });
 
     return out;
@@ -209,7 +225,7 @@ Tensor quant_static(Tensor x, float scale) {
     assert((uintptr_t)x.data_ptr() % (x.scalar_size() * unroll) == 0);
 
     int threadsPerBlock = 1024;
-    int blocksPerGrid = (x.numel() + threadsPerBlock * unroll - 1) / (threadsPerBlock * unroll);
+    int blocksPerGrid   = (x.numel() + threadsPerBlock * unroll - 1) / (threadsPerBlock * unroll);
 
     auto stream = getCurrentCUDAStream();
 
@@ -228,9 +244,8 @@ Tensor quant_static_fuse_gelu(Tensor x, float scale) {
 
     assert((uintptr_t)x.data_ptr() % (x.scalar_size() * unroll) == 0);
 
-
     int threadsPerBlock = 1024;
-    int blocksPerGrid = (x.numel() + threadsPerBlock * unroll - 1) / (threadsPerBlock * unroll);
+    int blocksPerGrid   = (x.numel() + threadsPerBlock * unroll - 1) / (threadsPerBlock * unroll);
 
     auto stream = getCurrentCUDAStream();
 
@@ -258,7 +273,7 @@ void cast(Tensor input, Tensor output) {
             constexpr int unroll = 16 / std::max(sizeof(input_t), sizeof(output_t));
 
             int threadsPerBlock = 1024;
-            int blocksPerGrid = (int)ceilDiv<int64_t>(input.numel(), threadsPerBlock * unroll);
+            int blocksPerGrid   = (int)ceilDiv<int64_t>(input.numel(), threadsPerBlock * unroll);
 
             cast_kernel<input_t, output_t, unroll><<<blocksPerGrid, threadsPerBlock, 0, stream>>>(
                 input.data_ptr<input_t>(), output.data_ptr<output_t>(), input.numel());
@@ -271,16 +286,15 @@ void cast(Tensor input, Tensor output) {
 Tensor topk(Tensor x, int k) {
     constexpr int MAXK = 64 + 4;
 
-    const int N = x.shape[-1];
+    const int N     = x.shape[-1];
     const int batch = x.numel() / N;
 
     assert(k <= N);
     assert(k <= MAXK);
 
     auto outShape = TensorShape(x.shape.dataExtent);
-    outShape[-1] = k;
+    outShape[-1]  = k;
     outShape.dataStride.clear();
-
 
     Tensor out = Tensor::empty(outShape, Tensor::INT32, x.device());
 
@@ -294,10 +308,7 @@ Tensor topk(Tensor x, int k) {
         if constexpr (K > 0) {
             dispatch(x.scalar_type(), [&]<typename scalar_t>() {
                 topk_kernel<scalar_t, K><<<ceilDiv(batch, 32), 32, 0, stream>>>(
-                    x.data_ptr<scalar_t>(),
-                    out.data_ptr<int>(),
-                    N, x.stride(-2), batch
-                );
+                    x.data_ptr<scalar_t>(), out.data_ptr<int>(), N, x.stride(-2), batch);
                 checkCUDA(cudaGetLastError());
             });
         }
@@ -312,4 +323,4 @@ template std::array<Tensor, 4> split_mod<4>(Tensor input);
 template std::array<Tensor, 5> split_mod<5>(Tensor input);
 template std::array<Tensor, 6> split_mod<6>(Tensor input);
 
-};  // namespace nunchaku::kernels
+}; // namespace nunchaku::kernels

@@ -3,14 +3,13 @@
 #include <nlohmann/json.hpp>
 #include <mio/mmap.hpp>
 
-
 using json = nlohmann::json;
 using spdlog::fmt_lib::format;
 
 class SafeTensors::MMapImpl {
 public:
     virtual ~MMapImpl() {}
-    virtual size_t size() = 0;
+    virtual size_t size()      = 0;
     virtual const char *data() = 0;
 };
 
@@ -55,7 +54,7 @@ private:
     std::unique_ptr<Buffer> buffer;
 };
 
-#ifdef __linux__ 
+#ifdef __linux__
 
 #include <unistd.h>
 #include <fcntl.h>
@@ -97,7 +96,7 @@ private:
     void *ptr;
 };
 
-#else 
+#else
 
 class SafeTensors::MMapImplPrivate : public SafeTensors::MMapImpl {
 public:
@@ -117,33 +116,34 @@ public:
 
 SafeTensors::SafeTensors(const std::string &filename) {
     this->hostRegistered = false;
-    this->memoryPinned = false;
+    this->memoryPinned   = false;
 
     auto methodPrivate = [&]() {
         this->mapped = std::make_unique<MMapImplPrivate>(filename);
-        checkCUDA(cudaHostRegister(const_cast<char *>(this->mapped->data()), this->mapped->size(), cudaHostRegisterPortable));
+        checkCUDA(
+            cudaHostRegister(const_cast<char *>(this->mapped->data()), this->mapped->size(), cudaHostRegisterPortable));
         this->hostRegistered = true;
-        this->memoryPinned = true;
+        this->memoryPinned   = true;
     };
     auto methodMio = [&]() {
         this->mapped = std::make_unique<MMapImplMio>(filename);
-        checkCUDA(cudaHostRegister(const_cast<char *>(this->mapped->data()), this->mapped->size(), cudaHostRegisterPortable | cudaHostRegisterReadOnly));
+        checkCUDA(cudaHostRegister(const_cast<char *>(this->mapped->data()),
+                                   this->mapped->size(),
+                                   cudaHostRegisterPortable | cudaHostRegisterReadOnly));
         this->hostRegistered = true;
-        this->memoryPinned = true;
+        this->memoryPinned   = true;
     };
     auto methodRead = [&]() {
-        this->mapped = std::make_unique<MMapImplRead>(filename, true);
+        this->mapped       = std::make_unique<MMapImplRead>(filename, true);
         this->memoryPinned = true;
     };
-    auto methodReadNopin = [&]() {
-        this->mapped = std::make_unique<MMapImplRead>(filename, false);
-    };
-    
+    auto methodReadNopin = [&]() { this->mapped = std::make_unique<MMapImplRead>(filename, false); };
+
     const std::map<std::string, std::function<void()>> methods = {
-        { "PRIVATE", methodPrivate },
-        { "MIO", methodMio },
-        { "READ", methodRead },
-        { "READNOPIN", methodReadNopin },
+        {"PRIVATE", methodPrivate},
+        {"MIO", methodMio},
+        {"READ", methodRead},
+        {"READNOPIN", methodReadNopin},
     };
 
     auto tryMethod = [&](std::string name) {
@@ -168,7 +168,6 @@ SafeTensors::SafeTensors(const std::string &filename) {
 #else
         tryMethod("MIO") || tryMethod("READ") || tryMethod("READNOPIN");
 #endif
-
     }
 
     if (!this->mapped) {
@@ -192,19 +191,20 @@ SafeTensors::~SafeTensors() {
 
 void SafeTensors::parseHeader() {
     static const std::unordered_map<std::string, Tensor::ScalarType> mapDType = {
-        { "BF16", Tensor::BF16  },
-        { "F16",  Tensor::FP16  },
-        { "F32",  Tensor::FP32  },
-        { "I8",   Tensor::INT8  },
-        { "I32",  Tensor::INT32 },
-        { "I64",  Tensor::INT64 },
-        { "F8_E4M3", Tensor::FP8_E4M3 },
-        { "F8_E5M2", Tensor::FP8_E5M2 },
+        {"BF16", Tensor::BF16},
+        {"F16", Tensor::FP16},
+        {"F32", Tensor::FP32},
+        {"I8", Tensor::INT8},
+        {"I32", Tensor::INT32},
+        {"I64", Tensor::INT64},
+        {"F8_E4M3", Tensor::FP8_E4M3},
+        {"F8_E5M2", Tensor::FP8_E5M2},
     };
 
     auto check = [](bool cond, std::source_location location = std::source_location::current()) {
         if (!cond) {
-            throw std::runtime_error(format("Safetensors check failed at {}:{}", location.file_name(), location.line()));
+            throw std::runtime_error(
+                format("Safetensors check failed at {}:{}", location.file_name(), location.line()));
         }
     };
 
@@ -222,8 +222,9 @@ void SafeTensors::parseHeader() {
             continue;
         }
 
-        auto dtype = mapDType.at(info["dtype"].get<std::string>());;
-        auto shape = info["shape"].get<std::vector<int>>();
+        auto dtype = mapDType.at(info["dtype"].get<std::string>());
+        ;
+        auto shape        = info["shape"].get<std::vector<int>>();
         auto data_offsets = info["data_offsets"].get<std::vector<uint64_t>>();
 
         check(data_offsets.size() == 2);
@@ -235,8 +236,8 @@ void SafeTensors::parseHeader() {
         }
 
         TensorInfo tinfo;
-        tinfo.type = dtype;
-        tinfo.shape = TensorShape(shape);
+        tinfo.type   = dtype;
+        tinfo.shape  = TensorShape(shape);
         tinfo.length = data_offsets[1] - data_offsets[0];
         tinfo.offset = 8 + sizeHeader + data_offsets[0];
 
@@ -258,15 +259,15 @@ Tensor SafeTensors::getTensor(const std::string &key) {
 
     std::shared_ptr<BufferMMap> buffer = info.buffer.lock();
     if (!buffer) {
-        buffer = std::make_shared<BufferMMap>(const_cast<char *>(this->mapped->data() + info.offset), info.length, shared_from_this());
+        buffer = std::make_shared<BufferMMap>(
+            const_cast<char *>(this->mapped->data() + info.offset), info.length, shared_from_this());
         info.buffer = buffer;
     }
 
     Tensor result;
-    result.shape = info.shape;
+    result.shape      = info.shape;
     result.scalarType = info.type;
-    result.buffer = buffer;
+    result.buffer     = buffer;
 
     return result;
 }
-

@@ -1,7 +1,7 @@
 import os
 
-import ImageReward as RM
 import datasets
+import ImageReward as RM
 import torch
 from tqdm import tqdm
 

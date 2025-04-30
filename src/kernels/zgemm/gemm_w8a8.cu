@@ -17,24 +17,22 @@ void quantize_w8a8_act(Tensor input, Tensor output, Tensor oscales, bool fuse_gl
     assert(oscales.numel() == M * 1);
 
     auto launch = [&]<bool FUSE_GLU>() {
-        
         using kernel = GEMM::quantize_w8a8_act_kernel<FUSE_GLU>;
 
         assert(kernel::check(M, K));
-        dim3 grid = kernel::gridSize(M, K);
+        dim3 grid  = kernel::gridSize(M, K);
         dim3 block = kernel::blockSize(M, K);
 
-        auto func = invoke_kernel<kernel, const GEMM::half_t *, GEMM::packed_act_t *, GEMM::packed_ascale_t *, int, bool>;
+        auto func =
+            invoke_kernel<kernel, const GEMM::half_t *, GEMM::packed_act_t *, GEMM::packed_ascale_t *, int, bool>;
 
         checkCUDA(cudaFuncSetAttribute(func, cudaFuncAttributeMaxDynamicSharedMemorySize, 92160));
 
-        func<<<grid, block, kernel::smemSize(M, K)>>>(
-            input.data_ptr<GEMM::half_t>(),
-            output.data_ptr<GEMM::packed_act_t>(),
-            oscales.data_ptr<GEMM::packed_ascale_t>(),
-            K,
-            false
-        );
+        func<<<grid, block, kernel::smemSize(M, K)>>>(input.data_ptr<GEMM::half_t>(),
+                                                      output.data_ptr<GEMM::packed_act_t>(),
+                                                      oscales.data_ptr<GEMM::packed_ascale_t>(),
+                                                      K,
+                                                      false);
         checkCUDA(cudaGetLastError());
     };
 
@@ -45,14 +43,12 @@ void quantize_w8a8_act(Tensor input, Tensor output, Tensor oscales, bool fuse_gl
     }
 }
 
-void gemm_w8a8(Tensor act,      // [M, K]
-               Tensor wgt,      // [N, K]
-               Tensor out,      // [M, N]
-               Tensor ascales,  // [1, M]
-               Tensor wscales,   // [1, N]
-               Tensor bias
-               )
-{
+void gemm_w8a8(Tensor act,     // [M, K]
+               Tensor wgt,     // [N, K]
+               Tensor out,     // [M, N]
+               Tensor ascales, // [1, M]
+               Tensor wscales, // [1, N]
+               Tensor bias) {
     using GEMM = GEMM_W8A8;
 
     int M = act.numel() / act.shape[-1];
@@ -78,16 +74,18 @@ void gemm_w8a8(Tensor act,      // [M, K]
             std::swap(grid.x, grid.y);
         }
 
-        invoke_kernel<GEMM::gemm_w8a8_kernel<Epilogue>><<<grid, GEMM::WARP_SIZE * GEMM::NUM_WARPS>>>(
-            act.data_ptr<GEMM::packed_act_t>(),
-            wgt.data_ptr<GEMM::packed_wgt_t>(),
-            ascales.data_ptr<GEMM::packed_ascale_t>(),
-            wscales.data_ptr<GEMM::packed_wscale_t>(),
-            // out.valid() ? out.data_ptr<GEMM::half_t>() : nullptr,
-            M, N, K, args,
-            swapBlockMN,
-            false
-        );
+        invoke_kernel<GEMM::gemm_w8a8_kernel<Epilogue>>
+            <<<grid, GEMM::WARP_SIZE * GEMM::NUM_WARPS>>>(act.data_ptr<GEMM::packed_act_t>(),
+                                                          wgt.data_ptr<GEMM::packed_wgt_t>(),
+                                                          ascales.data_ptr<GEMM::packed_ascale_t>(),
+                                                          wscales.data_ptr<GEMM::packed_wscale_t>(),
+                                                          // out.valid() ? out.data_ptr<GEMM::half_t>() : nullptr,
+                                                          M,
+                                                          N,
+                                                          K,
+                                                          args,
+                                                          swapBlockMN,
+                                                          false);
         checkCUDA(cudaGetLastError());
     };
 
@@ -98,20 +96,19 @@ void gemm_w8a8(Tensor act,      // [M, K]
 
         assert(bias.numel() == N);
 
-        // append EpilgoueNop to workaround mismatched memory layout of std::tuple between device and host code on Windows
+        // append EpilgoueNop to workaround mismatched memory layout of std::tuple between device and host code on
+        // Windows
         // ** sizeof(std::tuple<std::tuple<int>>) == 8 on device **
         using Epilogue = GEMM::EpilogueCombination<GEMM::EpilogueBias<true, false>, NextEpilogue, GEMM::EpilogueNop>;
-        return launch.template operator()<Epilogue>({
-            GEMM::EpilogueBias<true, false>::Arguments{
-                .bias = bias.data_ptr<GEMM::packed_wscale_t>(),
-            },
-            nextArgs,
-            {}
-        });
+        return launch.template operator()<Epilogue>({GEMM::EpilogueBias<true, false>::Arguments{
+                                                         .bias = bias.data_ptr<GEMM::packed_wscale_t>(),
+                                                     },
+                                                     nextArgs,
+                                                     {}});
     };
 
     launch_bias.template operator()<GEMM::EpilogueDefault>(GEMM::EpilogueDefault::Arguments{
-        .out = out.data_ptr<GEMM::half_t>(),
+        .out     = out.data_ptr<GEMM::half_t>(),
         .actualM = actualM,
         .actualN = actualN,
     });
@@ -152,9 +149,9 @@ void gemm_w8a8_fuse_litela(
 
     checkCUDA(cudaMemsetAsync(out_vk.data_ptr(), 0, out_vk.buffer->getSize()));
 
-    auto func = invoke_kernel<GEMM::gemm_w8a8_kernel<Epilogue>, 
-        const GEMM::packed_act_t *, 
-        const GEMM::packed_wgt_t *, 
+    auto func = invoke_kernel<GEMM::gemm_w8a8_kernel<Epilogue>,
+        const GEMM::packed_act_t *,
+        const GEMM::packed_wgt_t *,
         const GEMM::packed_ascale_t *,
         const GEMM::packed_wscale_t *,
         // GEMM::half_t *,
@@ -178,7 +175,7 @@ void gemm_w8a8_fuse_litela(
         ascales.data_ptr<GEMM::packed_ascale_t>(),
         wscales.data_ptr<GEMM::packed_wscale_t>(),
         // nullptr,
-        M, N, K, epilogueArgs, 
+        M, N, K, epilogueArgs,
         swapBlockMN,
         false
     );
@@ -193,4 +190,4 @@ void gemm_w8a8_fuse_litela(
 }
 #endif
 
-};  // namespace nunchaku::kernels
+}; // namespace nunchaku::kernels

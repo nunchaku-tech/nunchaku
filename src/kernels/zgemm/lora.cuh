@@ -2,7 +2,6 @@
 
 #include "gemm_base.cuh"
 
-
 namespace nunchaku::kernels {
 
 template<typename Config>
@@ -21,7 +20,7 @@ public:
 
 public:
     static constexpr int MAX_RANK = 1024;
-    static constexpr int WARP_R = 16;
+    static constexpr int WARP_R   = 16;
 
     // static constexpr int LORA_RANK = rank;
     static constexpr int LORA_M_TILES = WARP_M / 16;
@@ -30,57 +29,57 @@ public:
 
     static_assert(LORA_M_TILES == WARP_M_TILES);
     static_assert(LORA_N_TILES == WARP_N_TILES);
-    
+
     // lora_down: [WARP_M, WARP_N] x [WARP_N, R] (row-wise) = [WARP_M, R]
     // lora up:   [WARP_M, R]      x [WARP_N, R] (col-wise) = [WARP_M, WARP_N]
     // we use fp32 for lora activation since there's no bf16 reduction in sm_89 :(
 
     using lora_act_warp   = std::array<packed_f32psum_t, LORA_M_TILES * LORA_R_TILES>;
     using lora_act16_warp = std::array<packed_fpsum_t, LORA_M_TILES * LORA_R_TILES>;
-    using lora_wgt_warp = std::array<packed_fpsum_t, LORA_N_TILES * LORA_R_TILES>;
+    using lora_wgt_warp   = std::array<packed_fpsum_t, LORA_N_TILES * LORA_R_TILES>;
 
     using scale_t = std::array<float, MAX_RANK / 16>;
 
     // lora_wgt:   [N / 16, rank / WARP_R, LORA_R_TILES, WARP_SIZE] of packed_fpsum_t
     //             [N / 16, rank / 16, WARP_SIZE]
-    __device__ __forceinline__
-    static void load_lora_wgt(const packed_fpsum_t *ptr, int rtile, int rank, lora_wgt_warp &result, bool pred) {
+    __device__ __forceinline__ static void
+    load_lora_wgt(const packed_fpsum_t *ptr, int rtile, int rank, lora_wgt_warp &result, bool pred) {
         const int laneId = threadIdx.x % WARP_SIZE;
 
         const packed_fpsum_t *ptr_lane = &ptr[rtile * LORA_R_TILES * WARP_SIZE + laneId];
-        const int stride_ntile = rank / 16 * WARP_SIZE;
+        const int stride_ntile         = rank / 16 * WARP_SIZE;
 
         unrolled_loop<LORA_N_TILES>([&]<int n>() {
             unrolled_loop<LORA_R_TILES>([&]<int r>() {
-                constexpr int roffset = r * WARP_SIZE;
-                const int noffset = n * stride_ntile;
+                constexpr int roffset        = r * WARP_SIZE;
+                const int noffset            = n * stride_ntile;
                 result[n * LORA_R_TILES + r] = load_pred(ptr_lane + noffset + roffset, pred);
             });
         });
     }
 
     // lora_act: [M / BLOCK_M, rank / WARP_R, NUM_WARPS, LORA_M_TILES, LORA_R_TILES, 8, WARP_SIZE] of float
-    __device__ __forceinline__
-    static void load_lora_act(const float *ptr, int rtile, lora_act_warp &result, bool pred) {
+    __device__ __forceinline__ static void
+    load_lora_act(const float *ptr, int rtile, lora_act_warp &result, bool pred) {
         const int laneId = threadIdx.x % WARP_SIZE;
         const int warpId = threadIdx.x / WARP_SIZE;
 
-        const float *ptrlane = &ptr[(rtile * NUM_WARPS + warpId) * LORA_M_TILES * LORA_R_TILES * 8 * WARP_SIZE + laneId];
+        const float *ptrlane =
+            &ptr[(rtile * NUM_WARPS + warpId) * LORA_M_TILES * LORA_R_TILES * 8 * WARP_SIZE + laneId];
 
         unrolled_loop<LORA_M_TILES>([&]<int m>() {
-            unrolled_loop<LORA_R_TILES>([&]<int r>{
+            unrolled_loop<LORA_R_TILES>([&]<int r> {
                 constexpr int i = m * LORA_R_TILES + r;
-                unrolled_loop<8>([&]<int j>() { 
+                unrolled_loop<8>([&]<int j>() {
                     constexpr int offset = i * 8 * WARP_SIZE + j * WARP_SIZE;
-                    result[i].data[j] = load_pred(ptrlane + offset, pred); // * scales[rtile * LORA_R_TILES + r];
+                    result[i].data[j]    = load_pred(ptrlane + offset, pred); // * scales[rtile * LORA_R_TILES + r];
                 });
                 // CHECK_NAN(tmp, "load_lora_act.tmp");
             });
         });
     }
     // no vector reduction in sm_89 :(
-    __device__ __forceinline__
-    static void reduce_lora_act(float *ptr, int rtile, lora_act_warp val, bool pred) {
+    __device__ __forceinline__ static void reduce_lora_act(float *ptr, int rtile, lora_act_warp val, bool pred) {
         const int laneId = threadIdx.x % WARP_SIZE;
         const int warpId = threadIdx.x / WARP_SIZE;
 
@@ -108,7 +107,6 @@ public:
     //     });
     // }
 
-
     struct EpilogueLoraUp {
         struct Arguments {
             const float *lora_act;
@@ -120,19 +118,23 @@ public:
             bool alwaysfalse;
         };
 
-        __device__ __forceinline__
-        static void apply_lora_up(fpsum_warp &fpsum, const float *act, const packed_fpsum_t *wgt, const scale_t &scales, int rank, bool alwaysfalse) {
+        __device__ __forceinline__ static void apply_lora_up(fpsum_warp &fpsum,
+                                                             const float *act,
+                                                             const packed_fpsum_t *wgt,
+                                                             const scale_t &scales,
+                                                             int rank,
+                                                             bool alwaysfalse) {
             constexpr int NUM_STAGES = 2;
 
             const int laneId = threadIdx.x % WARP_SIZE;
             const int warpId = threadIdx.x / WARP_SIZE;
 
-            lora_act_warp lora_act[NUM_STAGES];   // 32
-            lora_wgt_warp lora_wgt[NUM_STAGES];   // 64
+            lora_act_warp lora_act[NUM_STAGES]; // 32
+            lora_wgt_warp lora_wgt[NUM_STAGES]; // 64
 
             int dummy = 0;
-            
-        #pragma unroll
+
+#pragma unroll
             for (int k = 0; k < NUM_STAGES - 1; k++) {
                 // we have rank > 0
                 const bool pred = k == 0 ? true : k < rank / WARP_R;
@@ -140,14 +142,14 @@ public:
                 load_lora_wgt(wgt, 0, rank, lora_wgt[k], pred);
             }
 
-            f32psum_warp f32psum = packed_fp16_to_fp32(fpsum);  // 128
+            f32psum_warp f32psum = packed_fp16_to_fp32(fpsum); // 128
 
             auto compute = [&scales](lora_act_warp A, lora_wgt_warp W, f32psum_warp &f32psum, int rtile) ALWAYSINLINE {
                 lora_act16_warp A_fp16;
                 for (int m = 0; m < LORA_M_TILES; m++) {
                     for (int r = 0; r < LORA_R_TILES; r++) {
                         packed_f32psum_t pack = A[m * LORA_R_TILES + r];
-                    #pragma unroll
+#pragma unroll
                         for (int j = 0; j < 8; j++) {
                             pack.data[j] *= scales[rtile * LORA_R_TILES + r];
                         }
@@ -159,28 +161,28 @@ public:
                         for (int r = 0; r < LORA_R_TILES; r++) {
                             CHECK_NAN(lora_act[m * LORA_R_TILES + r], "lora_act");
                             CHECK_NAN(lora_wgt[n * LORA_R_TILES + r], "lora_wgt");
-                            f32psum[m * WARP_N_TILES + n] = mma_f16xf16_f32(A_fp16[m * LORA_R_TILES + r], W[n * LORA_R_TILES + r], f32psum[m * WARP_N_TILES + n]);
+                            f32psum[m * WARP_N_TILES + n] = mma_f16xf16_f32(
+                                A_fp16[m * LORA_R_TILES + r], W[n * LORA_R_TILES + r], f32psum[m * WARP_N_TILES + n]);
                         }
                     }
                 }
             };
 
-
             for (int k1 = 0; k1 < rank / WARP_R; k1 += NUM_STAGES) {
-        #pragma unroll
+#pragma unroll
                 for (int k2 = 0; k2 < NUM_STAGES; k2++) {
                     if (k1 + k2 >= rank / WARP_R) {
                         break;
                     }
 
                     int nextk = k1 + k2 + NUM_STAGES - 1;
-                    int idx = (k2 + NUM_STAGES - 1) % NUM_STAGES;
+                    int idx   = (k2 + NUM_STAGES - 1) % NUM_STAGES;
                     bool pred = nextk < rank / WARP_R;
 
                     if (alwaysfalse) {
                         act += kernels::bit_cast<int>(lora_act[k2][0].data[0]);
                     }
-                    
+
                     if (alwaysfalse) {
                         dummy = clock();
                     }
@@ -194,25 +196,24 @@ public:
 
             // NVCC does not know rank > 0 :(
             // it will generate a branch instruction to skip the initial load
-            // the branch splits the basic blocks and prevents the overlap of memory access and computing (packed_fp16_to_fp32)
-            // add fake dependency of loaded data so NVCC will not skip the load
-        #pragma unroll
+            // the branch splits the basic blocks and prevents the overlap of memory access and computing
+            // (packed_fp16_to_fp32) add fake dependency of loaded data so NVCC will not skip the load
+#pragma unroll
             for (int k = 0; k < NUM_STAGES - 1; k++) {
-        #pragma unroll
+#pragma unroll
                 for (auto &&data : lora_act[k]) {
-        #pragma unroll
+#pragma unroll
                     for (int i = 0; i < 8; i++) {
                         dummy ^= kernels::bit_cast<int>(data.data[i]);
                     }
                 }
-        #pragma unroll
+#pragma unroll
                 for (auto &&data : lora_wgt[k]) {
-        #pragma unroll
+#pragma unroll
                     for (int i = 0; i < 4; i++) {
                         dummy ^= kernels::bit_cast<int>(data.data[i]);
                     }
                 }
-
             }
 
             unused_var(dummy, alwaysfalse);
@@ -220,21 +221,20 @@ public:
             fpsum = packed_fp32_to_fp16(f32psum);
         }
 
-        __device__ __forceinline__
-        void operator()(const BlockInfo binfo, fpsum_warp &fpsum, int M, int N, int K, const Arguments &args) {
+        __device__ __forceinline__ void
+        operator()(const BlockInfo binfo, fpsum_warp &fpsum, int M, int N, int K, const Arguments &args) {
             const int bm = binfo.bm;
             const int bn = binfo.bn;
 
             CHECK_NAN(fpsum, "fpsum");
 
-            apply_lora_up(
-                fpsum,
-                args.lora_act + bm * (args.rank / WARP_R) * (NUM_WARPS * LORA_M_TILES * LORA_R_TILES * 8 *  WARP_SIZE),
-                args.lora_wgt_up + bn * (BLOCK_N / 16) * (args.rank / 16) * WARP_SIZE,
-                args.scales,
-                args.rank,
-                args.alwaysfalse
-            );
+            apply_lora_up(fpsum,
+                          args.lora_act +
+                              bm * (args.rank / WARP_R) * (NUM_WARPS * LORA_M_TILES * LORA_R_TILES * 8 * WARP_SIZE),
+                          args.lora_wgt_up + bn * (BLOCK_N / 16) * (args.rank / 16) * WARP_SIZE,
+                          args.scales,
+                          args.rank,
+                          args.alwaysfalse);
 
             CHECK_NAN(fpsum, "fpsum");
         }
@@ -250,16 +250,16 @@ public:
             bool alwaysfalse;
         };
 
-        __device__ __forceinline__
-        static void apply_lora_down(fpsum_warp &fpsum, float *act, const packed_fpsum_t *wgt, int rank, bool alwaysfalse) {
+        __device__ __forceinline__ static void
+        apply_lora_down(fpsum_warp &fpsum, float *act, const packed_fpsum_t *wgt, int rank, bool alwaysfalse) {
             constexpr int NUM_STAGES = 2;
 
             const int laneId = threadIdx.x % WARP_SIZE;
             const int warpId = threadIdx.x / WARP_SIZE;
 
-            lora_wgt_warp lora_wgt[NUM_STAGES];   // 64
+            lora_wgt_warp lora_wgt[NUM_STAGES]; // 64
 
-        #pragma unroll
+#pragma unroll
             for (int k = 0; k < NUM_STAGES - 1; k++) {
                 // we have rank > 0
                 bool pred = k == 0 ? true : k < rank / WARP_R;
@@ -270,11 +270,11 @@ public:
                 lora_act_warp lora_act;
                 lora_act.fill(packed_f32psum_t::zeros());
 
-            #pragma unroll
+#pragma unroll
                 for (int m = 0; m < LORA_M_TILES; m++) {
-            #pragma unroll
+#pragma unroll
                     for (int n = 0; n < LORA_N_TILES; n++) {
-            #pragma unroll
+#pragma unroll
                         for (int r = 0; r < LORA_R_TILES; r++) {
                             auto &psum = lora_act[m * LORA_R_TILES + r];
 
@@ -294,14 +294,14 @@ public:
             int dummy = 0;
 
             for (int k1 = 0; k1 < rank / WARP_R; k1 += NUM_STAGES) {
-        #pragma unroll
+#pragma unroll
                 for (int k2 = 0; k2 < NUM_STAGES; k2++) {
                     if (k1 + k2 >= rank / WARP_R) {
                         break;
                     }
 
                     int nextk = k1 + k2 + NUM_STAGES - 1;
-                    int idx = (k2 + NUM_STAGES - 1) % NUM_STAGES;
+                    int idx   = (k2 + NUM_STAGES - 1) % NUM_STAGES;
                     bool pred = nextk < rank / WARP_R;
 
                     if (alwaysfalse) {
@@ -324,38 +324,33 @@ public:
                 }
             }
 
-        #pragma unroll
+#pragma unroll
             for (int k = 0; k < NUM_STAGES - 1; k++) {
-        #pragma unroll
+#pragma unroll
                 for (auto &&data : lora_wgt[k]) {
-        #pragma unroll
+#pragma unroll
                     for (int i = 0; i < 4; i++) {
                         dummy ^= kernels::bit_cast<int>(data.data[i]);
                     }
                 }
-
             }
 
             unused_var(dummy, alwaysfalse);
-
         }
 
-        __device__ __forceinline__
-        void operator()(const BlockInfo binfo, fpsum_warp &fpsum, int M, int N, int K, const Arguments &args) {
+        __device__ __forceinline__ void
+        operator()(const BlockInfo binfo, fpsum_warp &fpsum, int M, int N, int K, const Arguments &args) {
             const int bm = binfo.bm;
             const int bn = binfo.bn;
 
-            apply_lora_down(
-                fpsum,
-                args.lora_act + bm * (args.rank / WARP_R) * (NUM_WARPS * LORA_M_TILES * LORA_R_TILES * 8 *  WARP_SIZE),
-                args.lora_wgt_down + bn * (BLOCK_N / 16) * (args.rank / 16) * WARP_SIZE,
-                args.rank,
-                args.alwaysfalse
-            );
+            apply_lora_down(fpsum,
+                            args.lora_act +
+                                bm * (args.rank / WARP_R) * (NUM_WARPS * LORA_M_TILES * LORA_R_TILES * 8 * WARP_SIZE),
+                            args.lora_wgt_down + bn * (BLOCK_N / 16) * (args.rank / 16) * WARP_SIZE,
+                            args.rank,
+                            args.alwaysfalse);
         }
     };
-
 };
 
-
-};  // namespace nunchaku::kernels
+}; // namespace nunchaku::kernels

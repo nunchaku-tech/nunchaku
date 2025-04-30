@@ -22,7 +22,6 @@ IncludeBlocks: Preserve
 SortUsingDeclarations: false
 
 IndentPPDirectives: None      # keep `#pragma` / `#if` at column 0
-KeepMacroWhitespace: true     # do **not** compress multiline macros
 
 AllowShortFunctionsOnASingleLine: Empty
 AllowShortIfStatementsOnASingleLine:  false

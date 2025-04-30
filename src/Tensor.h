@@ -3,13 +3,10 @@
 #include "common.h"
 
 struct Device {
-    enum Type {
-        INVALID_DEVICE_TYPE = 0, 
-        CPU, CUDA
-    };
+    enum Type { INVALID_DEVICE_TYPE = 0, CPU, CUDA };
 
     Type type = INVALID_DEVICE_TYPE;
-    int idx = 0;
+    int idx   = 0;
 
     static constexpr Device cpu(int idx = 0) {
         return Device{CPU, idx};
@@ -23,21 +20,29 @@ struct Device {
 class Buffer : public std::enable_shared_from_this<Buffer> {
 public:
     virtual ~Buffer() {}
-    
-    void *getPtr() { return ptr; }
+
+    void *getPtr() {
+        return ptr;
+    }
 
     template<typename T>
-    T *getPtr() { return reinterpret_cast<T *>(ptr); }
+    T *getPtr() {
+        return reinterpret_cast<T *>(ptr);
+    }
 
-    size_t getSize() { return size; }
-    Device getDevice() { return device; }
+    size_t getSize() {
+        return size;
+    }
+    Device getDevice() {
+        return device;
+    }
 
-    virtual bool isAsyncBuffer() { 
+    virtual bool isAsyncBuffer() {
         return false;
     }
 
 protected:
-    template <typename Derived>
+    template<typename Derived>
     std::shared_ptr<Derived> shared_from_base() {
         return std::static_pointer_cast<Derived>(shared_from_this());
     }
@@ -55,9 +60,9 @@ protected:
 class BufferMalloc : public Buffer {
 public:
     BufferMalloc(size_t size) {
-        this->size = size;
+        this->size        = size;
         this->device.type = Device::CPU;
-        this->ptr = malloc(size);
+        this->ptr         = malloc(size);
     }
     virtual ~BufferMalloc() {
         free(this->ptr);
@@ -67,7 +72,7 @@ public:
 class BufferHost : public Buffer {
 public:
     BufferHost(size_t size) {
-        this->size = size;
+        this->size        = size;
         this->device.type = Device::CPU;
         checkCUDA(cudaHostAlloc(&this->ptr, size, cudaHostAllocPortable));
     }
@@ -79,7 +84,7 @@ public:
 class BufferCUDA : public Buffer {
 public:
     BufferCUDA(size_t size) {
-        this->size = size;
+        this->size        = size;
         this->device.type = Device::CUDA;
         // checkCUDA(cudaGetDevice(&this->device.idx));
         this->device.idx = CUDADeviceContext::getDevice();
@@ -96,7 +101,7 @@ public:
         }
         checkCUDA(cudaFreeAsync(this->ptr, getCurrentCUDAStream()));
     }
-    virtual bool isAsyncBuffer() override { 
+    virtual bool isAsyncBuffer() override {
         return true;
     }
 };
@@ -104,7 +109,7 @@ public:
 class BufferCUDASync : public Buffer {
 public:
     BufferCUDASync(size_t size) {
-        this->size = size;
+        this->size        = size;
         this->device.type = Device::CUDA;
         checkCUDA(cudaGetDevice(&this->device.idx));
         checkCUDA(cudaMalloc(&this->ptr, size));
@@ -118,8 +123,8 @@ class BufferView : public Buffer {
 public:
     BufferView(std::shared_ptr<Buffer> reference, size_t offset, size_t size) : reference(reference) {
         assert(offset + size <= reference->getSize());
-        this->ptr = (void *)((std::uint8_t *)reference->getPtr() + offset);
-        this->size = size;
+        this->ptr    = (void *)((std::uint8_t *)reference->getPtr() + offset);
+        this->size   = size;
         this->device = reference->getDevice();
     }
 
@@ -213,23 +218,31 @@ struct TensorShape {
     }
 };
 
-
-
 class Tensor {
 public:
     enum ScalarType {
         INVALID_SCALAR_TYPE,
-        INT8, INT16, INT32, INT64,
-        FP16, FP32, BF16,
-        FP8_E4M3, FP8_E5M2,
+        INT8,
+        INT16,
+        INT32,
+        INT64,
+        FP16,
+        FP32,
+        BF16,
+        FP8_E4M3,
+        FP8_E5M2,
     };
 
     struct TensorOptions {
         Device device_;
         ScalarType dtype_;
 
-        Device device() const { return device_; }
-        ScalarType dtype() const { return dtype_; }
+        Device device() const {
+            return device_;
+        }
+        ScalarType dtype() const {
+            return dtype_;
+        }
 
         TensorOptions device(Device dev) const {
             TensorOptions result(*this);
@@ -244,56 +257,95 @@ public:
     };
 
     static const std::map<ScalarType, size_t> scalarSize;
+
 public:
     TensorShape shape;
     ScalarType scalarType;
     std::shared_ptr<Buffer> buffer;
 
 public:
-    bool valid() const { return shape.dataExtent.size() > 0; }
-    int size(int dim) const { return shape[dim]; }
-    bool is_contiguous() const { return shape.is_contiguous(); }
-    std::vector<int> sizes() const { return shape.dataExtent; }
+    bool valid() const {
+        return shape.dataExtent.size() > 0;
+    }
+    int size(int dim) const {
+        return shape[dim];
+    }
+    bool is_contiguous() const {
+        return shape.is_contiguous();
+    }
+    std::vector<int> sizes() const {
+        return shape.dataExtent;
+    }
 
-    bool is_cuda() const { return device().type == Device::CUDA; }
+    bool is_cuda() const {
+        return device().type == Device::CUDA;
+    }
 
-    TensorOptions options() const { return TensorOptions{device(), dtype()}; }
-    int get_device() const { return device().idx; }
+    TensorOptions options() const {
+        return TensorOptions{device(), dtype()};
+    }
+    int get_device() const {
+        return device().idx;
+    }
 
     template<typename T>
-    T *data_ptr() { return reinterpret_cast<T*>(data_ptr()); }
+    T *data_ptr() {
+        return reinterpret_cast<T *>(data_ptr());
+    }
     template<typename T>
-    const T *data_ptr() const { return reinterpret_cast<const T*>(data_ptr()); }
-    
-    const void *data_ptr() const { return buffer->getPtr<char>() + shape.offset * scalar_size(); }
-    void *data_ptr() { return buffer->getPtr<char>() + shape.offset * scalar_size(); }
+    const T *data_ptr() const {
+        return reinterpret_cast<const T *>(data_ptr());
+    }
 
-    Device device() const { return buffer->getDevice(); }
+    const void *data_ptr() const {
+        return buffer->getPtr<char>() + shape.offset * scalar_size();
+    }
+    void *data_ptr() {
+        return buffer->getPtr<char>() + shape.offset * scalar_size();
+    }
 
-    ScalarType scalar_type() const { return scalarType; }
-    ScalarType dtype() const { return scalar_type(); }
+    Device device() const {
+        return buffer->getDevice();
+    }
 
-    size_t stride(int dim) const { return shape.stride(dim); }
+    ScalarType scalar_type() const {
+        return scalarType;
+    }
+    ScalarType dtype() const {
+        return scalar_type();
+    }
 
-    size_t numel() const { return shape.size(); }
-    size_t ndims() const { return shape.ndims(); }
+    size_t stride(int dim) const {
+        return shape.stride(dim);
+    }
 
-    size_t dim() const { return ndims(); }
+    size_t numel() const {
+        return shape.size();
+    }
+    size_t ndims() const {
+        return shape.ndims();
+    }
 
-    size_t scalar_size() const { return scalarSize.at(scalarType); }
+    size_t dim() const {
+        return ndims();
+    }
+
+    size_t scalar_size() const {
+        return scalarSize.at(scalarType);
+    }
 
     Tensor operator[](int idx) const {
         assert(ndims() > 1);
         Tensor result;
-        result.shape = std::vector<int>(this->shape.dataExtent.begin() + 1, this->shape.dataExtent.end());
-        size_t size = stride(0) * scalar_size();
-        result.buffer = std::make_shared<BufferView>(this->buffer, idx * size, size);
+        result.shape      = std::vector<int>(this->shape.dataExtent.begin() + 1, this->shape.dataExtent.end());
+        size_t size       = stride(0) * scalar_size();
+        result.buffer     = std::make_shared<BufferView>(this->buffer, idx * size, size);
         result.scalarType = this->scalarType;
         return result;
     }
 
     template<typename T>
-    const T & at(const std::vector<int> &idx) const {
+    const T &at(const std::vector<int> &idx) const {
         assert(ndims() == idx.size());
         int64_t offset = 0;
         for (size_t i = 0; i < ndims(); i++) {
@@ -304,17 +356,17 @@ public:
     }
 
     template<typename T>
-    T & at(const std::vector<int> &idx) {
+    T &at(const std::vector<int> &idx) {
         return const_cast<T &>(const_cast<const Tensor *>(this)->at<T>(idx));
     }
 
     Tensor slice(int dim, int from, int to) const {
         assert(from <= to);
         Tensor result;
-        result.buffer = this->buffer;
+        result.buffer     = this->buffer;
         result.scalarType = this->scalarType;
 
-        result.shape = TensorShape(this->shape.dataExtent);
+        result.shape      = TensorShape(this->shape.dataExtent);
         result.shape[dim] = to - from;
         result.shape.dataStride.resize(result.shape.ndims());
         for (int i = 0; i < result.shape.ndims(); i++) {
@@ -326,7 +378,7 @@ public:
     }
     Tensor transpose(int dim1, int dim2) const {
         Tensor result;
-        result.buffer = this->buffer;
+        result.buffer     = this->buffer;
         result.scalarType = this->scalarType;
 
         result.shape = TensorShape(this->shape.dataExtent);
@@ -346,9 +398,9 @@ public:
         assert(shape.size() == this->shape.size());
         assert(this->is_contiguous());
         Tensor result;
-        result.buffer = this->buffer;
-        result.scalarType = this->scalarType;
-        result.shape = shape;
+        result.buffer       = this->buffer;
+        result.scalarType   = this->scalarType;
+        result.shape        = shape;
         result.shape.offset = this->shape.offset;
         return result;
     }
@@ -363,7 +415,8 @@ public:
 
     Tensor &zero_() {
         assert(this->is_contiguous());
-        checkCUDA(cudaMemsetAsync(data_ptr<char>() + shape.offset * scalar_size(), 0, shape.size() * scalar_size(), getCurrentCUDAStream()));
+        checkCUDA(cudaMemsetAsync(
+            data_ptr<char>() + shape.offset * scalar_size(), 0, shape.size() * scalar_size(), getCurrentCUDAStream()));
         return *this;
     }
     Tensor &copy_(Tensor other) {
@@ -380,23 +433,17 @@ public:
         }
 
         if (this->device().type == Device::CPU && other.device().type == Device::CPU) {
-            memcpy(
-                data_ptr<char>(), 
-                other.data_ptr<char>(), 
-                shape.size() * scalar_size()
-            );
+            memcpy(data_ptr<char>(), other.data_ptr<char>(), shape.size() * scalar_size());
             return *this;
         }
 
         lockBuffer(this->buffer, getCurrentCUDAStream());
         lockBuffer(other.buffer, getCurrentCUDAStream());
-        checkCUDA(cudaMemcpyAsync(
-            data_ptr<char>(), 
-            other.data_ptr<char>(), 
-            shape.size() * scalar_size(), 
-            getCopyKind(this->device(), other.device()),
-            getCurrentCUDAStream()
-        ));
+        checkCUDA(cudaMemcpyAsync(data_ptr<char>(),
+                                  other.data_ptr<char>(),
+                                  shape.size() * scalar_size(),
+                                  getCopyKind(this->device(), other.device()),
+                                  getCurrentCUDAStream()));
         return *this;
     }
 
@@ -425,14 +472,15 @@ public:
             assert(false);
         }
         result.scalarType = scalarType;
-        result.shape = shape;
+        result.shape      = shape;
 
         if (fill) {
             if (device.type == Device::CPU) {
                 memset(result.buffer->getPtr(), 0xCC, result.buffer->getSize());
             } else if (device.type == Device::CUDA) {
                 CUDADeviceContext ctx(device.idx);
-                checkCUDA(cudaMemsetAsync(result.buffer->getPtr(), 0xCC, result.buffer->getSize(), getCurrentCUDAStream()));
+                checkCUDA(
+                    cudaMemsetAsync(result.buffer->getPtr(), 0xCC, result.buffer->getSize(), getCurrentCUDAStream()));
             }
         }
 
@@ -450,11 +498,12 @@ public:
         checkCUDA(cudaMemsetAsync(result.buffer->getPtr(), 1, result.buffer->getSize(), getCurrentCUDAStream()));
         return result;
     }
-    static Tensor allocate_view(TensorShape shape, ScalarType scalarType, std::shared_ptr<Buffer> buffer, size_t offset = 0) {
+    static Tensor
+    allocate_view(TensorShape shape, ScalarType scalarType, std::shared_ptr<Buffer> buffer, size_t offset = 0) {
         Tensor result;
-        result.buffer = std::make_shared<BufferView>(buffer, offset, shape.size() * scalarSize.at(scalarType));
+        result.buffer     = std::make_shared<BufferView>(buffer, offset, shape.size() * scalarSize.at(scalarType));
         result.scalarType = scalarType;
-        result.shape = shape;
+        result.shape      = shape;
         return result;
     }
 
@@ -468,13 +517,16 @@ public:
 
         // lockBuffer(this->buffer, getCurrentCUDAStream());
         // lockBuffer(result.buffer, getCurrentCUDAStream());
-        // checkCUDA(cudaMemcpyAsync(result.data_ptr(), this->data_ptr(), result.buffer->getSize(), cudaMemcpyDefault, getCurrentCUDAStream()));
-        // if (this->device().type == Device::CPU && device.type == Device::CUDA) {
-        //     checkCUDA(cudaMemcpyAsync(result.data_ptr(), this->data_ptr(), result.buffer->getSize(), cudaMemcpyHostToDevice, getCurrentCUDAStream()));
+        // checkCUDA(cudaMemcpyAsync(result.data_ptr(), this->data_ptr(), result.buffer->getSize(), cudaMemcpyDefault,
+        // getCurrentCUDAStream())); if (this->device().type == Device::CPU && device.type == Device::CUDA) {
+        //     checkCUDA(cudaMemcpyAsync(result.data_ptr(), this->data_ptr(), result.buffer->getSize(),
+        //     cudaMemcpyHostToDevice, getCurrentCUDAStream()));
         // } else if (this->device().type == Device::CUDA && device.type == Device::CPU) {
-        //     checkCUDA(cudaMemcpyAsync(result.data_ptr(), this->data_ptr(), result.buffer->getSize(), cudaMemcpyDeviceToHost, getCurrentCUDAStream()));
+        //     checkCUDA(cudaMemcpyAsync(result.data_ptr(), this->data_ptr(), result.buffer->getSize(),
+        //     cudaMemcpyDeviceToHost, getCurrentCUDAStream()));
         // } else {
-        //     checkCUDA(cudaMemcpyAsync(result.data_ptr(), this->data_ptr(), result.buffer->getSize(), cudaMemcpyDefault, getCurrentCUDAStream()));
+        //     checkCUDA(cudaMemcpyAsync(result.data_ptr(), this->data_ptr(), result.buffer->getSize(),
+        //     cudaMemcpyDefault, getCurrentCUDAStream()));
         // }
         return result;
     }
@@ -516,9 +568,10 @@ private:
     // }
 
     static inline std::map<cudaStream_t, std::set<std::shared_ptr<Buffer>>> lockedBuffers;
-    
+
 public:
-    // before launching an async operation, make sure to lock the buffer in case the buffer is freed before GPU completes
+    // before launching an async operation, make sure to lock the buffer in case the buffer is freed before GPU
+    // completes
     static void lockBuffer(std::shared_ptr<Buffer> buffer, cudaStream_t stream) {
         if (!buffer->isAsyncBuffer()) {
             lockedBuffers[stream].insert(buffer);
@@ -558,5 +611,5 @@ inline const std::map<Tensor::ScalarType, size_t> Tensor::scalarSize = {
 struct TensorsProvider {
     virtual ~TensorsProvider() {}
     virtual bool contains(const std::string &key) const = 0;
-    virtual Tensor getTensor(const std::string &key) = 0;
+    virtual Tensor getTensor(const std::string &key)    = 0;
 };

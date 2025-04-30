@@ -2,6 +2,7 @@ import pytest
 import torch
 
 from nunchaku.utils import get_precision, is_turing
+
 from .utils import run_test
 
 

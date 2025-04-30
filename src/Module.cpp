@@ -10,8 +10,8 @@ void Module::copyWithCast(Tensor dst, Tensor src) {
         nunchaku::kernels::cast(src, dst);
     } else {
         Tensor tmp;
-        tmp.buffer = dst.buffer;
-        tmp.shape = dst.shape;
+        tmp.buffer     = dst.buffer;
+        tmp.shape      = dst.shape;
         tmp.scalarType = src.scalarType;
         tmp.copy_(src);
         nunchaku::kernels::cast(tmp, dst);

@@ -6,15 +6,15 @@
 class BufferMMap : public Buffer {
 public:
     BufferMMap(void *ptr, size_t size, std::shared_ptr<void> parent) : parent(parent) {
-        this->size = size;
+        this->size        = size;
         this->device.type = Device::CPU;
-        this->ptr = ptr;
+        this->ptr         = ptr;
         // auto ret = cudaHostRegister(ptr, size, cudaHostRegisterPortable | cudaHostRegisterReadOnly);
         // if (ret == cudaSuccess) {
         //     this->registered = true;
         // } else {
-        //     log(std::format("cudaHostRegister failed at {:p} (size={}): {}", ptr, size, cudaGetErrorString(cudaGetLastError())));
-        //     this->registered = false;
+        //     log(std::format("cudaHostRegister failed at {:p} (size={}): {}", ptr, size,
+        //     cudaGetErrorString(cudaGetLastError()))); this->registered = false;
         // }
     }
     virtual ~BufferMMap() {
@@ -22,6 +22,7 @@ public:
         //     checkCUDA(cudaHostUnregister(ptr));
         // }
     }
+
 public:
     std::shared_ptr<void> parent;
     // bool registered;
@@ -32,7 +33,7 @@ public:
     SafeTensors(const std::string &filename);
     ~SafeTensors();
 
-    virtual bool contains(const std::string &key) const override { 
+    virtual bool contains(const std::string &key) const override {
         return tensors.contains(key);
     }
     virtual Tensor getTensor(const std::string &key) override;

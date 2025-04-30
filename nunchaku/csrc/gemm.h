@@ -16,7 +16,12 @@ public:
         checkCUDA(cudaDeviceGetLimit(&val, cudaLimitStackSize));
         spdlog::debug("Stack={}", val);
 
-        net = std::make_unique<GEMM_W4A4>((int)in_features, (int)out_features, bias, use_fp4, bf16 ? Tensor::BF16 : Tensor::FP16, Device::cuda((int)deviceId));
+        net = std::make_unique<GEMM_W4A4>((int)in_features,
+                                          (int)out_features,
+                                          bias,
+                                          use_fp4,
+                                          bf16 ? Tensor::BF16 : Tensor::FP16,
+                                          Device::cuda((int)deviceId));
     }
 
     torch::Tensor forward(torch::Tensor x) {
@@ -53,11 +58,11 @@ public:
 
         // activation: row major, [M / BLOCK_M, K / WARP_K, NUM_WARPS, WARP_M_TILES, WARP_SIZE] of packed_act_t (uint4)
 
-        constexpr int BLOCK_M = 256;
-        constexpr int WARP_K = 64;
-        constexpr int NUM_WARPS = 8;
+        constexpr int BLOCK_M      = 256;
+        constexpr int WARP_K       = 64;
+        constexpr int NUM_WARPS    = 8;
         constexpr int WARP_M_TILES = 2;
-        constexpr int WARP_SIZE = 32;
+        constexpr int WARP_SIZE    = 32;
 
         std::stringstream ss;
         for (int bm = 0; bm < M / BLOCK_M; bm++) {
@@ -95,13 +100,10 @@ public:
 
         x = x.contiguous();
 
-        auto qout = net->quantize(
-            from_torch(x),
-            fuse_glu
-        );
+        auto qout = net->quantize(from_torch(x), fuse_glu);
 
-        Tensor act = qout.act.copy(Device::cpu());
-        Tensor ascales = qout.ascales.copy(Device::cpu());
+        Tensor act      = qout.act.copy(Device::cpu());
+        Tensor ascales  = qout.ascales.copy(Device::cpu());
         Tensor lora_act = qout.lora_act.copy(Device::cpu());
 
         Tensor::synchronizeDevice();
@@ -109,5 +111,4 @@ public:
         spdlog::debug("act = {}", dumpTensorINT4(act));
         spdlog::debug("ascales = {}", dumpTensorBF16(ascales));
     }
-
 };

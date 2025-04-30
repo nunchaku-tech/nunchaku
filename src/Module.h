@@ -7,7 +7,7 @@
 class Module {
 protected:
     enum class ParamFlags : int {
-        None = 0,
+        None     = 0,
         Optional = 1,
         LazyLoad = 2,
     };
@@ -19,7 +19,7 @@ protected:
         Tensor src;
     };
     struct Param {
-        Tensor *tensor = nullptr;
+        Tensor *tensor   = nullptr;
         ParamFlags flags = ParamFlags::None;
 
         TensorLazyLoadInfo lazyInfo;
@@ -50,7 +50,7 @@ public:
 
     std::string getPrefix() const {
         std::string fullName = getFullName();
-        std::string prefix = fullName.empty() ? "" : fullName + ".";
+        std::string prefix   = fullName.empty() ? "" : fullName + ".";
         return prefix;
     }
 
@@ -80,7 +80,7 @@ public:
                     continue;
                 }
                 // keep loading params if param is not released
-            } 
+            }
             this->loadParam(key, *param.tensor, src);
             // tensor->copy_(src);
         }
@@ -99,8 +99,8 @@ public:
                 }
 
                 TensorLazyLoadInfo &lazy = param.lazyInfo;
-                Tensor &dst = *param.tensor;
-                Tensor src = lazy.src;
+                Tensor &dst              = *param.tensor;
+                Tensor src               = lazy.src;
 
                 if (dst.valid()) {
                     continue;
@@ -108,7 +108,8 @@ public:
                 dst = Tensor::allocate(lazy.shape, lazy.type, lazy.device);
 
                 if (!src.valid() && !checkFlag(param.flags, ParamFlags::Optional)) {
-                    throw std::runtime_error(spdlog::fmt_lib::format("Lazy load: Tensor {} has no src", m->getPrefix() + key));
+                    throw std::runtime_error(
+                        spdlog::fmt_lib::format("Lazy load: Tensor {} has no src", m->getPrefix() + key));
                 }
                 m->loadParam(key, dst, src);
             }
@@ -127,14 +128,10 @@ public:
         });
     }
     void setLazyLoad(bool val) {
-        traverse([val](Module *m) {
-            m->enabledLazyLoad = val;
-        });
+        traverse([val](Module *m) { m->enabledLazyLoad = val; });
     }
     void setAutoCastFP16(bool val) {
-        traverse([val](Module *m) {
-            m->enabledAutoCastFP16 = val;
-        });
+        traverse([val](Module *m) { m->enabledAutoCastFP16 = val; });
     }
 
 protected:
@@ -143,7 +140,8 @@ protected:
             Tensor::FP16,
             Tensor::BF16,
         };
-        if (enabledAutoCastFP16 && dst.scalar_type() != src.scalar_type() && whitelist.contains(dst.scalar_type()) && whitelist.contains(src.scalar_type())) {
+        if (enabledAutoCastFP16 && dst.scalar_type() != src.scalar_type() && whitelist.contains(dst.scalar_type()) &&
+            whitelist.contains(src.scalar_type())) {
             copyWithCast(dst, src);
         } else {
             dst.copy_(src);
@@ -159,7 +157,7 @@ protected:
     };
     ChildrenRegisterHelper registerChildren(Module &module, std::string name) {
         module.parent = this;
-        module.name = name;
+        module.name   = name;
         children.push_back(&module);
         return ChildrenRegisterHelper(*this);
     }
@@ -174,13 +172,13 @@ protected:
     ParamsRegisterHelper registerParams(Tensor &param, std::string name, ParamFlags flags = ParamFlags::None) {
         if (param.valid()) {
             params[name].tensor = &param;
-            params[name].flags = flags;
+            params[name].flags  = flags;
 
             if (checkFlag(flags, ParamFlags::LazyLoad) && param.valid()) {
                 TensorLazyLoadInfo &lazy = params[name].lazyInfo;
-                lazy.shape = param.shape;
-                lazy.type = param.dtype();
-                lazy.device = param.device();
+                lazy.shape               = param.shape;
+                lazy.type                = param.dtype();
+                lazy.device              = param.device();
             }
         }
         return ParamsRegisterHelper(*this);
@@ -204,12 +202,12 @@ private:
     void copyWithCast(Tensor dst, Tensor src);
 
 public:
-    Module *parent = nullptr;
+    Module *parent   = nullptr;
     std::string name = "";
     std::vector<Module *> children;
     std::map<std::string, Param> params;
 
-    bool enabledLazyLoad = false;
+    bool enabledLazyLoad     = false;
     bool enabledAutoCastFP16 = true;
 };
 
@@ -226,12 +224,11 @@ struct LayerOffloadHelper {
     std::unique_ptr<CUDAEventWrapper> eventComputeDone;
     std::unique_ptr<CUDAEventWrapper> eventLoadDone;
 
-    LayerOffloadHelper(bool offload, int numLayers, func_t funcCompute, func_t funcLoad, func_t funcUnload) 
-        : offload(offload), numLayers(numLayers), funcCompute(funcCompute), funcLoad(funcLoad), funcUnload(funcUnload) 
-    {
+    LayerOffloadHelper(bool offload, int numLayers, func_t funcCompute, func_t funcLoad, func_t funcUnload)
+        : offload(offload), numLayers(numLayers), funcCompute(funcCompute), funcLoad(funcLoad), funcUnload(funcUnload) {
         if (offload) {
             streamCompute = std::make_unique<CUDAStreamWrapper>();
-            streamLoad = std::make_unique<CUDAStreamWrapper>();
+            streamLoad    = std::make_unique<CUDAStreamWrapper>();
 
             needWorkaround = checkWorkaround();
             if (needWorkaround) {
@@ -280,7 +277,7 @@ private:
             }
 
             eventComputeDone = std::move(nextComputeDone);
-            eventLoadDone = std::move(nextLoadDone);
+            eventLoadDone    = std::move(nextLoadDone);
 
             workaroundSynchronize();
         }
@@ -304,12 +301,12 @@ private:
                 return false;
             }
         }
-        
-    #ifdef _WIN32
+
+#ifdef _WIN32
         return true;
-    #else
+#else
         return false;
-    #endif
+#endif
     }
     void workaroundFlush() {
         if (!needWorkaround) {

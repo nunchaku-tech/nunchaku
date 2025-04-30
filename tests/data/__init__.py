@@ -3,7 +3,6 @@ import random
 
 import datasets
 import yaml
-from huggingface_hub import snapshot_download
 
 from nunchaku.utils import fetch_or_download
 

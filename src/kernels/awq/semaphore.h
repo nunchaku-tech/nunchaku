@@ -41,65 +41,54 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// CTA-wide semaphore for inter-CTA synchronization.
-class Semaphore
-{
+class Semaphore {
 public:
-  int *lock;
-  bool wait_thread;
-  int state;
+    int *lock;
+    bool wait_thread;
+    int state;
 
 public:
-  /// Implements a semaphore to wait for a flag to reach a given value
-  __host__ __device__ Semaphore(int *lock_, int thread_id) : lock(lock_),
-                                                             wait_thread(thread_id < 0 || thread_id == 0),
-                                                             state(-1)
-  {
-  }
+    /// Implements a semaphore to wait for a flag to reach a given value
+    __host__ __device__ Semaphore(int *lock_, int thread_id)
+        : lock(lock_), wait_thread(thread_id < 0 || thread_id == 0), state(-1) {}
 
-  /// Permit fetching the synchronization mechanism early
-  __device__ void fetch()
-  {
-    if (wait_thread)
-    {
+    /// Permit fetching the synchronization mechanism early
+    __device__ void fetch() {
+        if (wait_thread) {
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 700
-      asm volatile("ld.global.acquire.gpu.b32 %0, [%1];\n" : "=r"(state) : "l"(lock));
+            asm volatile("ld.global.acquire.gpu.b32 %0, [%1];\n" : "=r"(state) : "l"(lock));
 #else
-      asm volatile("ld.global.cg.b32 %0, [%1];\n" : "=r"(state) : "l"(lock));
+            asm volatile("ld.global.cg.b32 %0, [%1];\n" : "=r"(state) : "l"(lock));
 #endif
-    }
-  }
-
-  /// Gets the internal state
-  __device__ int get_state() const
-  {
-    return state;
-  }
-
-  /// Waits until the semaphore is equal to the given value
-  __device__ void wait(int status = 0)
-  {
-    while (__syncthreads_and(state != status))
-    {
-      fetch();
+        }
     }
 
-    __syncthreads();
-  }
+    /// Gets the internal state
+    __device__ int get_state() const {
+        return state;
+    }
 
-  /// Updates the lock with the given result
-  __device__ void release(int status = 0)
-  {
-    __syncthreads();
+    /// Waits until the semaphore is equal to the given value
+    __device__ void wait(int status = 0) {
+        while (__syncthreads_and(state != status)) {
+            fetch();
+        }
 
-    if (wait_thread)
-    {
+        __syncthreads();
+    }
+
+    /// Updates the lock with the given result
+    __device__ void release(int status = 0) {
+        __syncthreads();
+
+        if (wait_thread) {
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 700
-      asm volatile("st.global.release.gpu.b32 [%0], %1;\n" : : "l"(lock), "r"(status));
+            asm volatile("st.global.release.gpu.b32 [%0], %1;\n" : : "l"(lock), "r"(status));
 #else
-      asm volatile("st.global.cg.b32 [%0], %1;\n" : : "l"(lock), "r"(status));
+            asm volatile("st.global.cg.b32 [%0], %1;\n" : : "l"(lock), "r"(status));
 #endif
+        }
     }
-  }
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////

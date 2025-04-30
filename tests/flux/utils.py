@@ -14,6 +14,7 @@ import nunchaku
 from nunchaku import NunchakuFluxTransformer2dModel, NunchakuT5EncoderModel
 from nunchaku.caching.diffusers_adapters import apply_cache_on_pipe
 from nunchaku.lora.flux.compose import compose_lora
+
 from ..data import get_dataset
 from ..utils import already_generate, compute_lpips, hash_str_to_int
 

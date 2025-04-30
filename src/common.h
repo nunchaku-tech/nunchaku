@@ -25,7 +25,7 @@
 
 class CUDAError : public std::runtime_error {
 public:
-    CUDAError(cudaError_t errorCode, std::source_location location) 
+    CUDAError(cudaError_t errorCode, std::source_location location)
         : std::runtime_error(format(errorCode, location)), errorCode(errorCode), location(location) {}
 
 public:
@@ -34,12 +34,13 @@ public:
 
 private:
     static std::string format(cudaError_t errorCode, std::source_location location) {
-        return spdlog::fmt_lib::format("CUDA error: {} (at {}:{})", 
-            cudaGetErrorString(errorCode), location.file_name(), location.line());
+        return spdlog::fmt_lib::format(
+            "CUDA error: {} (at {}:{})", cudaGetErrorString(errorCode), location.file_name(), location.line());
     }
 };
 
-inline cudaError_t checkCUDA(cudaError_t retValue, const std::source_location location = std::source_location::current()) {
+inline cudaError_t checkCUDA(cudaError_t retValue,
+                             const std::source_location location = std::source_location::current()) {
     if (retValue != cudaSuccess) {
         (void)cudaGetLastError();
         throw CUDAError(retValue, location);
@@ -47,10 +48,11 @@ inline cudaError_t checkCUDA(cudaError_t retValue, const std::source_location lo
     return retValue;
 }
 
-inline cublasStatus_t checkCUBLAS(cublasStatus_t retValue, const std::source_location location = std::source_location::current()) {
+inline cublasStatus_t checkCUBLAS(cublasStatus_t retValue,
+                                  const std::source_location location = std::source_location::current()) {
     if (retValue != CUBLAS_STATUS_SUCCESS) {
-        throw std::runtime_error(spdlog::fmt_lib::format("CUBLAS error: {} (at {}:{})", 
-            cublasGetStatusString(retValue), location.file_name(), location.line()));
+        throw std::runtime_error(spdlog::fmt_lib::format(
+            "CUBLAS error: {} (at {}:{})", cublasGetStatusString(retValue), location.file_name(), location.line()));
     }
     return retValue;
 }
@@ -71,8 +73,8 @@ struct CUDAStreamContext {
         stackCUDAStreams.push(stream);
     }
     CUDAStreamContext(const CUDAStreamContext &) = delete;
-    CUDAStreamContext(CUDAStreamContext &&) = delete;
-    
+    CUDAStreamContext(CUDAStreamContext &&)      = delete;
+
     ~CUDAStreamContext() {
         assert(stackCUDAStreams.top() == stream);
         stackCUDAStreams.pop();
@@ -86,7 +88,7 @@ struct CUDAStreamWrapper {
         checkCUDA(cudaStreamCreate(&stream));
     }
     CUDAStreamWrapper(const CUDAStreamWrapper &) = delete;
-    CUDAStreamWrapper(CUDAStreamWrapper &&) = delete;
+    CUDAStreamWrapper(CUDAStreamWrapper &&)      = delete;
 
     ~CUDAStreamWrapper() {
         checkCUDA(cudaStreamDestroy(stream));
@@ -100,13 +102,12 @@ struct CUDAEventWrapper {
         checkCUDA(cudaEventCreateWithFlags(&event, flags));
     }
     CUDAEventWrapper(const CUDAEventWrapper &) = delete;
-    CUDAEventWrapper(CUDAEventWrapper &&) = delete;
+    CUDAEventWrapper(CUDAEventWrapper &&)      = delete;
 
     ~CUDAEventWrapper() {
         checkCUDA(cudaEventDestroy(event));
     }
 };
-
 
 /**
  * 1. hold one when entered from external code (set `device` to -1 to avoid device change)
@@ -121,7 +122,7 @@ public:
             // previous context is reset on => external code may be executed, reset
             currentDeviceCache = -1;
         }
-        
+
         ctxs.push(this);
         lastDevice = getDevice();
         if (device >= 0) {
@@ -134,7 +135,7 @@ public:
         }
     }
     CUDADeviceContext(const CUDADeviceContext &) = delete;
-    CUDADeviceContext(CUDADeviceContext &&) = delete;
+    CUDADeviceContext(CUDADeviceContext &&)      = delete;
 
     ~CUDADeviceContext() {
         if (disableCache) {
@@ -148,14 +149,14 @@ public:
 
         if (cacheDisabled()) {
             // ctxs.empty() => we are about to return to external code, reset cache
-            // otherwise => we are a nested context in a previous context with reset on, we might continue to execute external code, reset
+            // otherwise => we are a nested context in a previous context with reset on, we might continue to execute
+            // external code, reset
             currentDeviceCache = -1;
         }
     }
 
     const bool disableCache;
     int lastDevice;
-
 
 public:
     static int getDevice() {
@@ -168,6 +169,7 @@ public:
         currentDeviceCache = cacheDisabled() ? -1 : idx;
         return idx;
     }
+
 private:
     static void setDevice(int idx) {
         // TODO: deal with stream when switching device
@@ -207,11 +209,11 @@ constexpr T ceilDiv(T a, T b) {
 
 template<typename T>
 constexpr int log2Up(T value) {
-   if (value <= 0)
-       return 0;
-   if (value == 1)
-       return 0;
-   return log2Up((value + 1) / 2) + 1;
+    if (value <= 0)
+        return 0;
+    if (value == 1)
+        return 0;
+    return log2Up((value + 1) / 2) + 1;
 }
 
 struct CUBLASWrapper {
@@ -220,7 +222,7 @@ struct CUBLASWrapper {
     CUBLASWrapper() {
         checkCUBLAS(cublasCreate(&handle));
     }
-    CUBLASWrapper(CUBLASWrapper &&) = delete;
+    CUBLASWrapper(CUBLASWrapper &&)       = delete;
     CUBLASWrapper(const CUBLASWrapper &&) = delete;
     ~CUBLASWrapper() {
         if (handle) {
@@ -236,6 +238,6 @@ inline std::shared_ptr<CUBLASWrapper> getCUBLAS() {
         return result;
     }
     result = std::make_shared<CUBLASWrapper>();
-    inst = result;
+    inst   = result;
     return result;
 }

@@ -40,7 +40,7 @@ jobs:
       - name: Merge main into dev
         id: last_commit
         if: steps.check_sync.outputs.skip_merge == 'false'
-        run: |          
+        run: |
           # Get author name and email from last commit on main
           AUTHOR_NAME=$(git log origin/main -1 --pretty=format:'%an')
           AUTHOR_EMAIL=$(git log origin/main -1 --pretty=format:'%ae')
@@ -48,11 +48,11 @@ jobs:
 
           echo "Author: $AUTHOR_NAME <$AUTHOR_EMAIL>"
           echo "Last commit message: $LAST_MSG"
-          
+
           # Set Git user to last author
           git config --global user.name "$AUTHOR_NAME"
           git config --global user.email "$AUTHOR_EMAIL"
-          
+
           git checkout dev
           git merge origin/main -m "[Auto Merge] $LAST_MSG"
           git push origin dev

@@ -97,7 +97,7 @@ jobs:
           echo "Installing dependencies"
           pip install torch torchvision torchaudio
           pip install ninja wheel diffusers transformers accelerate sentencepiece protobuf huggingface_hub
-  
+
 
   build:
     needs: set-up-build-env

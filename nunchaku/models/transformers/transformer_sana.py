@@ -8,9 +8,10 @@ from safetensors.torch import load_file
 from torch import nn
 from torch.nn import functional as F
 
-from .utils import NunchakuModelLoaderMixin
+from ..._C import QuantizedSanaModel
+from ..._C import utils as cutils
 from ...utils import get_precision
-from ..._C import QuantizedSanaModel, utils as cutils
+from .utils import NunchakuModelLoaderMixin
 
 SVD_RANK = 32
 
@@ -130,8 +131,10 @@ class NunchakuSanaTransformerBlocks(nn.Module):
             .to(original_dtype)
             .to(original_device)
         )
+
     def __del__(self):
         self.m.reset()
+
 
 class NunchakuSanaTransformer2DModel(SanaTransformer2DModel, NunchakuModelLoaderMixin):
     @classmethod

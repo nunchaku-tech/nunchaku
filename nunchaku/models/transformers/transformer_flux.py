@@ -12,11 +12,12 @@ from packaging.version import Version
 from safetensors.torch import load_file
 from torch import nn
 
-from .utils import NunchakuModelLoaderMixin, pad_tensor
-from ..._C import QuantizedFluxModel, utils as cutils
+from ..._C import QuantizedFluxModel
+from ..._C import utils as cutils
 from ...lora.flux.nunchaku_converter import fuse_vectors, to_nunchaku
 from ...lora.flux.utils import is_nunchaku_format
 from ...utils import get_precision, load_state_dict_in_safetensors
+from .utils import NunchakuModelLoaderMixin, pad_tensor
 
 SVD_RANK = 32
 

@@ -29,10 +29,7 @@ if need_offload:
 else:
     pipeline = pipeline.to("cuda")
 
-# apply_cache_on_pipe(
-#     pipeline, residual_diff_threshold=0.1
-# )  # Uncomment this line to enable first-block cache to speedup generation
-
+apply_cache_on_pipe(pipeline, residual_diff_threshold=0.1)  # Comment this line to disable first-block cache
 
 prompt = "A anime style girl with messy beach waves."
 control_image_depth = load_image(

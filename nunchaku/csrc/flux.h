@@ -20,7 +20,8 @@ public:
         ModuleWrapper::init(deviceId);
 
         CUDADeviceContext ctx(this->deviceId);
-        net = std::make_unique<FluxModel>(use_fp4, offload, bf16 ? Tensor::BF16 : Tensor::FP16, Device::cuda((int)deviceId));
+        net = std::make_unique<FluxModel>(
+            use_fp4, offload, bf16 ? Tensor::BF16 : Tensor::FP16, Device::cuda((int)deviceId));
     }
 
     bool isBF16() {
@@ -28,28 +29,26 @@ public:
         return net->dtype == Tensor::BF16;
     }
 
-    torch::Tensor forward(
-        torch::Tensor hidden_states,
-        torch::Tensor encoder_hidden_states,
-        torch::Tensor temb,
-        torch::Tensor rotary_emb_img,
-        torch::Tensor rotary_emb_context,
-        torch::Tensor rotary_emb_single,
-        std::optional<torch::Tensor> controlnet_block_samples = std::nullopt,
-        std::optional<torch::Tensor> controlnet_single_block_samples = std::nullopt,
-        bool skip_first_layer = false)
-    {
+    torch::Tensor forward(torch::Tensor hidden_states,
+                          torch::Tensor encoder_hidden_states,
+                          torch::Tensor temb,
+                          torch::Tensor rotary_emb_img,
+                          torch::Tensor rotary_emb_context,
+                          torch::Tensor rotary_emb_single,
+                          std::optional<torch::Tensor> controlnet_block_samples        = std::nullopt,
+                          std::optional<torch::Tensor> controlnet_single_block_samples = std::nullopt,
+                          bool skip_first_layer                                        = false) {
         checkModel();
         CUDADeviceContext ctx(deviceId);
 
         spdlog::debug("QuantizedFluxModel forward");
 
-        hidden_states = hidden_states.contiguous();
+        hidden_states         = hidden_states.contiguous();
         encoder_hidden_states = encoder_hidden_states.contiguous();
-        temb = temb.contiguous();
-        rotary_emb_img = rotary_emb_img.contiguous();
-        rotary_emb_context = rotary_emb_context.contiguous();
-        rotary_emb_single = rotary_emb_single.contiguous();
+        temb                  = temb.contiguous();
+        rotary_emb_img        = rotary_emb_img.contiguous();
+        rotary_emb_context    = rotary_emb_context.contiguous();
+        rotary_emb_single     = rotary_emb_single.contiguous();
 
         Tensor result = net->forward(
             from_torch(hidden_states),
@@ -59,9 +58,10 @@ public:
             from_torch(rotary_emb_context),
             from_torch(rotary_emb_single),
             controlnet_block_samples.has_value() ? from_torch(controlnet_block_samples.value().contiguous()) : Tensor{},
-            controlnet_single_block_samples.has_value() ? from_torch(controlnet_single_block_samples.value().contiguous()) : Tensor{},
-            skip_first_layer
-        );
+            controlnet_single_block_samples.has_value()
+                ? from_torch(controlnet_single_block_samples.value().contiguous())
+                : Tensor{},
+            skip_first_layer);
 
         torch::Tensor output = to_torch(result);
         Tensor::synchronizeDevice();
@@ -69,25 +69,24 @@ public:
         return output;
     }
 
-    std::tuple<torch::Tensor, torch::Tensor> forward_layer(
-        int64_t idx,
-        torch::Tensor hidden_states,
-        torch::Tensor encoder_hidden_states,
-        torch::Tensor temb,
-        torch::Tensor rotary_emb_img,
-        torch::Tensor rotary_emb_context,
-        std::optional<torch::Tensor> controlnet_block_samples = std::nullopt,
-        std::optional<torch::Tensor> controlnet_single_block_samples = std::nullopt)
-    {
+    std::tuple<torch::Tensor, torch::Tensor>
+    forward_layer(int64_t idx,
+                  torch::Tensor hidden_states,
+                  torch::Tensor encoder_hidden_states,
+                  torch::Tensor temb,
+                  torch::Tensor rotary_emb_img,
+                  torch::Tensor rotary_emb_context,
+                  std::optional<torch::Tensor> controlnet_block_samples        = std::nullopt,
+                  std::optional<torch::Tensor> controlnet_single_block_samples = std::nullopt) {
         CUDADeviceContext ctx(deviceId);
 
         spdlog::debug("QuantizedFluxModel forward_layer {}", idx);
 
-        hidden_states = hidden_states.contiguous();
+        hidden_states         = hidden_states.contiguous();
         encoder_hidden_states = encoder_hidden_states.contiguous();
-        temb = temb.contiguous();
-        rotary_emb_img = rotary_emb_img.contiguous();
-        rotary_emb_context = rotary_emb_context.contiguous();
+        temb                  = temb.contiguous();
+        rotary_emb_img        = rotary_emb_img.contiguous();
+        rotary_emb_context    = rotary_emb_context.contiguous();
 
         auto &&[hidden_states_, encoder_hidden_states_] = net->forward_layer(
             idx,
@@ -97,42 +96,37 @@ public:
             from_torch(rotary_emb_img),
             from_torch(rotary_emb_context),
             controlnet_block_samples.has_value() ? from_torch(controlnet_block_samples.value().contiguous()) : Tensor{},
-            controlnet_single_block_samples.has_value() ? from_torch(controlnet_single_block_samples.value().contiguous()) : Tensor{}
-        );
+            controlnet_single_block_samples.has_value()
+                ? from_torch(controlnet_single_block_samples.value().contiguous())
+                : Tensor{});
 
-        hidden_states = to_torch(hidden_states_);
+        hidden_states         = to_torch(hidden_states_);
         encoder_hidden_states = to_torch(encoder_hidden_states_);
         Tensor::synchronizeDevice();
 
-        return { hidden_states, encoder_hidden_states };
+        return {hidden_states, encoder_hidden_states};
     }
 
-    torch::Tensor forward_single_layer(
-        int64_t idx,
-        torch::Tensor hidden_states,
-        torch::Tensor temb,
-        torch::Tensor rotary_emb_single)
-    {
+    torch::Tensor forward_single_layer(int64_t idx,
+                                       torch::Tensor hidden_states,
+                                       torch::Tensor temb,
+                                       torch::Tensor rotary_emb_single) {
         CUDADeviceContext ctx(deviceId);
 
         spdlog::debug("QuantizedFluxModel forward_single_layer {}", idx);
 
-        hidden_states = hidden_states.contiguous();
-        temb = temb.contiguous();
+        hidden_states     = hidden_states.contiguous();
+        temb              = temb.contiguous();
         rotary_emb_single = rotary_emb_single.contiguous();
 
         Tensor result = net->single_transformer_blocks.at(idx)->forward(
-            from_torch(hidden_states),
-            from_torch(temb),
-            from_torch(rotary_emb_single)
-        );
+            from_torch(hidden_states), from_torch(temb), from_torch(rotary_emb_single));
 
         hidden_states = to_torch(result);
         Tensor::synchronizeDevice();
 
         return hidden_states;
     }
-
 
     // must be called after loading lora
     // skip specific ranks in W4A4 layers
@@ -174,5 +168,4 @@ public:
             throw std::invalid_argument(spdlog::fmt_lib::format("Invalid attention implementation {}", name));
         }
     }
-
 };
