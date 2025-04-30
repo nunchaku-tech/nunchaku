@@ -181,6 +181,7 @@ class NunchakuFluxTransformerBlocks(nn.Module):
         return encoder_hidden_states, hidden_states
 
     def __del__(self):
+        print("delete NunchakuFluxTransformerBlocks")
         self.m.reset()
 
     def norm1(
@@ -612,3 +613,6 @@ class NunchakuFluxTransformer2dModel(FluxTransformer2DModel, NunchakuModelLoader
             return (output,)
 
         return Transformer2DModelOutput(sample=output)
+
+    def __del__(self):
+        print("delete NunchakuFluxTransformer2dModel")

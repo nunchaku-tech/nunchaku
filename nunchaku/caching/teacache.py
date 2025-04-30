@@ -1,3 +1,4 @@
+from types import MethodType
 from typing import Any, Callable, Optional, Union
 
 import numpy as np
@@ -9,13 +10,12 @@ from diffusers.utils.constants import USE_PEFT_BACKEND
 from diffusers.utils.import_utils import is_torch_version
 from diffusers.utils.peft_utils import scale_lora_layers, unscale_lora_layers
 
-from nunchaku import NunchakuFluxTransformer2dModel
+from ..models.transformers import NunchakuFluxTransformer2dModel
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
-def make_teacache_forward(
-    num_steps: int = 50, rel_l1_thresh: float = 0.6, skip_steps: int = 0
-) -> Callable:
+
+def make_teacache_forward(num_steps: int = 50, rel_l1_thresh: float = 0.6, skip_steps: int = 0) -> Callable:
     def teacache_forward(
         self: Union[FluxTransformer2DModel, NunchakuFluxTransformer2dModel],
         hidden_states: torch.Tensor,
@@ -67,10 +67,7 @@ def make_teacache_forward(
             # weight the lora layers by setting `lora_scale` for each PEFT layer
             scale_lora_layers(self, lora_scale)
         else:
-            if (
-                joint_attention_kwargs is not None
-                and joint_attention_kwargs.get("scale", None) is not None
-            ):
+            if joint_attention_kwargs is not None and joint_attention_kwargs.get("scale", None) is not None:
                 logger.warning(
                     "Passing `scale` via `joint_attention_kwargs` when not using the PEFT backend is ineffective."
                 )
@@ -106,10 +103,7 @@ def make_teacache_forward(
         ids = torch.cat((txt_ids, img_ids), dim=0)
         image_rotary_emb = self.pos_embed(ids)
 
-        if (
-            joint_attention_kwargs is not None
-            and "ip_adapter_image_embeds" in joint_attention_kwargs
-        ):
+        if joint_attention_kwargs is not None and "ip_adapter_image_embeds" in joint_attention_kwargs:
             ip_adapter_image_embeds = joint_attention_kwargs.pop("ip_adapter_image_embeds")
             ip_hidden_states = self.encoder_hid_proj(ip_adapter_image_embeds)  # type: ignore
             joint_attention_kwargs.update({"ip_hidden_states": ip_hidden_states})
@@ -166,9 +160,7 @@ def make_teacache_forward(
 
                             return custom_forward
 
-                        ckpt_kwargs = (
-                            {"use_reentrant": False} if is_torch_version(">=", "1.11.0") else {}
-                        )
+                        ckpt_kwargs = {"use_reentrant": False} if is_torch_version(">=", "1.11.0") else {}
                         encoder_hidden_states, hidden_states = torch.utils.checkpoint.checkpoint(
                             create_custom_forward(block),
                             hidden_states,
@@ -189,23 +181,15 @@ def make_teacache_forward(
 
                     # controlnet residual
                     if controlnet_block_samples is not None:
-                        interval_control = len(self.transformer_blocks) / len(
-                            controlnet_block_samples
-                        )
+                        interval_control = len(self.transformer_blocks) / len(controlnet_block_samples)
                         interval_control = int(np.ceil(interval_control))
                         # For Xlabs ControlNet.
                         if controlnet_blocks_repeat:
                             hidden_states = (
-                                hidden_states
-                                + controlnet_block_samples[
-                                    index_block % len(controlnet_block_samples)
-                                ]
+                                hidden_states + controlnet_block_samples[index_block % len(controlnet_block_samples)]
                             )
                         else:
-                            hidden_states = (
-                                hidden_states
-                                + controlnet_block_samples[index_block // interval_control]
-                            )
+                            hidden_states = hidden_states + controlnet_block_samples[index_block // interval_control]
                 hidden_states = torch.cat([encoder_hidden_states, hidden_states], dim=1)
 
                 for index_block, block in enumerate(self.single_transformer_blocks):
@@ -220,9 +204,7 @@ def make_teacache_forward(
 
                             return custom_forward
 
-                        ckpt_kwargs = (
-                            {"use_reentrant": False} if is_torch_version(">=", "1.11.0") else {}
-                        )
+                        ckpt_kwargs = {"use_reentrant": False} if is_torch_version(">=", "1.11.0") else {}
                         hidden_states = torch.utils.checkpoint.checkpoint(
                             create_custom_forward(block),
                             hidden_states,
@@ -241,9 +223,7 @@ def make_teacache_forward(
 
                     # controlnet residual
                     if controlnet_single_block_samples is not None:
-                        interval_control = len(self.single_transformer_blocks) / len(
-                            controlnet_single_block_samples
-                        )
+                        interval_control = len(self.single_transformer_blocks) / len(controlnet_single_block_samples)
                         interval_control = int(np.ceil(interval_control))
                         hidden_states[:, encoder_hidden_states.shape[1] :, ...] = (
                             hidden_states[:, encoder_hidden_states.shape[1] :, ...]
@@ -265,9 +245,7 @@ def make_teacache_forward(
 
                         return custom_forward
 
-                    ckpt_kwargs = (
-                        {"use_reentrant": False} if is_torch_version(">=", "1.11.0") else {}
-                    )
+                    ckpt_kwargs = {"use_reentrant": False} if is_torch_version(">=", "1.11.0") else {}
                     encoder_hidden_states, hidden_states = torch.utils.checkpoint.checkpoint(
                         create_custom_forward(block),
                         hidden_states,
@@ -293,14 +271,10 @@ def make_teacache_forward(
                     # For Xlabs ControlNet.
                     if controlnet_blocks_repeat:
                         hidden_states = (
-                            hidden_states
-                            + controlnet_block_samples[index_block % len(controlnet_block_samples)]
+                            hidden_states + controlnet_block_samples[index_block % len(controlnet_block_samples)]
                         )
                     else:
-                        hidden_states = (
-                            hidden_states
-                            + controlnet_block_samples[index_block // interval_control]
-                        )
+                        hidden_states = hidden_states + controlnet_block_samples[index_block // interval_control]
             hidden_states = torch.cat([encoder_hidden_states, hidden_states], dim=1)
 
             for index_block, block in enumerate(self.single_transformer_blocks):
@@ -315,9 +289,7 @@ def make_teacache_forward(
 
                         return custom_forward
 
-                    ckpt_kwargs = (
-                        {"use_reentrant": False} if is_torch_version(">=", "1.11.0") else {}
-                    )
+                    ckpt_kwargs = {"use_reentrant": False} if is_torch_version(">=", "1.11.0") else {}
                     hidden_states = torch.utils.checkpoint.checkpoint(
                         create_custom_forward(block),
                         hidden_states,
@@ -336,9 +308,7 @@ def make_teacache_forward(
 
                 # controlnet residual
                 if controlnet_single_block_samples is not None:
-                    interval_control = len(self.single_transformer_blocks) / len(
-                        controlnet_single_block_samples
-                    )
+                    interval_control = len(self.single_transformer_blocks) / len(controlnet_single_block_samples)
                     interval_control = int(np.ceil(interval_control))
                     hidden_states[:, encoder_hidden_states.shape[1] :, ...] = (
                         hidden_states[:, encoder_hidden_states.shape[1] :, ...]
@@ -383,7 +353,10 @@ class TeaCache:
 
     def __enter__(self) -> "TeaCache":
         if self.enabled:
-            self.model.__class__.forward = make_teacache_forward(self.num_steps, self.rel_l1_thresh, self.skip_steps)  # type: ignore
+            # self.model.__class__.forward = make_teacache_forward(self.num_steps, self.rel_l1_thresh, self.skip_steps)  # type: ignore
+            self.model.forward = MethodType(
+                make_teacache_forward(self.num_steps, self.rel_l1_thresh, self.skip_steps), self.model
+            )
             self.model.cnt = 0
             self.model.accumulated_rel_l1_distance = 0
             self.model.previous_modulated_input = None
@@ -392,7 +365,7 @@ class TeaCache:
 
     def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
         if self.enabled:
-            self.model.__class__.forward = self.previous_model_forward  # type: ignore
+            self.model.forward = self.previous_model_forward
             del self.model.cnt
             del self.model.accumulated_rel_l1_distance
             del self.model.previous_modulated_input

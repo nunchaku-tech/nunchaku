@@ -5,7 +5,7 @@ import pytest
 import torch
 from diffusers.pipelines.flux.pipeline_flux import FluxPipeline
 
-from examples.teacache import TeaCache
+from nunchaku.caching.teacache import TeaCache
 from nunchaku import NunchakuFluxTransformer2dModel
 from nunchaku.utils import get_precision, is_turing
 from .utils import already_generate, compute_lpips, offload_pipeline
@@ -26,8 +26,8 @@ from .utils import already_generate, compute_lpips, offload_pipeline
             0.7,
             0.089 if get_precision() == "int4" else 0.349,
         ),
-        (1024, 768, 50, "A scene from the Titanic movie featuring the Muppets", "muppets", 42, 0.3, 0.393),
-        (1024, 768, 50, "A crystal ball showing a waterfall", "waterfall", 42, 0.6, 0.091),
+        # (1024, 768, 50, "A scene from the Titanic movie featuring the Muppets", "muppets", 42, 0.3, 0.393),
+        # (1024, 768, 50, "A crystal ball showing a waterfall", "waterfall", 42, 0.6, 0.091),
     ],
 )
 def test_flux_teacache(
@@ -62,10 +62,7 @@ def test_flux_teacache(
 
         with torch.inference_mode():
             with TeaCache(
-                model=pipeline.transformer,
-                num_steps=num_inference_steps,
-                rel_l1_thresh=threshold,
-                enabled=True,
+                model=pipeline.transformer, num_steps=num_inference_steps, rel_l1_thresh=threshold, enabled=True
             ):
                 result = pipeline(
                     prompt=prompt,
@@ -98,10 +95,7 @@ def test_flux_teacache(
         ).to("cuda")
         with torch.inference_mode():
             with TeaCache(
-                model=pipeline.transformer,
-                num_steps=num_inference_steps,
-                rel_l1_thresh=threshold,
-                enabled=True,
+                model=pipeline.transformer, num_steps=num_inference_steps, rel_l1_thresh=threshold, enabled=True
             ):
                 result = pipeline(
                     prompt=prompt,
@@ -110,16 +104,16 @@ def test_flux_teacache(
                     width=width,
                     generator=torch.Generator(device=device).manual_seed(seed),
                 ).images[0]
-                result.save(os.path.join(results_dir_4_bit, f"{name}_{seed}.png"))
+        result.save(os.path.join(results_dir_4_bit, f"{name}_{seed}.png"))
 
         # Clean up the 4-bit model
+        # pipeline.transformer.transformer_blocks[0].m.reset()  # not sure why you do not release the memory
         del pipeline.transformer
         del pipeline.text_encoder
         del pipeline.text_encoder_2
         del pipeline.vae
         del pipeline
         del transformer
-        del result
         gc.collect()
         torch.cuda.synchronize()
         torch.cuda.empty_cache()

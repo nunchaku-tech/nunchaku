@@ -5,7 +5,7 @@ from diffusers.pipelines.flux.pipeline_flux import FluxPipeline
 
 from nunchaku import NunchakuFluxTransformer2dModel
 from nunchaku.utils import get_precision
-from teacache import TeaCache
+from nunchaku.caching.teacache import TeaCache
 
 
 precision = get_precision()  # auto-detect your precision is 'int4' or 'fp4' based on your GPU
