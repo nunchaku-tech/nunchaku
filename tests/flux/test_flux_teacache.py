@@ -66,7 +66,7 @@ def test_flux_teacache(
     if not already_generate(results_dir_16_bit, 1):
         pipeline = FluxPipeline.from_pretrained(
             "black-forest-labs/FLUX.1-dev", torch_dtype=torch.bfloat16
-        ).to(device)
+        )
 
         # Possibly offload the model to CPU when GPU memory is scarce
         pipeline = offload_pipeline(pipeline)
@@ -106,7 +106,7 @@ def test_flux_teacache(
         transformer = NunchakuFluxTransformer2dModel.from_pretrained(f"mit-han-lab/svdq-{precision}-flux.1-dev")
         pipeline = FluxPipeline.from_pretrained(
             "black-forest-labs/FLUX.1-dev", transformer=transformer, torch_dtype=torch.bfloat16
-        ).to(device)
+        )
         pipeline = offload_pipeline(pipeline)
         with torch.inference_mode():
             with TeaCache(
