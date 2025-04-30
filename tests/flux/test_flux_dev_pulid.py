@@ -6,7 +6,7 @@ import torch.nn.functional as F
 from diffusers.utils import load_image
 
 from nunchaku.pipeline.pipeline_flux_pulid import PuLIDFluxPipeline
-from nunchaku.utils import is_turing
+from nunchaku.utils import get_precision, is_turing
 from nunchaku import NunchakuFluxTransformer2dModel
 from nunchaku.models.pulid.pulid_forward import forward
 from nunchaku.models.pulid.utils import resize_numpy_image_long
@@ -14,7 +14,8 @@ from nunchaku.models.pulid.utils import resize_numpy_image_long
 
 @pytest.mark.skipif(is_turing(), reason="Skip tests due to using Turing GPUs")
 def test_flux_dev_pulid():
-    transformer = NunchakuFluxTransformer2dModel.from_pretrained("mit-han-lab/svdq-int4-flux.1-dev")
+    precision = get_precision()  # auto-detect your precision is 'int4' or 'fp4' based on your GPU
+    transformer = NunchakuFluxTransformer2dModel.from_pretrained(f"mit-han-lab/svdq-{precision}-flux.1-dev")
 
     pipe = PuLIDFluxPipeline.from_pretrained("black-forest-labs/FLUX.1-dev",transformer=transformer, torch_dtype=torch.bfloat16,).to('cuda')
 
