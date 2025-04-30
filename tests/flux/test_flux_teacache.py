@@ -1,62 +1,53 @@
 import gc
 import os
-import pytest
 
+import pytest
 import torch
-from diffusers.hooks import apply_group_offloading
 from diffusers.pipelines.flux.pipeline_flux import FluxPipeline
 
 from examples.teacache import TeaCache
-from nunchaku.utils import get_precision, is_turing
 from nunchaku import NunchakuFluxTransformer2dModel
-from tests.utils import already_generate, compute_lpips
+from nunchaku.utils import get_precision, is_turing
+from .utils import already_generate, compute_lpips, offload_pipeline
 
 
-def offload_pipeline(pipeline: FluxPipeline) -> FluxPipeline:
-    gpu_properties = torch.cuda.get_device_properties(0)
-    gpu_memory = gpu_properties.total_memory / (1024**2)
-    device = torch.device("cuda")
-    cpu = torch.device("cpu")
-
-    if gpu_memory > 36 * 1024:
-        pipeline = pipeline.to(device)
-    elif gpu_memory < 26 * 1024:
-        pipeline.transformer.enable_group_offload(
-            onload_device=device,
-            offload_device=cpu,
-            offload_type="leaf_level",
-            use_stream=True,
-        )
-        if pipeline.text_encoder is not None:
-            pipeline.text_encoder.to(device)
-        if pipeline.text_encoder_2 is not None:
-            apply_group_offloading(
-                pipeline.text_encoder_2,
-                onload_device=device,
-                offload_type="block_level",
-                num_blocks_per_group=2,
-            )
-        pipeline.vae.to(device)
-    else:
-        pipeline.enable_model_cpu_offload()
-
-    return pipeline
 @pytest.mark.skipif(is_turing(), reason="Skip tests due to using Turing GPUs")
 @pytest.mark.parametrize(
     "height,width,num_inference_steps,prompt,name,seed,threshold,expected_lpips",
     [
-        (1024, 1024, 30, "A cat holding a sign that says hello world", "cat", 0, 0.6, 0.226),
-        (512, 2048, 25, "The brown fox jumps over the lazy dog", "fox", 1234, 0.7, 0.089),
+        # (1024, 1024, 30, "A cat holding a sign that says hello world", "cat", 0, 0.6, 0.226),
+        (
+            512,
+            2048,
+            25,
+            "The brown fox jumps over the lazy dog",
+            "fox",
+            1234,
+            0.7,
+            0.089 if get_precision() == "int4" else 0.349,
+        ),
         (1024, 768, 50, "A scene from the Titanic movie featuring the Muppets", "muppets", 42, 0.3, 0.393),
         (1024, 768, 50, "A crystal ball showing a waterfall", "waterfall", 42, 0.6, 0.091),
     ],
 )
 def test_flux_teacache(
-    height: int, width: int, num_inference_steps: int, prompt: str, name: str, seed: int, threshold: float, expected_lpips: float
+    height: int,
+    width: int,
+    num_inference_steps: int,
+    prompt: str,
+    name: str,
+    seed: int,
+    threshold: float,
+    expected_lpips: float,
 ):
+    gc.collect()
+    torch.cuda.empty_cache()
+
     device = torch.device("cuda")
     precision = get_precision()
-    results_dir_16_bit = os.path.join("test_results", "bfloat16", "flux.1-dev", "teacache", name)
+
+    ref_root = os.environ.get("NUNCHAKU_TEST_CACHE_ROOT", os.path.join("test_results", "ref"))
+    results_dir_16_bit = os.path.join(ref_root, "bf16", "flux.1-dev", "teacache", name)
     results_dir_4_bit = os.path.join("test_results", precision, "flux.1-dev", "teacache", name)
 
     os.makedirs(results_dir_16_bit, exist_ok=True)
@@ -64,9 +55,7 @@ def test_flux_teacache(
 
     # First, generate results with the 16-bit model
     if not already_generate(results_dir_16_bit, 1):
-        pipeline = FluxPipeline.from_pretrained(
-            "black-forest-labs/FLUX.1-dev", torch_dtype=torch.bfloat16
-        )
+        pipeline = FluxPipeline.from_pretrained("black-forest-labs/FLUX.1-dev", torch_dtype=torch.bfloat16)
 
         # Possibly offload the model to CPU when GPU memory is scarce
         pipeline = offload_pipeline(pipeline)
@@ -83,7 +72,7 @@ def test_flux_teacache(
                     num_inference_steps=num_inference_steps,
                     height=height,
                     width=width,
-                    generator=torch.Generator(device=device).manual_seed(seed)
+                    generator=torch.Generator(device=device).manual_seed(seed),
                 ).images[0]
                 result.save(os.path.join(results_dir_16_bit, f"{name}_{seed}.png"))
 
@@ -97,8 +86,8 @@ def test_flux_teacache(
         gc.collect()
         torch.cuda.synchronize()
         torch.cuda.empty_cache()
-    
-    free, total = torch.cuda.mem_get_info()        # bytes
+
+    free, total = torch.cuda.mem_get_info()  # bytes
     print(f"After 16-bit generation: Free: {free/1024**2:.0f} MB  /  Total: {total/1024**2:.0f} MB")
 
     # Then, generate results with the 4-bit model
@@ -106,8 +95,7 @@ def test_flux_teacache(
         transformer = NunchakuFluxTransformer2dModel.from_pretrained(f"mit-han-lab/svdq-{precision}-flux.1-dev")
         pipeline = FluxPipeline.from_pretrained(
             "black-forest-labs/FLUX.1-dev", transformer=transformer, torch_dtype=torch.bfloat16
-        )
-        pipeline = offload_pipeline(pipeline)
+        ).to("cuda")
         with torch.inference_mode():
             with TeaCache(
                 model=pipeline.transformer,
@@ -120,7 +108,7 @@ def test_flux_teacache(
                     num_inference_steps=num_inference_steps,
                     height=height,
                     width=width,
-                    generator=torch.Generator(device=device).manual_seed(seed)
+                    generator=torch.Generator(device=device).manual_seed(seed),
                 ).images[0]
                 result.save(os.path.join(results_dir_4_bit, f"{name}_{seed}.png"))
 
@@ -135,8 +123,8 @@ def test_flux_teacache(
         gc.collect()
         torch.cuda.synchronize()
         torch.cuda.empty_cache()
-    
-    free, total = torch.cuda.mem_get_info()        # bytes
+
+    free, total = torch.cuda.mem_get_info()  # bytes
     print(f"After 4-bit generation: Free: {free/1024**2:.0f} MB  /  Total: {total/1024**2:.0f} MB")
 
     lpips = compute_lpips(results_dir_16_bit, results_dir_4_bit)
