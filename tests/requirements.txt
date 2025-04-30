@@ -8,4 +8,5 @@ peft
 insightface
 opencv-python
 facexlib
+onnxruntime
 git+https://github.com/asomoza/image_gen_aux.git
