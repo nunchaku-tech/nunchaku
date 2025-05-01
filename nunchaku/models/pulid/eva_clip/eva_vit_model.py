@@ -4,9 +4,10 @@
 import math
 import os
 from functools import partial
+
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
+from torch.nn import functional as F
 
 try:
     from timm.models.layers import drop_path, to_2tuple, trunc_normal_
@@ -14,7 +15,7 @@ except ImportError:
     from timm.layers import drop_path, to_2tuple, trunc_normal_
 
 from .transformer import PatchDropout
-from .rope import VisionRotaryEmbedding, VisionRotaryEmbeddingFast
+from .rope import VisionRotaryEmbeddingFast
 
 if os.getenv("ENV_TYPE") == "deepspeed":
     try:

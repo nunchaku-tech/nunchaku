@@ -1,8 +1,9 @@
-from math import pi
-import torch
-from torch import nn
-from einops import rearrange, repeat
 import logging
+from math import pi
+
+import torch
+from einops import rearrange, repeat
+from torch import nn
 
 
 def broadcat(tensors, dim=-1):
@@ -13,7 +14,9 @@ def broadcat(tensors, dim=-1):
     dim = (dim + shape_len) if dim < 0 else dim
     dims = list(zip(*map(lambda t: list(t.shape), tensors)))
     expandable_dims = [(i, val) for i, val in enumerate(dims) if i != dim]
-    assert all([*map(lambda t: len(set(t[1])) <= 2, expandable_dims)]), "invalid dimensions for broadcastable concatentation"
+    assert all(
+        [*map(lambda t: len(set(t[1])) <= 2, expandable_dims)]
+    ), "invalid dimensions for broadcastable concatentation"
     max_dims = list(map(lambda t: (t[0], max(t[1])), expandable_dims))
     expanded_dims = list(map(lambda t: (t[0], (t[1],) * num_tensors), max_dims))
     expanded_dims.insert(dim, (dim, dims[dim]))
@@ -73,7 +76,9 @@ class VisionRotaryEmbedding(nn.Module):
     def forward(self, t, start_index=0):
         rot_dim = self.freqs_cos.shape[-1]
         end_index = start_index + rot_dim
-        assert rot_dim <= t.shape[-1], f"feature dimension {t.shape[-1]} is not of sufficient size to rotate in all the positions {rot_dim}"
+        assert (
+            rot_dim <= t.shape[-1]
+        ), f"feature dimension {t.shape[-1]} is not of sufficient size to rotate in all the positions {rot_dim}"
         t_left, t, t_right = t[..., :start_index], t[..., start_index:end_index], t[..., end_index:]
         t = (t * self.freqs_cos) + (rotate_half(t) * self.freqs_sin)
 

@@ -2,7 +2,6 @@ import hashlib
 import os
 import urllib
 import warnings
-from functools import partial
 from typing import Dict, Union
 
 from tqdm import tqdm
@@ -35,7 +34,9 @@ _VITB32 = dict(
     laion400m_e32=_pcfg(
         "https://github.com/mlfoundations/open_clip/releases/download/v0.2-weights/vit_b_32-quickgelu-laion400m_e32-46683a32.pt"
     ),
-    laion2b_e16=_pcfg("https://github.com/mlfoundations/open_clip/releases/download/v0.2-weights/vit_b_32-laion2b_e16-af8dbd0c.pth"),
+    laion2b_e16=_pcfg(
+        "https://github.com/mlfoundations/open_clip/releases/download/v0.2-weights/vit_b_32-laion2b_e16-af8dbd0c.pth"
+    ),
     laion2b_s34b_b79k=_pcfg(hf_hub="laion/CLIP-ViT-B-32-laion2B-s34B-b79K/"),
 )
 
@@ -55,8 +56,12 @@ _VITB16 = dict(
     openai=_pcfg(
         "https://openaipublic.azureedge.net/clip/models/5806e77cd80f8b59890b7e101eabd078d9fb84e6937f9e85e4ecb61988df416f/ViT-B-16.pt"
     ),
-    laion400m_e31=_pcfg("https://github.com/mlfoundations/open_clip/releases/download/v0.2-weights/vit_b_16-laion400m_e31-00efa78f.pt"),
-    laion400m_e32=_pcfg("https://github.com/mlfoundations/open_clip/releases/download/v0.2-weights/vit_b_16-laion400m_e32-55e67d44.pt"),
+    laion400m_e31=_pcfg(
+        "https://github.com/mlfoundations/open_clip/releases/download/v0.2-weights/vit_b_16-laion400m_e31-00efa78f.pt"
+    ),
+    laion400m_e32=_pcfg(
+        "https://github.com/mlfoundations/open_clip/releases/download/v0.2-weights/vit_b_16-laion400m_e32-55e67d44.pt"
+    ),
     laion2b_s34b_b88k=_pcfg(hf_hub="laion/CLIP-ViT-B-16-laion2B-s34B-b88K/"),
 )
 
@@ -80,8 +85,12 @@ _VITL14 = dict(
     openai=_pcfg(
         "https://openaipublic.azureedge.net/clip/models/b8cca3fd41ae0c99ba7e8951adf17d267cdb84cd88be6f7c2e0eca1737a03836/ViT-L-14.pt"
     ),
-    laion400m_e31=_pcfg("https://github.com/mlfoundations/open_clip/releases/download/v0.2-weights/vit_l_14-laion400m_e31-69988bb6.pt"),
-    laion400m_e32=_pcfg("https://github.com/mlfoundations/open_clip/releases/download/v0.2-weights/vit_l_14-laion400m_e32-3d133497.pt"),
+    laion400m_e31=_pcfg(
+        "https://github.com/mlfoundations/open_clip/releases/download/v0.2-weights/vit_l_14-laion400m_e31-69988bb6.pt"
+    ),
+    laion400m_e32=_pcfg(
+        "https://github.com/mlfoundations/open_clip/releases/download/v0.2-weights/vit_l_14-laion400m_e32-3d133497.pt"
+    ),
     laion2b_s32b_b82k=_pcfg(hf_hub="laion/CLIP-ViT-L-14-laion2B-s32B-b82K/", mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5)),
 )
 
@@ -256,7 +265,9 @@ def download_pretrained_from_url(
             if hashlib.sha256(open(download_target, "rb").read()).hexdigest().startswith(expected_sha256):
                 return download_target
             else:
-                warnings.warn(f"{download_target} exists, but the SHA256 checksum does not match; re-downloading the file")
+                warnings.warn(
+                    f"{download_target} exists, but the SHA256 checksum does not match; re-downloading the file"
+                )
         else:
             return download_target
 
@@ -270,7 +281,9 @@ def download_pretrained_from_url(
                 output.write(buffer)
                 loop.update(len(buffer))
 
-    if expected_sha256 and not hashlib.sha256(open(download_target, "rb").read()).hexdigest().startswith(expected_sha256):
+    if expected_sha256 and not hashlib.sha256(open(download_target, "rb").read()).hexdigest().startswith(
+        expected_sha256
+    ):
         raise RuntimeError("Model has been downloaded but the SHA256 checksum does not not match")
 
     return download_target
@@ -279,7 +292,9 @@ def download_pretrained_from_url(
 def has_hf_hub(necessary=False):
     if not _has_hf_hub and necessary:
         # if no HF Hub module installed, and it is necessary to continue, raise error
-        raise RuntimeError("Hugging Face hub model specified but package not installed. Run `pip install huggingface_hub`.")
+        raise RuntimeError(
+            "Hugging Face hub model specified but package not installed. Run `pip install huggingface_hub`."
+        )
     return _has_hf_hub
 
 

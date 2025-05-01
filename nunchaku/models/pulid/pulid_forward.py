@@ -1,3 +1,4 @@
+# Adapted from https://github.com/ToTheBeginning/PuLID
 import torch
 from typing import Any, Dict, Optional, Union
 from diffusers.models.modeling_outputs import Transformer2DModelOutput

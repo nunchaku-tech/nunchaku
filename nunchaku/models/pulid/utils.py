@@ -1,49 +1,10 @@
-import importlib
+# Adapted from https://github.com/ToTheBeginning/PuLID
 import math
-import os
-import random
 
 import cv2
 import numpy as np
 import torch
-import torch.nn.functional as F
 from torchvision.utils import make_grid
-
-
-def seed_everything(seed):
-    os.environ["PL_GLOBAL_SEED"] = str(seed)
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-
-
-def is_torch2_available():
-    return hasattr(F, "scaled_dot_product_attention")
-
-
-def instantiate_from_config(config):
-    if "target" not in config:
-        if config == "__is_first_stage__" or config == "__is_unconditional__":
-            return None
-        raise KeyError("Expected key `target` to instantiate.")
-    return get_obj_from_str(config["target"])(**config.get("params", {}))
-
-
-def get_obj_from_str(string, reload=False):
-    module, cls = string.rsplit(".", 1)
-    if reload:
-        module_imp = importlib.import_module(module)
-        importlib.reload(module_imp)
-    return getattr(importlib.import_module(module, package=None), cls)
-
-
-def drop_seq_token(seq, drop_rate=0.5):
-    idx = torch.randperm(seq.size(1))
-    num_keep_tokens = int(len(idx) * (1 - drop_rate))
-    idx = idx[:num_keep_tokens]
-    seq = seq[:, idx]
-    return seq
 
 
 def resize_numpy_image_long(image, resize_long_edge=768):
@@ -143,33 +104,3 @@ def tensor2img(tensor, rgb2bgr=True, out_type=np.uint8, min_max=(0, 1)):
     if len(result) == 1:
         result = result[0]
     return result
-
-
-# We didn't find a correct configuration to make the diffusers scheduler align with dpm++2m (karras) in ComfyUI,
-# so we copied the ComfyUI code directly.
-
-
-def append_dims(x, target_dims):
-    """Appends dimensions to the end of a tensor until it has target_dims dimensions."""
-    dims_to_append = target_dims - x.ndim
-    if dims_to_append < 0:
-        raise ValueError(f"input has {x.ndim} dims but target_dims is {target_dims}, which is less")
-    expanded = x[(...,) + (None,) * dims_to_append]
-    # MPS will get inf values if it tries to index into the new axes, but detaching fixes this.
-    # https://github.com/pytorch/pytorch/issues/84364
-    return expanded.detach().clone() if expanded.device.type == "mps" else expanded
-
-
-def to_d(x, sigma, denoised):
-    """Converts a denoiser output to a Karras ODE derivative."""
-    return (x - denoised) / append_dims(sigma, x.ndim)
-
-
-def get_ancestral_step(sigma_from, sigma_to, eta=1.0):
-    """Calculates the noise level (sigma_down) to step down to and the amount
-    of noise to add (sigma_up) when doing an ancestral sampling step."""
-    if not eta:
-        return sigma_to, 0.0
-    sigma_up = min(sigma_to, eta * (sigma_to**2 * (sigma_from**2 - sigma_to**2) / sigma_from**2) ** 0.5)
-    sigma_down = (sigma_to**2 - sigma_up**2) ** 0.5
-    return sigma_down, sigma_up

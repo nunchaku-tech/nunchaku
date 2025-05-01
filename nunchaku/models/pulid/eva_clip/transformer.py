@@ -1,9 +1,9 @@
-import os
 import logging
-from collections import OrderedDict
 import math
+import os
+from collections import OrderedDict
 from typing import Callable, Optional, Sequence
-import numpy as np
+
 import torch
 from torch import nn
 from torch.nn import functional as F
@@ -13,7 +13,6 @@ try:
 except ImportError:
     from timm.layers import trunc_normal_
 
-from .rope import VisionRotaryEmbedding, VisionRotaryEmbeddingFast
 from .utils import to_2tuple
 
 if os.getenv("ENV_TYPE") == "deepspeed":
@@ -291,7 +290,9 @@ class CustomAttention(nn.Module):
         self.xattn = xattn
         self.xattn_drop = attn_drop
 
-    def forward(self, query: torch.Tensor, key: torch.Tensor, value: torch.Tensor, attn_mask: Optional[torch.Tensor] = None):
+    def forward(
+        self, query: torch.Tensor, key: torch.Tensor, value: torch.Tensor, attn_mask: Optional[torch.Tensor] = None
+    ):
         q, k, v = _in_projection_packed(query, key, value, self.in_proj_weight, self.in_proj_bias)
         N_q, B_q, C_q = q.shape
         N_k, B_k, C_k = k.shape
@@ -449,7 +450,9 @@ class CustomTransformer(nn.Module):
     def get_cast_dtype(self) -> torch.dtype:
         return self.resblocks[0].mlp.c_fc.weight.dtype
 
-    def forward(self, q: torch.Tensor, k: torch.Tensor = None, v: torch.Tensor = None, attn_mask: Optional[torch.Tensor] = None):
+    def forward(
+        self, q: torch.Tensor, k: torch.Tensor = None, v: torch.Tensor = None, attn_mask: Optional[torch.Tensor] = None
+    ):
         if k is None and v is None:
             k = v = q
         for r in self.resblocks:
@@ -483,7 +486,13 @@ class ResidualAttentionBlock(nn.Module):
         self.ln_2 = norm_layer(d_model)
         mlp_width = int(d_model * mlp_ratio)
         self.mlp = nn.Sequential(
-            OrderedDict([("c_fc", nn.Linear(d_model, mlp_width)), ("gelu", act_layer()), ("c_proj", nn.Linear(mlp_width, d_model))])
+            OrderedDict(
+                [
+                    ("c_fc", nn.Linear(d_model, mlp_width)),
+                    ("gelu", act_layer()),
+                    ("c_proj", nn.Linear(mlp_width, d_model)),
+                ]
+            )
         )
 
         self.ls_2 = LayerScale(d_model, ls_init_value) if ls_init_value is not None else nn.Identity()
@@ -521,7 +530,13 @@ class Transformer(nn.Module):
         self.resblocks = nn.ModuleList(
             [
                 ResidualAttentionBlock(
-                    width, heads, mlp_ratio, ls_init_value=ls_init_value, act_layer=act_layer, norm_layer=norm_layer, xattn=xattn
+                    width,
+                    heads,
+                    mlp_ratio,
+                    ls_init_value=ls_init_value,
+                    act_layer=act_layer,
+                    norm_layer=norm_layer,
+                    xattn=xattn,
                 )
                 for _ in range(layers)
             ]
@@ -572,7 +587,14 @@ class VisionTransformer(nn.Module):
         self.ln_pre = norm_layer(width)
 
         self.transformer = Transformer(
-            width, layers, heads, mlp_ratio, ls_init_value=ls_init_value, act_layer=act_layer, norm_layer=norm_layer, xattn=xattn
+            width,
+            layers,
+            heads,
+            mlp_ratio,
+            ls_init_value=ls_init_value,
+            act_layer=act_layer,
+            norm_layer=norm_layer,
+            xattn=xattn,
         )
 
         self.global_average_pool = global_average_pool
@@ -628,7 +650,12 @@ class VisionTransformer(nn.Module):
         x = x.reshape(x.shape[0], x.shape[1], -1)  # shape = [*, width, grid ** 2]
         x = x.permute(0, 2, 1)  # shape = [*, grid ** 2, width]
         x = torch.cat(
-            [self.class_embedding.to(x.dtype) + torch.zeros(x.shape[0], 1, x.shape[-1], dtype=x.dtype, device=x.device), x], dim=1
+            [
+                self.class_embedding.to(x.dtype)
+                + torch.zeros(x.shape[0], 1, x.shape[-1], dtype=x.dtype, device=x.device),
+                x,
+            ],
+            dim=1,
         )  # shape = [*, grid ** 2 + 1, width]
         x = x + self.positional_embedding.to(x.dtype)
 
@@ -678,7 +705,13 @@ class TextTransformer(nn.Module):
         self.token_embedding = nn.Embedding(vocab_size, width)
         self.positional_embedding = nn.Parameter(torch.empty(self.context_length, width))
         self.transformer = Transformer(
-            width=width, layers=layers, heads=heads, ls_init_value=ls_init_value, act_layer=act_layer, norm_layer=norm_layer, xattn=xattn
+            width=width,
+            layers=layers,
+            heads=heads,
+            ls_init_value=ls_init_value,
+            act_layer=act_layer,
+            norm_layer=norm_layer,
+            xattn=xattn,
         )
 
         self.xattn = xattn

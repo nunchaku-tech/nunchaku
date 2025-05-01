@@ -3,10 +3,9 @@
 Adapted from https://github.com/openai/CLIP. Originally MIT License, Copyright (c) 2021 OpenAI.
 """
 
-import os
 from dataclasses import dataclass
-from typing import Optional, Tuple, Union
 from functools import partial
+from typing import Optional, Tuple, Union
 
 import numpy as np
 import torch
@@ -19,7 +18,7 @@ except ImportError:
     HFTextEncoder = None
 from .modified_resnet import ModifiedResNet
 from .eva_vit_model import EVAVisionTransformer
-from .transformer import LayerNorm, QuickGELU, Attention, VisionTransformer, TextTransformer
+from .transformer import LayerNorm, QuickGELU, VisionTransformer, TextTransformer
 
 try:
     from apex.normalization import FusedLayerNorm
@@ -93,7 +92,9 @@ def get_cast_dtype(precision: str):
     return cast_dtype
 
 
-def _build_vision_tower(embed_dim: int, vision_cfg: CLIPVisionCfg, quick_gelu: bool = False, cast_dtype: Optional[torch.dtype] = None):
+def _build_vision_tower(
+    embed_dim: int, vision_cfg: CLIPVisionCfg, quick_gelu: bool = False, cast_dtype: Optional[torch.dtype] = None
+):
     if isinstance(vision_cfg, dict):
         vision_cfg = CLIPVisionCfg(**vision_cfg)
 
@@ -132,7 +133,11 @@ def _build_vision_tower(embed_dim: int, vision_cfg: CLIPVisionCfg, quick_gelu: b
     elif isinstance(vision_cfg.layers, (tuple, list)):
         vision_heads = vision_cfg.width * 32 // vision_cfg.head_width
         visual = ModifiedResNet(
-            layers=vision_cfg.layers, output_dim=embed_dim, heads=vision_heads, image_size=vision_cfg.image_size, width=vision_cfg.width
+            layers=vision_cfg.layers,
+            output_dim=embed_dim,
+            heads=vision_heads,
+            image_size=vision_cfg.image_size,
+            width=vision_cfg.width,
         )
     else:
         vision_heads = vision_cfg.width // vision_cfg.head_width
@@ -305,7 +310,14 @@ def convert_to_custom_text_state_dict(state_dict: dict):
         for k, v in state_dict.items():
             if any(
                 k.startswith(p)
-                for p in ("text_projection", "positional_embedding", "token_embedding", "transformer", "ln_final", "logit_scale")
+                for p in (
+                    "text_projection",
+                    "positional_embedding",
+                    "token_embedding",
+                    "transformer",
+                    "ln_final",
+                    "logit_scale",
+                )
             ):
                 k = "text." + k
             new_state_dict[k] = v
@@ -319,7 +331,10 @@ def trace_model(model, batch_size=256, device=torch.device("cpu")):
     example_images = torch.ones((batch_size, 3, image_size, image_size), device=device)
     example_text = torch.zeros((batch_size, model.context_length), dtype=torch.int, device=device)
     model = torch.jit.trace_module(
-        model, inputs=dict(forward=(example_images, example_text), encode_text=(example_text,), encode_image=(example_images,))
+        model,
+        inputs=dict(
+            forward=(example_images, example_text), encode_text=(example_text,), encode_image=(example_images,)
+        ),
     )
     model.visual.image_size = image_size
     return model

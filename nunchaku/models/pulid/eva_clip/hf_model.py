@@ -7,13 +7,16 @@ import re
 
 import torch
 import torch.nn as nn
-from torch.nn import functional as F
 from torch import TensorType
 
 try:
     import transformers
     from transformers import AutoModel, AutoModelForMaskedLM, AutoTokenizer, AutoConfig, PretrainedConfig
-    from transformers.modeling_outputs import BaseModelOutput, BaseModelOutputWithPooling, BaseModelOutputWithPoolingAndCrossAttentions
+    from transformers.modeling_outputs import (
+        BaseModelOutput,
+        BaseModelOutputWithPooling,
+        BaseModelOutputWithPoolingAndCrossAttentions,
+    )
 except ImportError:
     transformers = None
 
@@ -113,7 +116,9 @@ class HFTextEncoder(nn.Module):
                 )
             else:
                 create_func, model_args = (
-                    (AutoModel.from_pretrained, model_name_or_path) if pretrained else (AutoModel.from_config, self.config)
+                    (AutoModel.from_pretrained, model_name_or_path)
+                    if pretrained
+                    else (AutoModel.from_config, self.config)
                 )
             # TODO: do all model configs have this attribute? PretrainedConfig does so yes??
             if hasattr(self.config, "is_encoder_decoder") and self.config.is_encoder_decoder:
@@ -194,7 +199,9 @@ class HFTextEncoder(nn.Module):
         image_atts = torch.ones(image_embeds.size()[:-1], dtype=torch.long).to(input_ids.device)
         vocab_size = getattr(self.config, arch_dict[self.config.model_type]["config_names"]["vocab_size"])
         probability_matrix = torch.full(labels.shape, mlm_probability)
-        input_ids, labels = self.mask(input_ids, vocab_size, input_ids.device, targets=labels, probability_matrix=probability_matrix)
+        input_ids, labels = self.mask(
+            input_ids, vocab_size, input_ids.device, targets=labels, probability_matrix=probability_matrix
+        )
         mlm_output = self.transformer(
             input_ids,
             attention_mask=attn_mask,
@@ -239,7 +246,9 @@ class HFTextEncoder(nn.Module):
         encoder = self.transformer.encoder if hasattr(self.transformer, "encoder") else self.transformer
         layer_list = getattr(encoder, arch_dict[self.config.model_type]["config_names"]["layer_attr"])
         print(f"Unlocking {unlocked_layers}/{len(layer_list) + 1} layers of hf model")
-        embeddings = getattr(self.transformer, arch_dict[self.config.model_type]["config_names"]["token_embeddings_attr"])
+        embeddings = getattr(
+            self.transformer, arch_dict[self.config.model_type]["config_names"]["token_embeddings_attr"]
+        )
         modules = [embeddings, *layer_list][:-unlocked_layers]
         # freeze layers
         for module in modules:
