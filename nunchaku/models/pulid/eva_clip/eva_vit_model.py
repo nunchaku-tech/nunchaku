@@ -26,7 +26,7 @@ else:
     from torch.utils.checkpoint import checkpoint
 
 try:
-    import xformers
+    import xformers  # noqa: F401
     import xformers.ops as xops
 
     XFORMERS_IS_AVAILBLE = True
