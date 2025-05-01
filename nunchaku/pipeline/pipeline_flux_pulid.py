@@ -1,3 +1,4 @@
+# Adapted from https://github.com/ToTheBeginning/PuLID/blob/main/pulid/pipeline.py
 import gc
 from typing import Any, Callable, Dict, List, Optional, Union
 
@@ -85,8 +86,6 @@ class PuLIDPipeline(nn.Module):
 
         gc.collect()
         torch.cuda.empty_cache()
-
-        # self.load_pretrain()
 
         # other configs
         self.debug_img_list = []

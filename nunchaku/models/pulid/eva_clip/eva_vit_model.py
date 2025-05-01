@@ -609,9 +609,9 @@ class EVAVisionTransformer(nn.Module):
         if os.getenv("RoPE") == "1":
             if self.training and not isinstance(self.patch_dropout, nn.Identity):
                 x, patch_indices_keep = self.patch_dropout(x)
-                self.rope.pulid_forward = partial(self.rope.pulid_forward, patch_indices_keep=patch_indices_keep)
+                self.rope.forward = partial(self.rope.forward, patch_indices_keep=patch_indices_keep)
             else:
-                self.rope.pulid_forward = partial(self.rope.pulid_forward, patch_indices_keep=None)
+                self.rope.forward = partial(self.rope.forward, patch_indices_keep=None)
                 x = self.patch_dropout(x)
         else:
             x = self.patch_dropout(x)

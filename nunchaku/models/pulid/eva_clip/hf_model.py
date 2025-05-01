@@ -151,22 +151,7 @@ class HFTextEncoder(nn.Module):
                 nn.Linear(hidden_size, output_dim, bias=False),
             )
 
-        # self.itm_proj = nn.Linear(d_model, 2, bias=False)
-        # self.mlm_proj = nn.Linear(d_model, self.config.vocab_size), bias=False)
         self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
-
-    # def forward_itm(self, x:TensorType, image_embeds:TensorType) -> TensorType:
-    #     image_atts = torch.ones(image_embeds.size()[:-1],dtype=torch.long).to(x.device)
-    #     attn_mask = (x != self.config.pad_token_id).long()
-    #     out = self.transformer(
-    #         input_ids=x,
-    #         attention_mask=attn_mask,
-    #         encoder_hidden_states = image_embeds,
-    #         encoder_attention_mask = image_atts,
-    #         )
-    #     pooled_out = self.pooler(out, attn_mask)
-
-    #     return self.itm_proj(pooled_out)
 
     def mask(self, input_ids, vocab_size, device, targets=None, masked_indices=None, probability_matrix=None):
         if masked_indices is None:
@@ -211,24 +196,6 @@ class HFTextEncoder(nn.Module):
             labels=labels,
         )
         return mlm_output.loss
-        # mlm_output = self.transformer(input_ids,
-        #                 attention_mask = attn_mask,
-        #                 encoder_hidden_states = image_embeds,
-        #                 encoder_attention_mask = image_atts,
-        #                 return_dict = True,
-        #             ).last_hidden_state
-        # logits = self.mlm_proj(mlm_output)
-
-        # # logits = logits[:, :-1, :].contiguous().view(-1, vocab_size)
-        # logits = logits[:, 1:, :].contiguous().view(-1, vocab_size)
-        # labels = labels[:, 1:].contiguous().view(-1)
-
-        # mlm_loss = F.cross_entropy(
-        #     logits,
-        #     labels,
-        #     # label_smoothing=0.1,
-        # )
-        # return mlm_loss
 
     def forward(self, x: TensorType) -> TensorType:
         attn_mask = (x != self.config.pad_token_id).long()

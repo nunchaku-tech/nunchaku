@@ -196,23 +196,6 @@ def _clean_tag(tag: str):
     return tag.lower().replace("-", "_")
 
 
-def list_pretrained(as_str: bool = False):
-    """returns list of pretrained models
-    Returns a tuple (model_name, pretrain_tag) by default or 'name:tag' if as_str == True
-    """
-    return [":".join([k, t]) if as_str else (k, t) for k in _PRETRAINED.keys() for t in _PRETRAINED[k].keys()]
-
-
-def list_pretrained_models_by_tag(tag: str):
-    """return all models having the specified pretrain tag"""
-    models = []
-    tag = _clean_tag(tag)
-    for k in _PRETRAINED.keys():
-        if tag in _PRETRAINED[k]:
-            models.append(k)
-    return models
-
-
 def list_pretrained_tags_by_model(model: str):
     """return all pretrain tags for the specified model architecture"""
     tags = []
@@ -232,11 +215,6 @@ def get_pretrained_cfg(model: str, tag: str):
         return {}
     model_pretrained = _PRETRAINED[model]
     return model_pretrained.get(_clean_tag(tag), {})
-
-
-def get_pretrained_url(model: str, tag: str):
-    cfg = get_pretrained_cfg(model, _clean_tag(tag))
-    return cfg.get("url", "")
 
 
 def download_pretrained_from_url(
