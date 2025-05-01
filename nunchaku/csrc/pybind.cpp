@@ -84,6 +84,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
         .def("startDebug", &QuantizedGEMM::startDebug)
         .def("stopDebug", &QuantizedGEMM::stopDebug)
         .def("getDebugResults", &QuantizedGEMM::getDebugResults);
+    py::class_<Tensor>(m, "Tensor");
     py::class_<QuantizedGEMM88>(m, "QuantizedGEMM88")
         .def(py::init<>())
         .def("init", &QuantizedGEMM88::init)
