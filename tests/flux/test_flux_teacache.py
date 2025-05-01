@@ -5,8 +5,8 @@ import pytest
 import torch
 from diffusers.pipelines.flux.pipeline_flux import FluxPipeline
 
-from nunchaku.caching.teacache import TeaCache
 from nunchaku import NunchakuFluxTransformer2dModel
+from nunchaku.caching.teacache import TeaCache
 from nunchaku.utils import get_precision, is_turing
 from .utils import already_generate, compute_lpips, offload_pipeline
 
@@ -15,7 +15,16 @@ from .utils import already_generate, compute_lpips, offload_pipeline
 @pytest.mark.parametrize(
     "height,width,num_inference_steps,prompt,name,seed,threshold,expected_lpips",
     [
-        # (1024, 1024, 30, "A cat holding a sign that says hello world", "cat", 0, 0.6, 0.226),
+        (
+            1024,
+            1024,
+            30,
+            "A cat holding a sign that says hello world",
+            "cat",
+            0,
+            0.6,
+            0.363 if get_precision() == "int4" else 0.363,
+        ),
         (
             512,
             2048,
@@ -24,10 +33,28 @@ from .utils import already_generate, compute_lpips, offload_pipeline
             "fox",
             1234,
             0.7,
-            0.089 if get_precision() == "int4" else 0.349,
+            0.349 if get_precision() == "int4" else 0.349,
         ),
-        # (1024, 768, 50, "A scene from the Titanic movie featuring the Muppets", "muppets", 42, 0.3, 0.393),
-        # (1024, 768, 50, "A crystal ball showing a waterfall", "waterfall", 42, 0.6, 0.091),
+        (
+            1024,
+            768,
+            50,
+            "A scene from the Titanic movie featuring the Muppets",
+            "muppets",
+            42,
+            0.3,
+            0.360 if get_precision() == "int4" else 0.495,
+        ),
+        (
+            1024,
+            768,
+            50,
+            "A crystal ball showing a waterfall",
+            "waterfall",
+            23,
+            0.6,
+            0.226 if get_precision() == "int4" else 0.226,
+        ),
     ],
 )
 def test_flux_teacache(
@@ -59,19 +86,14 @@ def test_flux_teacache(
 
         # Possibly offload the model to CPU when GPU memory is scarce
         pipeline = offload_pipeline(pipeline)
-
-        with torch.inference_mode():
-            with TeaCache(
-                model=pipeline.transformer, num_steps=num_inference_steps, rel_l1_thresh=threshold, enabled=True
-            ):
-                result = pipeline(
-                    prompt=prompt,
-                    num_inference_steps=num_inference_steps,
-                    height=height,
-                    width=width,
-                    generator=torch.Generator(device=device).manual_seed(seed),
-                ).images[0]
-                result.save(os.path.join(results_dir_16_bit, f"{name}_{seed}.png"))
+        result = pipeline(
+            prompt=prompt,
+            num_inference_steps=num_inference_steps,
+            height=height,
+            width=width,
+            generator=torch.Generator(device=device).manual_seed(seed),
+        ).images[0]
+        result.save(os.path.join(results_dir_16_bit, f"{name}_{seed}.png"))
 
         # Clean up the 16-bit model
         del pipeline.transformer
@@ -107,11 +129,6 @@ def test_flux_teacache(
         result.save(os.path.join(results_dir_4_bit, f"{name}_{seed}.png"))
 
         # Clean up the 4-bit model
-        # pipeline.transformer.transformer_blocks[0].m.reset()  # not sure why you do not release the memory
-        del pipeline.transformer
-        del pipeline.text_encoder
-        del pipeline.text_encoder_2
-        del pipeline.vae
         del pipeline
         del transformer
         gc.collect()

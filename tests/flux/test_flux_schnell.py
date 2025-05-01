@@ -14,7 +14,7 @@ from .utils import run_test
         (2048, 2048, "nunchaku-fp16", True, 0.166 if get_precision() == "int4" else 0.120),
     ],
 )
-def test_int4_schnell(height: int, width: int, attention_impl: str, cpu_offload: bool, expected_lpips: float):
+def test_flux_schnell(height: int, width: int, attention_impl: str, cpu_offload: bool, expected_lpips: float):
     run_test(
         precision=get_precision(),
         height=height,
