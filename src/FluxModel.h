@@ -7,7 +7,7 @@
 #include "layernorm.h"
 #include <pybind11/functional.h>
 namespace pybind11 {
-    class function;
+class function;
 }
 
 enum class AttentionImpl {
@@ -180,14 +180,16 @@ public:
                                              Tensor controlnet_single_block_samples);
     void setAttentionImpl(AttentionImpl impl);
 
-    void set_residual_callback(std::function<Tensor(const Tensor&)> cb);
+    void set_residual_callback(std::function<Tensor(const Tensor &)> cb);
+
 public:
     const Tensor::ScalarType dtype;
 
     std::vector<std::unique_ptr<JointTransformerBlock>> transformer_blocks;
     std::vector<std::unique_ptr<FluxSingleTransformerBlock>> single_transformer_blocks;
 
-    std::function<Tensor(const Tensor&)> residual_callback;
+    std::function<Tensor(const Tensor &)> residual_callback;
+
 private:
     bool offload;
 };

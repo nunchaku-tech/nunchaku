@@ -78,7 +78,7 @@ class NunchakuFluxTransformerBlocks(nn.Module):
         self.id_embeddings = id_embeddings
         self.id_weight = id_weight
         self.pulid_ca_idx = 0
-        if self.id_embeddings is not None :
+        if self.id_embeddings is not None:
             self.set_residual_callback()
 
         original_dtype = hidden_states.dtype
@@ -123,12 +123,11 @@ class NunchakuFluxTransformerBlocks(nn.Module):
             rotary_emb_single,
             controlnet_block_samples,
             controlnet_single_block_samples,
-            skip_first_layer
+            skip_first_layer,
         )
 
-        if self.id_embeddings is not None :
+        if self.id_embeddings is not None:
             self.reset_residual_callback()
-
 
         hidden_states = hidden_states.to(original_dtype).to(original_device)
 
@@ -192,20 +191,25 @@ class NunchakuFluxTransformerBlocks(nn.Module):
         encoder_hidden_states = encoder_hidden_states.to(original_dtype).to(original_device)
 
         return encoder_hidden_states, hidden_states
+
     def set_residual_callback(self):
         id_embeddings = self.id_embeddings
         pulid_ca = self.pulid_ca
         pulid_ca_idx = [self.pulid_ca_idx]
         id_weight = self.id_weight
+
         def callback(hidden_states):
             ip = id_weight * pulid_ca[pulid_ca_idx[0]](id_embeddings, hidden_states.to("cuda"))
             pulid_ca_idx[0] += 1
             return ip
+
         self.callback_holder = callback
         self.m.set_residual_callback(callback)
+
     def reset_residual_callback(self):
         self.callback_holder = None
         self.m.set_residual_callback(None)
+
     def __del__(self):
         self.m.reset()
 
@@ -478,10 +482,7 @@ class NunchakuFluxTransformer2dModel(FluxTransformer2DModel, NunchakuModelLoader
         if len(self._unquantized_part_loras) > 0 or len(unquantized_part_loras) > 0:
             self._unquantized_part_loras = unquantized_part_loras
 
-            self._unquantized_part_sd = {
-                k: v for k, v in self._unquantized_part_sd.items()
-                if "pulid_ca" not in k
-            }
+            self._unquantized_part_sd = {k: v for k, v in self._unquantized_part_sd.items() if "pulid_ca" not in k}
             self._update_unquantized_part_lora_params(1)
 
         quantized_part_vectors = {}

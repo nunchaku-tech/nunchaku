@@ -8,11 +8,9 @@ import numpy as np
 import torch
 from diffusers import FluxPipeline
 from diffusers.image_processor import PipelineImageInput
-from diffusers.pipelines.flux.pipeline_flux import calculate_shift, EXAMPLE_DOC_STRING, retrieve_timesteps
+from diffusers.pipelines.flux.pipeline_flux import EXAMPLE_DOC_STRING, calculate_shift, retrieve_timesteps
 from diffusers.pipelines.flux.pipeline_output import FluxPipelineOutput
-from diffusers.utils import (
-    replace_example_docstring,
-)
+from diffusers.utils import replace_example_docstring
 from facexlib.parsing import init_parsing_model
 from facexlib.utils.face_restoration_helper import FaceRestoreHelper
 from huggingface_hub import hf_hub_download, snapshot_download

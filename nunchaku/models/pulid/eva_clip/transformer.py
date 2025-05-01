@@ -2,7 +2,7 @@ import logging
 import math
 import os
 from collections import OrderedDict
-from typing import Callable, Optional, Sequence
+from typing import Callable, Optional
 
 import torch
 from torch import nn
@@ -11,7 +11,7 @@ from torch.nn import functional as F
 try:
     from timm.models.layers import trunc_normal_
 except ImportError:
-    from timm.layers import trunc_normal_
+    from timm.layers import trunc_normal_  # noqa: F401
 
 from .utils import to_2tuple
 

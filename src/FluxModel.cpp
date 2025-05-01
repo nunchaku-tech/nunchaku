@@ -6,8 +6,8 @@
 #include "activation.h"
 #include <nvtx3/nvToolsExt.h>
 
-#include <pybind11/functional.h>        
-           
+#include <pybind11/functional.h>
+
 #include <iostream>
 
 using spdlog::fmt_lib::format;
@@ -840,8 +840,8 @@ Tensor FluxModel::forward(Tensor hidden_states,
                 Tensor cpu_input = hidden_states.copy(Device::cpu());
                 pybind11::gil_scoped_acquire gil;
                 Tensor cpu_output = residual_callback(cpu_input);
-                Tensor residual = cpu_output.copy(Device::cuda());
-                hidden_states = kernels::add(hidden_states, residual);
+                Tensor residual   = cpu_output.copy(Device::cuda());
+                hidden_states     = kernels::add(hidden_states, residual);
             }
         } else {
             if (size_t(layer) == transformer_blocks.size()) {
@@ -871,16 +871,16 @@ Tensor FluxModel::forward(Tensor hidden_states,
                 auto slice = hidden_states.slice(1, txt_tokens, txt_tokens + img_tokens);
                 slice      = kernels::add(slice, controlnet_single_block_samples[block_index]);
                 hidden_states.slice(1, txt_tokens, txt_tokens + img_tokens).copy_(slice);
-            }   
+            }
             size_t local_layer_idx = layer - transformer_blocks.size();
             if (residual_callback && local_layer_idx % 4 == 0) {
                 Tensor callback_input = hidden_states.slice(1, txt_tokens, txt_tokens + img_tokens);
-                Tensor cpu_input = callback_input.copy(Device::cpu());
+                Tensor cpu_input      = callback_input.copy(Device::cpu());
                 pybind11::gil_scoped_acquire gil;
                 Tensor cpu_output = residual_callback(cpu_input);
-                Tensor residual = cpu_output.copy(Device::cuda());
-                auto slice = hidden_states.slice(1, txt_tokens, txt_tokens + img_tokens);
-                slice = kernels::add(slice, residual);
+                Tensor residual   = cpu_output.copy(Device::cuda());
+                auto slice        = hidden_states.slice(1, txt_tokens, txt_tokens + img_tokens);
+                slice             = kernels::add(slice, residual);
                 hidden_states.slice(1, txt_tokens, txt_tokens + img_tokens).copy_(slice);
             }
         }
@@ -965,6 +965,6 @@ void FluxModel::setAttentionImpl(AttentionImpl impl) {
         block->attnImpl = impl;
     }
 }
-void FluxModel::set_residual_callback(std::function<Tensor(const Tensor&)> cb) {
+void FluxModel::set_residual_callback(std::function<Tensor(const Tensor &)> cb) {
     residual_callback = std::move(cb);
 }

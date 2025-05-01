@@ -16,9 +16,9 @@ try:
     from .hf_model import HFTextEncoder
 except ImportError:
     HFTextEncoder = None
-from .modified_resnet import ModifiedResNet
 from .eva_vit_model import EVAVisionTransformer
-from .transformer import LayerNorm, QuickGELU, VisionTransformer, TextTransformer
+from .modified_resnet import ModifiedResNet
+from .transformer import LayerNorm, QuickGELU, TextTransformer, VisionTransformer
 
 try:
     from apex.normalization import FusedLayerNorm

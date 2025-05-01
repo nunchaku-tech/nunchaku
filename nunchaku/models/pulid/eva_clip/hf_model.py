@@ -11,7 +11,7 @@ from torch import TensorType
 
 try:
     import transformers
-    from transformers import AutoModel, AutoModelForMaskedLM, AutoTokenizer, AutoConfig, PretrainedConfig
+    from transformers import AutoConfig, AutoModel, AutoModelForMaskedLM, AutoTokenizer, PretrainedConfig
 except ImportError:
     transformers = None
 
