@@ -83,7 +83,14 @@ class Mlp(nn.Module):
 
 class SwiGLU(nn.Module):
     def __init__(
-        self, in_features, hidden_features=None, out_features=None, act_layer=nn.SiLU, drop=0.0, norm_layer=nn.LayerNorm, subln=False
+        self,
+        in_features,
+        hidden_features=None,
+        out_features=None,
+        act_layer=nn.SiLU,
+        drop=0.0,
+        norm_layer=nn.LayerNorm,
+        subln=False,
     ):
         super().__init__()
         out_features = out_features or in_features
@@ -150,7 +157,9 @@ class Attention(nn.Module):
         if window_size:
             self.window_size = window_size
             self.num_relative_distance = (2 * window_size[0] - 1) * (2 * window_size[1] - 1) + 3
-            self.relative_position_bias_table = nn.Parameter(torch.zeros(self.num_relative_distance, num_heads))  # 2*Wh-1 * 2*Ww-1, nH
+            self.relative_position_bias_table = nn.Parameter(
+                torch.zeros(self.num_relative_distance, num_heads)
+            )  # 2*Wh-1 * 2*Ww-1, nH
             # cls to token & token 2 cls & cls to cls
 
             # get pair-wise relative position index for each token inside the window
@@ -163,7 +172,9 @@ class Attention(nn.Module):
             relative_coords[:, :, 0] += window_size[0] - 1  # shift to start from 0
             relative_coords[:, :, 1] += window_size[1] - 1
             relative_coords[:, :, 0] *= 2 * window_size[1] - 1
-            relative_position_index = torch.zeros(size=(window_size[0] * window_size[1] + 1,) * 2, dtype=relative_coords.dtype)
+            relative_position_index = torch.zeros(
+                size=(window_size[0] * window_size[1] + 1,) * 2, dtype=relative_coords.dtype
+            )
             relative_position_index[1:, 1:] = relative_coords.sum(-1)  # Wh*Ww, Wh*Ww
             relative_position_index[0, 0:] = self.num_relative_distance - 3
             relative_position_index[0:, 0] = self.num_relative_distance - 2
@@ -329,10 +340,14 @@ class Block(nn.Module):
                 x = x + self.drop_path(self.mlp(self.norm2(x)))
         else:
             if self.postnorm:
-                x = x + self.drop_path(self.gamma_1 * self.norm1(self.attn(x, rel_pos_bias=rel_pos_bias, attn_mask=attn_mask)))
+                x = x + self.drop_path(
+                    self.gamma_1 * self.norm1(self.attn(x, rel_pos_bias=rel_pos_bias, attn_mask=attn_mask))
+                )
                 x = x + self.drop_path(self.gamma_2 * self.norm2(self.mlp(x)))
             else:
-                x = x + self.drop_path(self.gamma_1 * self.attn(self.norm1(x), rel_pos_bias=rel_pos_bias, attn_mask=attn_mask))
+                x = x + self.drop_path(
+                    self.gamma_1 * self.attn(self.norm1(x), rel_pos_bias=rel_pos_bias, attn_mask=attn_mask)
+                )
                 x = x + self.drop_path(self.gamma_2 * self.mlp(self.norm2(x)))
         return x
 
@@ -355,9 +370,9 @@ class PatchEmbed(nn.Module):
     def forward(self, x, **kwargs):
         B, C, H, W = x.shape
         # FIXME look at relaxing size constraints
-        assert H == self.img_size[0] and W == self.img_size[1], (
-            f"Input image size ({H}*{W}) doesn't match model ({self.img_size[0]}*{self.img_size[1]})."
-        )
+        assert (
+            H == self.img_size[0] and W == self.img_size[1]
+        ), f"Input image size ({H}*{W}) doesn't match model ({self.img_size[0]}*{self.img_size[1]})."
         x = self.proj(x).flatten(2).transpose(1, 2)
         return x
 
@@ -367,7 +382,9 @@ class RelativePositionBias(nn.Module):
         super().__init__()
         self.window_size = window_size
         self.num_relative_distance = (2 * window_size[0] - 1) * (2 * window_size[1] - 1) + 3
-        self.relative_position_bias_table = nn.Parameter(torch.zeros(self.num_relative_distance, num_heads))  # 2*Wh-1 * 2*Ww-1, nH
+        self.relative_position_bias_table = nn.Parameter(
+            torch.zeros(self.num_relative_distance, num_heads)
+        )  # 2*Wh-1 * 2*Ww-1, nH
         # cls to token & token 2 cls & cls to cls
 
         # get pair-wise relative position index for each token inside the window
@@ -380,7 +397,9 @@ class RelativePositionBias(nn.Module):
         relative_coords[:, :, 0] += window_size[0] - 1  # shift to start from 0
         relative_coords[:, :, 1] += window_size[1] - 1
         relative_coords[:, :, 0] *= 2 * window_size[1] - 1
-        relative_position_index = torch.zeros(size=(window_size[0] * window_size[1] + 1,) * 2, dtype=relative_coords.dtype)
+        relative_position_index = torch.zeros(
+            size=(window_size[0] * window_size[1] + 1,) * 2, dtype=relative_coords.dtype
+        )
         relative_position_index[1:, 1:] = relative_coords.sum(-1)  # Wh*Ww, Wh*Ww
         relative_position_index[0, 0:] = self.num_relative_distance - 3
         relative_position_index[0:, 0] = self.num_relative_distance - 2
@@ -589,9 +608,9 @@ class EVAVisionTransformer(nn.Module):
         if os.getenv("RoPE") == "1":
             if self.training and not isinstance(self.patch_dropout, nn.Identity):
                 x, patch_indices_keep = self.patch_dropout(x)
-                self.rope.forward = partial(self.rope.forward, patch_indices_keep=patch_indices_keep)
+                self.rope.pulid_forward = partial(self.rope.pulid_forward, patch_indices_keep=patch_indices_keep)
             else:
-                self.rope.forward = partial(self.rope.forward, patch_indices_keep=None)
+                self.rope.pulid_forward = partial(self.rope.pulid_forward, patch_indices_keep=None)
                 x = self.patch_dropout(x)
         else:
             x = self.patch_dropout(x)
