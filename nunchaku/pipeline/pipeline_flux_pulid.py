@@ -1,42 +1,34 @@
 import gc
+from typing import Any, Callable, Dict, List, Optional, Union
 
 import cv2
 import insightface
+import numpy as np
 import torch
-import torch.nn as nn
+from diffusers import FluxPipeline
+from diffusers.image_processor import PipelineImageInput
+from diffusers.pipelines.flux.pipeline_flux import calculate_shift, EXAMPLE_DOC_STRING, retrieve_timesteps
+from diffusers.pipelines.flux.pipeline_output import FluxPipelineOutput
+from diffusers.utils import (
+    replace_example_docstring,
+)
 from facexlib.parsing import init_parsing_model
 from facexlib.utils.face_restoration_helper import FaceRestoreHelper
 from huggingface_hub import hf_hub_download, snapshot_download
 from insightface.app import FaceAnalysis
 from safetensors.torch import load_file
+from torch import nn
 from torchvision.transforms import InterpolationMode
 from torchvision.transforms.functional import normalize, resize
 
+from ..models.pulid.encoders_transformer import IDFormer, PerceiverAttentionCA
 from ..models.pulid.eva_clip import create_model_and_transforms
 from ..models.pulid.eva_clip.constants import OPENAI_DATASET_MEAN, OPENAI_DATASET_STD
-from ..models.pulid.encoders_transformer import IDFormer, PerceiverAttentionCA
-from ..models.pulid.utils import img2tensor, tensor2img
+from ..models.pulid.utils import img2tensor, resize_numpy_image_long, tensor2img
 
-from diffusers import FluxPipeline
-from diffusers.image_processor import PipelineImageInput
-from typing import Any, Callable, Dict, List, Optional, Union
-import numpy as np
-from diffusers.pipelines.flux.pipeline_output import FluxPipelineOutput
-from PIL import Image
-
-from diffusers.utils import (
-    USE_PEFT_BACKEND,
-    is_torch_xla_available,
-    logging,
-    replace_example_docstring,
-    scale_lora_layers,
-    unscale_lora_layers,
-)
-from diffusers.pipelines.flux.pipeline_flux import EXAMPLE_DOC_STRING, calculate_shift, retrieve_timesteps
-from ..models.pulid.utils import resize_numpy_image_long
 
 class PuLIDPipeline(nn.Module):
-    def __init__(self, dit, device, weight_dtype=torch.bfloat16, onnx_provider='gpu', *args, **kwargs):
+    def __init__(self, dit, device, weight_dtype=torch.bfloat16, onnx_provider="gpu", *args, **kwargs):
         super().__init__()
         self.device = device
         self.weight_dtype = weight_dtype
@@ -51,12 +43,11 @@ class PuLIDPipeline(nn.Module):
             num_ca += 1
         if 38 % single_interval != 0:
             num_ca += 1
-        self.pulid_ca = nn.ModuleList([
-            PerceiverAttentionCA().to(self.device, self.weight_dtype) for _ in range(num_ca)
-        ])
+        self.pulid_ca = nn.ModuleList(
+            [PerceiverAttentionCA().to(self.device, self.weight_dtype) for _ in range(num_ca)]
+        )
 
         dit.transformer_blocks[0].pulid_ca = self.pulid_ca
-
 
         # preprocessors
         # face align and parsing
@@ -64,18 +55,18 @@ class PuLIDPipeline(nn.Module):
             upscale_factor=1,
             face_size=512,
             crop_ratio=(1, 1),
-            det_model='retinaface_resnet50',
-            save_ext='png',
+            det_model="retinaface_resnet50",
+            save_ext="png",
             device=self.device,
         )
         self.face_helper.face_parse = None
-        self.face_helper.face_parse = init_parsing_model(model_name='bisenet', device=self.device)
+        self.face_helper.face_parse = init_parsing_model(model_name="bisenet", device=self.device)
         # clip-vit backbone
-        model, _, _ = create_model_and_transforms('EVA02-CLIP-L-14-336', 'eva_clip', force_custom_clip=True)
+        model, _, _ = create_model_and_transforms("EVA02-CLIP-L-14-336", "eva_clip", force_custom_clip=True)
         model = model.visual
         self.clip_vision_model = model.to(self.device, dtype=self.weight_dtype)
-        eva_transform_mean = getattr(self.clip_vision_model, 'image_mean', OPENAI_DATASET_MEAN)
-        eva_transform_std = getattr(self.clip_vision_model, 'image_std', OPENAI_DATASET_STD)
+        eva_transform_mean = getattr(self.clip_vision_model, "image_mean", OPENAI_DATASET_MEAN)
+        eva_transform_std = getattr(self.clip_vision_model, "image_std", OPENAI_DATASET_STD)
         if not isinstance(eva_transform_mean, (list, tuple)):
             eva_transform_mean = (eva_transform_mean,) * 3
         if not isinstance(eva_transform_std, (list, tuple)):
@@ -83,13 +74,13 @@ class PuLIDPipeline(nn.Module):
         self.eva_transform_mean = eva_transform_mean
         self.eva_transform_std = eva_transform_std
         # antelopev2
-        snapshot_download('DIAMONIK7777/antelopev2', local_dir='models/antelopev2')
-        providers = ['CPUExecutionProvider'] if onnx_provider == 'cpu' \
-            else ['CUDAExecutionProvider', 'CPUExecutionProvider']
-        self.app = FaceAnalysis(name='antelopev2', root='.', providers=providers)
+        snapshot_download("DIAMONIK7777/antelopev2", local_dir="models/antelopev2")
+        providers = (
+            ["CPUExecutionProvider"] if onnx_provider == "cpu" else ["CUDAExecutionProvider", "CPUExecutionProvider"]
+        )
+        self.app = FaceAnalysis(name="antelopev2", root=".", providers=providers)
         self.app.prepare(ctx_id=0, det_size=(640, 640))
-        self.handler_ante = insightface.model_zoo.get_model('models/antelopev2/glintr100.onnx',
-                                                            providers=providers)
+        self.handler_ante = insightface.model_zoo.get_model("models/antelopev2/glintr100.onnx", providers=providers)
         self.handler_ante.prepare(ctx_id=0)
 
         gc.collect()
@@ -107,21 +98,21 @@ class PuLIDPipeline(nn.Module):
         self.clip_vision_model = self.clip_vision_model.to(device)
         self.pulid_encoder = self.pulid_encoder.to(device)
 
-    def load_pretrain(self, pretrain_path=None, version='v0.9.0'):
-        hf_hub_download('guozinan/PuLID', f'pulid_flux_{version}.safetensors', local_dir='models')
-        ckpt_path = f'models/pulid_flux_{version}.safetensors'
+    def load_pretrain(self, pretrain_path=None, version="v0.9.0"):
+        hf_hub_download("guozinan/PuLID", f"pulid_flux_{version}.safetensors", local_dir="models")
+        ckpt_path = f"models/pulid_flux_{version}.safetensors"
         if pretrain_path is not None:
             ckpt_path = pretrain_path
         state_dict = load_file(ckpt_path)
         state_dict_dict = {}
         for k, v in state_dict.items():
-            module = k.split('.')[0]
+            module = k.split(".")[0]
             state_dict_dict.setdefault(module, {})
-            new_k = k[len(module) + 1:]
+            new_k = k[len(module) + 1 :]
             state_dict_dict[module][new_k] = v
 
         for module in state_dict_dict:
-            print(f'loading from {module}')
+            print(f"loading from {module}")
             getattr(self, module).load_state_dict(state_dict_dict[module], strict=True)
 
         del state_dict
@@ -144,14 +135,14 @@ class PuLIDPipeline(nn.Module):
         # get antelopev2 embedding
         face_info = self.app.get(image_bgr)
         if len(face_info) > 0:
-            face_info = sorted(face_info, key=lambda x: (x['bbox'][2] - x['bbox'][0]) * (x['bbox'][3] - x['bbox'][1]))[
+            face_info = sorted(face_info, key=lambda x: (x["bbox"][2] - x["bbox"][0]) * (x["bbox"][3] - x["bbox"][1]))[
                 -1
             ]  # only use the maximum face
-            id_ante_embedding = face_info['embedding']
+            id_ante_embedding = face_info["embedding"]
             self.debug_img_list.append(
                 image[
-                    int(face_info['bbox'][1]) : int(face_info['bbox'][3]),
-                    int(face_info['bbox'][0]) : int(face_info['bbox'][2]),
+                    int(face_info["bbox"][1]) : int(face_info["bbox"][3]),
+                    int(face_info["bbox"][0]) : int(face_info["bbox"][2]),
                 ]
             )
         else:
@@ -162,11 +153,11 @@ class PuLIDPipeline(nn.Module):
         self.face_helper.get_face_landmarks_5(only_center_face=True)
         self.face_helper.align_warp_face()
         if len(self.face_helper.cropped_faces) == 0:
-            raise RuntimeError('facexlib align face fail')
+            raise RuntimeError("facexlib align face fail")
         align_face = self.face_helper.cropped_faces[0]
         # incase insightface didn't detect face
         if id_ante_embedding is None:
-            print('fail to detect face using insightface, extract embedding on align face')
+            print("fail to detect face using insightface, extract embedding on align face")
             id_ante_embedding = self.handler_ante.get_feat(align_face)
 
         id_ante_embedding = torch.from_numpy(id_ante_embedding).to(self.device, self.weight_dtype)
@@ -209,6 +200,7 @@ class PuLIDPipeline(nn.Module):
 
         return id_embedding, uncond_id_embedding
 
+
 class PuLIDFluxPipeline(FluxPipeline):
     def __init__(
         self,
@@ -224,7 +216,7 @@ class PuLIDFluxPipeline(FluxPipeline):
         pulid_device="cuda",
         weight_dtype=torch.bfloat16,
         onnx_provider="gpu",
-        pretrained_model=None
+        pretrained_model=None,
     ):
         super().__init__(
             scheduler=scheduler,
@@ -251,6 +243,7 @@ class PuLIDFluxPipeline(FluxPipeline):
             onnx_provider=self.onnx_provider,
         )
         self.pulid_model.load_pretrain(pretrained_model)
+
     @torch.no_grad()
     @replace_example_docstring(EXAMPLE_DOC_STRING)
     def __call__(
@@ -271,10 +264,9 @@ class PuLIDFluxPipeline(FluxPipeline):
         prompt_embeds: Optional[torch.FloatTensor] = None,
         pooled_prompt_embeds: Optional[torch.FloatTensor] = None,
         ip_adapter_image: Optional[PipelineImageInput] = None,
-        id_image = None,
-        id_weight = 1.0,
-        start_step = 0,
-
+        id_image=None,
+        id_weight=1.0,
+        start_step=0,
         ip_adapter_image_embeds: Optional[List[torch.Tensor]] = None,
         negative_ip_adapter_image: Optional[PipelineImageInput] = None,
         negative_ip_adapter_image_embeds: Optional[List[torch.Tensor]] = None,
@@ -388,8 +380,8 @@ class PuLIDFluxPipeline(FluxPipeline):
         width = width or self.default_sample_size * self.vae_scale_factor
 
         if id_image is not None:
-            #pil_image = Image.open(id_image)
-            pil_image = id_image.convert('RGB')
+            # pil_image = Image.open(id_image)
+            pil_image = id_image.convert("RGB")
             numpy_image = np.array(pil_image)
             id_image = resize_numpy_image_long(numpy_image, 1024)
             id_embeddings, uncond_id_embeddings = self.pulid_model.get_id_embedding(id_image)
@@ -428,9 +420,7 @@ class PuLIDFluxPipeline(FluxPipeline):
 
         device = self._execution_device
 
-        lora_scale = (
-            self.joint_attention_kwargs.get("scale", None) if self.joint_attention_kwargs is not None else None
-        )
+        lora_scale = self.joint_attention_kwargs.get("scale", None) if self.joint_attention_kwargs is not None else None
         has_neg_prompt = negative_prompt is not None or (
             negative_prompt_embeds is not None and negative_pooled_prompt_embeds is not None
         )
@@ -550,8 +540,8 @@ class PuLIDFluxPipeline(FluxPipeline):
                 timestep = t.expand(latents.shape[0]).to(latents.dtype)
                 noise_pred = self.transformer(
                     hidden_states=latents,
-                    id_embeddings = id_embeddings,
-                    id_weight = id_weight,
+                    id_embeddings=id_embeddings,
+                    id_weight=id_weight,
                     timestep=timestep / 1000,
                     guidance=guidance,
                     pooled_projections=pooled_prompt_embeds,
@@ -567,8 +557,8 @@ class PuLIDFluxPipeline(FluxPipeline):
                         self._joint_attention_kwargs["ip_adapter_image_embeds"] = negative_image_embeds
                     neg_noise_pred = self.transformer(
                         hidden_states=latents,
-                        id_embeddings = id_embeddings,
-                        id_weight = id_weight,
+                        id_embeddings=id_embeddings,
+                        id_weight=id_weight,
                         timestep=timestep / 1000,
                         guidance=guidance,
                         pooled_projections=negative_pooled_prompt_embeds,
@@ -619,6 +609,3 @@ class PuLIDFluxPipeline(FluxPipeline):
             return (image,)
 
         return FluxPipelineOutput(images=image)
-
-
-
