@@ -27,6 +27,30 @@ public:
         checkModel();
         return net->dtype == Tensor::BF16;
     }
+    pybind11::function residual_callback;
+    void set_residual_callback(pybind11::function callback) {    
+        pybind11::gil_scoped_acquire gil;
+        if (!callback || callback.is_none()) {
+            residual_callback = pybind11::function();
+            if (net){
+                net->set_residual_callback(nullptr);
+            }
+            return;
+        }    
+        residual_callback = std::move(callback);      
+        if (net) {
+            pybind11::object cb = residual_callback;    
+            net->set_residual_callback([cb](const Tensor &x) -> Tensor {    
+                pybind11::gil_scoped_acquire gil;
+                torch::Tensor torch_x = to_torch(x);
+                pybind11::object result = cb(torch_x);
+                torch::Tensor torch_y = result.cast<torch::Tensor>();
+                Tensor y = from_torch(torch_y);
+                return y;
+            });
+        } else {
+        }
+    }
 
     torch::Tensor forward(
         torch::Tensor hidden_states,
