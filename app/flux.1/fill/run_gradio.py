@@ -8,25 +8,25 @@ import GPUtil
 import torch
 from diffusers import FluxFillPipeline
 from PIL import Image
-
-from nunchaku.models.safety_checker import SafetyChecker
-from nunchaku.models.transformers.transformer_flux import NunchakuFluxTransformer2dModel
 from utils import get_args
 from vars import DEFAULT_GUIDANCE, DEFAULT_INFERENCE_STEP, DEFAULT_STYLE_NAME, EXAMPLES, MAX_SEED, STYLE_NAMES, STYLES
 
+from nunchaku.models.safety_checker import SafetyChecker
+from nunchaku.models.transformers.transformer_flux import NunchakuFluxTransformer2dModel
+
 # import gradio last to avoid conflicts with other imports
-import gradio as gr
+import gradio as gr  # noqa: isort: skip
 
 args = get_args()
 
 if args.precision == "bf16":
-    pipeline = FluxFillPipeline.from_pretrained(f"black-forest-labs/FLUX.1-Fill-dev", torch_dtype=torch.bfloat16)
+    pipeline = FluxFillPipeline.from_pretrained("black-forest-labs/FLUX.1-Fill-dev", torch_dtype=torch.bfloat16)
     pipeline = pipeline.to("cuda")
     pipeline.precision = "bf16"
 else:
     assert args.precision == "int4"
     pipeline_init_kwargs = {}
-    transformer = NunchakuFluxTransformer2dModel.from_pretrained(f"mit-han-lab/svdq-int4-flux.1-fill-dev")
+    transformer = NunchakuFluxTransformer2dModel.from_pretrained("mit-han-lab/svdq-int4-flux.1-fill-dev")
     pipeline_init_kwargs["transformer"] = transformer
     if args.use_qencoder:
         from nunchaku.models.text_encoders.t5_encoder import NunchakuT5EncoderModel
@@ -35,7 +35,7 @@ else:
         pipeline_init_kwargs["text_encoder_2"] = text_encoder_2
 
     pipeline = FluxFillPipeline.from_pretrained(
-        f"black-forest-labs/FLUX.1-Fill-dev", torch_dtype=torch.bfloat16, **pipeline_init_kwargs
+        "black-forest-labs/FLUX.1-Fill-dev", torch_dtype=torch.bfloat16, **pipeline_init_kwargs
     )
     pipeline = pipeline.to("cuda")
     pipeline.precision = "int4"
@@ -94,7 +94,7 @@ def run(
     return result_image, latency_str
 
 
-with gr.Blocks(css_paths="assets/style.css", title=f"SVDQuant Flux.1-Fill-dev Sketch-to-Image Demo") as demo:
+with gr.Blocks(css_paths="assets/style.css", title="SVDQuant Flux.1-Fill-dev Sketch-to-Image Demo") as demo:
     with open("assets/description.html", "r") as f:
         DESCRIPTION = f.read()
     gpus = GPUtil.getGPUs()
@@ -104,7 +104,7 @@ with gr.Blocks(css_paths="assets/style.css", title=f"SVDQuant Flux.1-Fill-dev Sk
         device_info = f"Running on {gpu.name} with {memory:.0f} GiB memory."
     else:
         device_info = "Running on CPU 🥶 This demo does not work on CPU."
-    notice = f'<strong>Notice:</strong>&nbsp;We will replace unsafe prompts with a default prompt: "A peaceful world."'
+    notice = '<strong>Notice:</strong>&nbsp;We will replace unsafe prompts with a default prompt: "A peaceful world."'
 
     def get_header_str():
 

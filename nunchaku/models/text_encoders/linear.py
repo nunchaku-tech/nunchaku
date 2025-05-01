@@ -4,8 +4,8 @@
 import torch
 import torch.nn as nn
 
-from .tinychat_utils import ceil_num_groups, convert_to_tinychat_w4x16y16_linear_weight
 from ..._C.ops import gemm_awq, gemv_awq
+from .tinychat_utils import ceil_num_groups, convert_to_tinychat_w4x16y16_linear_weight
 
 __all__ = ["W4Linear"]
 

@@ -37,4 +37,3 @@ body:
     placeholder: "Example: python run_model.py --config config.json"
   validations:
     required: true
-

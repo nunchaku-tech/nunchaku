@@ -5,16 +5,16 @@ import time
 from datetime import datetime
 
 import GPUtil
-import torch
-from diffusers import FluxPipeline, FluxPriorReduxPipeline
-from PIL import Image
-
-from nunchaku.models.transformers.transformer_flux import NunchakuFluxTransformer2dModel
-from utils import get_args
-from vars import DEFAULT_GUIDANCE, DEFAULT_INFERENCE_STEP, EXAMPLES, MAX_SEED
 
 # import gradio last to avoid conflicts with other imports
 import gradio as gr
+import torch
+from diffusers import FluxPipeline, FluxPriorReduxPipeline
+from PIL import Image
+from utils import get_args
+from vars import DEFAULT_GUIDANCE, DEFAULT_INFERENCE_STEP, EXAMPLES, MAX_SEED
+
+from nunchaku.models.transformers.transformer_flux import NunchakuFluxTransformer2dModel
 
 args = get_args()
 
@@ -76,7 +76,7 @@ def run(image, num_inference_steps: int, guidance_scale: float, seed: int) -> tu
     return result_image, latency_str
 
 
-with gr.Blocks(css_paths="assets/style.css", title=f"SVDQuant Flux.1-redux-dev Demo") as demo:
+with gr.Blocks(css_paths="assets/style.css", title="SVDQuant Flux.1-redux-dev Demo") as demo:
     with open("assets/description.html", "r") as f:
         DESCRIPTION = f.read()
     gpus = GPUtil.getGPUs()

@@ -35,7 +35,7 @@ public:
 
 private:
     GEMM_W4A4 q_linear;
-    GEMM_F16  kv_linear;
+    GEMM_F16 kv_linear;
     GEMM_W4A4 out_proj;
 };
 
@@ -57,9 +57,23 @@ private:
 
 class SanaLinearTransformerBlock : public Module {
 public:
-    SanaLinearTransformerBlock(int hidden_size, int intermediate_size, int num_cross_attention_heads, bool pag, bool use_fp4, Tensor::ScalarType dtype, Device device);
+    SanaLinearTransformerBlock(int hidden_size,
+                               int intermediate_size,
+                               int num_cross_attention_heads,
+                               bool pag,
+                               bool use_fp4,
+                               Tensor::ScalarType dtype,
+                               Device device);
 
-    Tensor forward(Tensor hidden_states, Tensor encoder_hidden_states, Tensor timestep, Tensor cu_seqlens_img, Tensor cu_seqlens_txt, int H, int W, bool pag, bool cfg);
+    Tensor forward(Tensor hidden_states,
+                   Tensor encoder_hidden_states,
+                   Tensor timestep,
+                   Tensor cu_seqlens_img,
+                   Tensor cu_seqlens_txt,
+                   int H,
+                   int W,
+                   bool pag,
+                   bool cfg);
 
 public:
     const int hidden_size;
@@ -89,7 +103,16 @@ struct SanaConfig {
 class SanaModel : public Module {
 public:
     SanaModel(SanaConfig config, Tensor::ScalarType dtype, Device device);
-    Tensor forward(Tensor hidden_states, Tensor encoder_hidden_states, Tensor timestep, Tensor cu_seqlens_img, Tensor cu_seqlens_txt, int H, int W, bool pag, bool cfg, bool skip_first_layer);
+    Tensor forward(Tensor hidden_states,
+                   Tensor encoder_hidden_states,
+                   Tensor timestep,
+                   Tensor cu_seqlens_img,
+                   Tensor cu_seqlens_txt,
+                   int H,
+                   int W,
+                   bool pag,
+                   bool cfg,
+                   bool skip_first_layer);
 
 public:
     const SanaConfig config;

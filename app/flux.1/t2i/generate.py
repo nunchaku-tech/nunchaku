@@ -2,7 +2,6 @@ import argparse
 import os
 
 import torch
-
 from utils import get_pipeline
 from vars import PROMPT_TEMPLATES
 

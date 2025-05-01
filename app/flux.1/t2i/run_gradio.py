@@ -9,13 +9,13 @@ import GPUtil
 import spaces
 import torch
 from peft.tuners import lora
-
-from nunchaku.models.safety_checker import SafetyChecker
 from utils import get_pipeline
 from vars import DEFAULT_HEIGHT, DEFAULT_WIDTH, EXAMPLES, MAX_SEED, PROMPT_TEMPLATES, SVDQ_LORA_PATHS
 
+from nunchaku.models.safety_checker import SafetyChecker
+
 # import gradio last to avoid conflicts with other imports
-import gradio as gr
+import gradio as gr  # noqa: isort: skip
 
 
 def get_args() -> argparse.Namespace:
@@ -84,7 +84,7 @@ def generate(
     images, latency_strs = [], []
     for i, pipeline in enumerate(pipelines):
         precision = args.precisions[i]
-        progress = gr.Progress(track_tqdm=True)
+        gr.Progress(track_tqdm=True)
         if pipeline.cur_lora_name != lora_name:
             if precision == "bf16":
                 for m in pipeline.transformer.modules():
@@ -164,7 +164,7 @@ if len(gpus) > 0:
     device_info = f"Running on {gpu.name} with {memory:.0f} GiB memory."
 else:
     device_info = "Running on CPU 🥶 This demo does not work on CPU."
-notice = f'<strong>Notice:</strong>&nbsp;We will replace unsafe prompts with a default prompt: "A peaceful world."'
+notice = '<strong>Notice:</strong>&nbsp;We will replace unsafe prompts with a default prompt: "A peaceful world."'
 
 with gr.Blocks(
     css_paths=[f"assets/frame{len(args.precisions)}.css", "assets/common.css"],

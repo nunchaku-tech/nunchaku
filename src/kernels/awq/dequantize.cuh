@@ -1,5 +1,6 @@
 /*
-Modified from NVIDIA FasterTransformer: https://github.com/NVIDIA/FasterTransformer/blob/main/src/fastertransformer/cutlass_extensions/include/cutlass_extensions/interleaved_numeric_conversion.h
+Modified from NVIDIA FasterTransformer:
+https://github.com/NVIDIA/FasterTransformer/blob/main/src/fastertransformer/cutlass_extensions/include/cutlass_extensions/interleaved_numeric_conversion.h
 
 @article{lin2023awq,
   title={AWQ: Activation-aware Weight Quantization for LLM Compression and Acceleration},
@@ -13,16 +14,15 @@ Modified from NVIDIA FasterTransformer: https://github.com/NVIDIA/FasterTransfor
 #include <cuda_fp16.h>
 #include <cstdint>
 
-__forceinline__ __device__ 
-void dequantize_s4_to_fp16x2(half2 const &source, uint4 *result) {
+__forceinline__ __device__ void dequantize_s4_to_fp16x2(half2 const &source, uint4 *result) {
 
-    uint32_t *h = reinterpret_cast<uint32_t *>(result);
+    uint32_t *h        = reinterpret_cast<uint32_t *>(result);
     uint32_t const i4s = reinterpret_cast<uint32_t const &>(source);
 
     // First, we extract the i4s and construct an intermediate fp16 number.
-    static constexpr uint32_t immLut = (0xf0 & 0xcc) | 0xaa;
-    static constexpr uint32_t BOTTOM_MASK = 0x000f000f;
-    static constexpr uint32_t TOP_MASK = 0x00f000f0;
+    static constexpr uint32_t immLut                = (0xf0 & 0xcc) | 0xaa;
+    static constexpr uint32_t BOTTOM_MASK           = 0x000f000f;
+    static constexpr uint32_t TOP_MASK              = 0x00f000f0;
     static constexpr uint32_t I4s_TO_F16s_MAGIC_NUM = 0x64006400;
 
     // Note that the entire sequence only requires 1 shift instruction. This is thanks to the register packing
@@ -75,25 +75,26 @@ void dequantize_s4_to_fp16x2(half2 const &source, uint4 *result) {
     asm volatile("fma.rn.f16x2 %0, %1, %2, %3;\n" : "=r"(h[3]) : "r"(h[3]), "r"(ONE_SIXTEENTH), "r"(NEG_64));
 }
 
-__forceinline__ __device__ 
-void dequantize_s4_to_fp16x2(__nv_bfloat162 const &source, uint4 *result) {
+__forceinline__ __device__ void dequantize_s4_to_fp16x2(__nv_bfloat162 const &source, uint4 *result) {
     // dequantize_s4_to_fp16x2(reinterpret_cast<const half2 &>(source), result);
-    
-    // *reinterpret_cast<__nv_bfloat162 *>(&result->x) = cuda_cast<__nv_bfloat162>(*reinterpret_cast<half2 *>(&result->x));
-    // *reinterpret_cast<__nv_bfloat162 *>(&result->y) = cuda_cast<__nv_bfloat162>(*reinterpret_cast<half2 *>(&result->y));
-    // *reinterpret_cast<__nv_bfloat162 *>(&result->z) = cuda_cast<__nv_bfloat162>(*reinterpret_cast<half2 *>(&result->z));
-    // *reinterpret_cast<__nv_bfloat162 *>(&result->w) = cuda_cast<__nv_bfloat162>(*reinterpret_cast<half2 *>(&result->w));
+
+    // *reinterpret_cast<__nv_bfloat162 *>(&result->x) = cuda_cast<__nv_bfloat162>(*reinterpret_cast<half2
+    // *>(&result->x)); *reinterpret_cast<__nv_bfloat162 *>(&result->y) =
+    // cuda_cast<__nv_bfloat162>(*reinterpret_cast<half2 *>(&result->y)); *reinterpret_cast<__nv_bfloat162
+    // *>(&result->z) = cuda_cast<__nv_bfloat162>(*reinterpret_cast<half2 *>(&result->z));
+    // *reinterpret_cast<__nv_bfloat162 *>(&result->w) = cuda_cast<__nv_bfloat162>(*reinterpret_cast<half2
+    // *>(&result->w));
 
     // return;
 
     // uint4 result;
 
-    uint32_t *h = reinterpret_cast<uint32_t *>(result);
+    uint32_t *h        = reinterpret_cast<uint32_t *>(result);
     uint32_t const i4s = reinterpret_cast<uint32_t const &>(source);
 
     // First, we extract the i4s and construct an intermediate fp16 number.
-    static constexpr uint32_t immLut = (0xf0 & 0xcc) | 0xaa;
-    static constexpr uint32_t MASK = 0x000f000f;
+    static constexpr uint32_t immLut                 = (0xf0 & 0xcc) | 0xaa;
+    static constexpr uint32_t MASK                   = 0x000f000f;
     static constexpr uint32_t I4s_TO_BF16s_MAGIC_NUM = 0x43004300;
 
     // Extract elt_01 - (i4s & 0x000f000f) | 0x43004300

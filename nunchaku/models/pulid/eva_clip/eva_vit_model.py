@@ -14,8 +14,8 @@ try:
 except ImportError:
     from timm.layers import drop_path, to_2tuple, trunc_normal_
 
-from .transformer import PatchDropout
 from .rope import VisionRotaryEmbeddingFast
+from .transformer import PatchDropout
 
 if os.getenv("ENV_TYPE") == "deepspeed":
     try:

@@ -10,9 +10,6 @@ from controlnet_aux import CannyDetector
 from diffusers import FluxControlPipeline
 from image_gen_aux import DepthPreprocessor
 from PIL import Image
-
-from nunchaku.models.safety_checker import SafetyChecker
-from nunchaku.models.transformers.transformer_flux import NunchakuFluxTransformer2dModel
 from utils import get_args
 from vars import (
     DEFAULT_GUIDANCE_CANNY,
@@ -28,8 +25,11 @@ from vars import (
     WIDTH,
 )
 
+from nunchaku.models.safety_checker import SafetyChecker
+from nunchaku.models.transformers.transformer_flux import NunchakuFluxTransformer2dModel
+
 # import gradio last to avoid conflicts with other imports
-import gradio as gr
+import gradio as gr  # noqa: isort: skip
 
 args = get_args()
 
@@ -132,7 +132,7 @@ with gr.Blocks(css_paths="assets/style.css", title=f"SVDQuant Flux.1-{model_name
         device_info = f"Running on {gpu.name} with {memory:.0f} GiB memory."
     else:
         device_info = "Running on CPU 🥶 This demo does not work on CPU."
-    notice = f'<strong>Notice:</strong>&nbsp;We will replace unsafe prompts with a default prompt: "A peaceful world."'
+    notice = '<strong>Notice:</strong>&nbsp;We will replace unsafe prompts with a default prompt: "A peaceful world."'
 
     def get_header_str():
 

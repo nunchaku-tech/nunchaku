@@ -1,9 +1,9 @@
 import torch
 from diffusers import FluxPipeline
 from peft.tuners import lora
+from vars import LORA_PATHS, SVDQ_LORA_PATHS
 
 from nunchaku import NunchakuFluxTransformer2dModel
-from vars import LORA_PATHS, SVDQ_LORA_PATHS
 
 
 def hash_str_to_int(s: str) -> int:

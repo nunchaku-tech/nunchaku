@@ -20,7 +20,8 @@ public:
 
 // class SiluAndMulQuant {
 // public:
-//     static Tensor forward(Tensor x, Tensor quantized_mlp_act_buffer, Tensor quantized_scale_buffer, Tensor quantized_sum_buffer, bool act_sum) {
+//     static Tensor forward(Tensor x, Tensor quantized_mlp_act_buffer, Tensor quantized_scale_buffer, Tensor
+//     quantized_sum_buffer, bool act_sum) {
 //         if (act_sum) {
 //             return forward_with_act_sum(x, quantized_mlp_act_buffer, quantized_scale_buffer, quantized_sum_buffer);
 //         } else {
@@ -28,6 +29,7 @@ public:
 //         }
 //     }
 // private:
-//     static Tensor forward_with_act_sum(Tensor x, Tensor quantized_mlp_act_buffer, Tensor quantized_scale_buffer, Tensor quantized_sum_buffer);
-//     static Tensor forward_wo_act_sum(Tensor x, Tensor quantized_mlp_act_buffer, Tensor quantized_scale_buffer, Tensor quantized_sum_buffer);
+//     static Tensor forward_with_act_sum(Tensor x, Tensor quantized_mlp_act_buffer, Tensor quantized_scale_buffer,
+//     Tensor quantized_sum_buffer); static Tensor forward_wo_act_sum(Tensor x, Tensor quantized_mlp_act_buffer, Tensor
+//     quantized_scale_buffer, Tensor quantized_sum_buffer);
 // };

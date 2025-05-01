@@ -1,11 +1,11 @@
-<div align="center" id="nunchaku_logo"> 
-  <img src="assets/nunchaku.svg" alt="logo" width="220"></img> 
-</div> 
-<h3 align="center"> 
-<a href="http://arxiv.org/abs/2411.05007"><b>论文</b></a> | <a href="https://hanlab.mit.edu/projects/svdquant"><b>官网</b></a> | <a href="https://hanlab.mit.edu/blog/svdquant"><b>博客</b></a> | <a href="https://svdquant.mit.edu"><b>演示</b></a> | <a href="https://huggingface.co/collections/mit-han-lab/svdquant-67493c2c2e62a1fc6e93f45c"><b>HuggingFace</b></a> | <a href="https://modelscope.cn/collections/svdquant-468e8f780c2641"><b>ModelScope</b></a> | <a href="https://github.com/mit-han-lab/ComfyUI-nunchaku"><b>ComfyUI</b></a> 
+<div align="center" id="nunchaku_logo">
+  <img src="assets/nunchaku.svg" alt="logo" width="220"></img>
+</div>
+<h3 align="center">
+<a href="http://arxiv.org/abs/2411.05007"><b>论文</b></a> | <a href="https://hanlab.mit.edu/projects/svdquant"><b>官网</b></a> | <a href="https://hanlab.mit.edu/blog/svdquant"><b>博客</b></a> | <a href="https://svdquant.mit.edu"><b>演示</b></a> | <a href="https://huggingface.co/collections/mit-han-lab/svdquant-67493c2c2e62a1fc6e93f45c"><b>HuggingFace</b></a> | <a href="https://modelscope.cn/collections/svdquant-468e8f780c2641"><b>ModelScope</b></a> | <a href="https://github.com/mit-han-lab/ComfyUI-nunchaku"><b>ComfyUI</b></a>
 </h3>
 
-<h3 align="center"> 
+<h3 align="center">
 <a href="README.md"><b>English</b></a> | <a href="README_ZH.md"><b>中文</b></a>
 </h3>
 
@@ -121,9 +121,9 @@ pip install https://huggingface.co/mit-han-lab/nunchaku/resolve/main/nunchaku-0.
    conda activate nunchaku
    pip install torch torchvision torchaudio
    pip install ninja wheel diffusers transformers accelerate sentencepiece protobuf huggingface_hub
-   
+
    # Gradio演示依赖
-   pip install peft opencv-python gradio spaces GPUtil  
+   pip install peft opencv-python gradio spaces GPUtil
    ```
 
    Blackwell用户需安装PyTorch nightly（CUDA 12.8）：
@@ -140,7 +140,7 @@ pip install https://huggingface.co/mit-han-lab/nunchaku/resolve/main/nunchaku-0.
     ```
 
     Windows用户请安装最新[Visual Studio](https://visualstudio.microsoft.com/thank-you-downloading-visual-studio/?sku=Community&channel=Release&version=VS2022&source=VSLandingPage&cid=2030&passive=false)。
-   
+
     编译命令：
 
     ```shell
@@ -150,13 +150,13 @@ pip install https://huggingface.co/mit-han-lab/nunchaku/resolve/main/nunchaku-0.
     git submodule update
     python setup.py develop
     ```
-   
+
     打包wheel：
 
     ```shell
     NUNCHAKU_INSTALL_MODE=ALL NUNCHAKU_BUILD_WHEELS=1 python -m build --wheel --no-isolation
     ```
-   
+
     设置`NUNCHAKU_INSTALL_MODE=ALL`确保wheel支持所有显卡架构。
 
 ## 使用示例

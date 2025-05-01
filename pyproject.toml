@@ -1,21 +1,14 @@
-[build-system]
-requires = [
-    "setuptools",
-    "torch>=2.5",
-    "wheel",
-    "ninja",
-]
-build-backend = "setuptools.build_meta"
+[tool.isort]
+profile = "black"
+known_first_party = ["nunchaku"]
+line_length = 120
 
-[tool.setuptools.packages.find]
-include = ["nunchaku"]
+[tool.black]
+line-length = 120
+target-version = ['py311']
 
 [tool.ruff]
-line-length = 140
-
-[tool.ruff.lint]
-select = ["E", "W", "F"]
-ignore = ["F401"]
+line-length = 120
 
 [project]
 dynamic = ["version"]
@@ -29,3 +22,15 @@ dependencies = [
     "huggingface_hub",
 ]
 requires-python = ">=3.10"
+
+[build-system]
+requires = [
+    "setuptools",
+    "torch>=2.5",
+    "wheel",
+    "ninja",
+]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["nunchaku"]

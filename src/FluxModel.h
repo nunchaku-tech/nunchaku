@@ -7,7 +7,7 @@
 #include "layernorm.h"
 #include <pybind11/functional.h>
 namespace pybind11 {
-    class function;
+class function;
 }
 
 enum class AttentionImpl {
@@ -18,7 +18,7 @@ enum class AttentionImpl {
 class AdaLayerNormZeroSingle : public Module {
 public:
     static constexpr bool USE_4BIT = true;
-    using GEMM = std::conditional_t<USE_4BIT, GEMV_AWQ, GEMM_W8A8>;
+    using GEMM                     = std::conditional_t<USE_4BIT, GEMV_AWQ, GEMM_W8A8>;
 
     struct Output {
         Tensor x;
@@ -40,7 +40,7 @@ private:
 class AdaLayerNormZero : public Module {
 public:
     static constexpr bool USE_4BIT = true;
-    using GEMM = std::conditional_t<USE_4BIT, GEMV_AWQ, GEMM_W8A8>;
+    using GEMM                     = std::conditional_t<USE_4BIT, GEMV_AWQ, GEMM_W8A8>;
 
     struct Output {
         Tensor x;
@@ -49,6 +49,7 @@ public:
         Tensor scale_mlp;
         Tensor gate_mlp;
     };
+
 public:
     AdaLayerNormZero(int dim, bool pre_only, Tensor::ScalarType dtype, Device device);
     Output forward(Tensor x, Tensor emb);
@@ -85,9 +86,15 @@ private:
 class FluxSingleTransformerBlock : public Module {
 public:
     static constexpr bool USE_4BIT = true;
-    using GEMM = std::conditional_t<USE_4BIT, GEMM_W4A4, GEMM_W8A8>;
+    using GEMM                     = std::conditional_t<USE_4BIT, GEMM_W4A4, GEMM_W8A8>;
 
-    FluxSingleTransformerBlock(int dim, int num_attention_heads, int attention_head_dim, int mlp_ratio, bool use_fp4, Tensor::ScalarType dtype, Device device);
+    FluxSingleTransformerBlock(int dim,
+                               int num_attention_heads,
+                               int attention_head_dim,
+                               int mlp_ratio,
+                               bool use_fp4,
+                               Tensor::ScalarType dtype,
+                               Device device);
     Tensor forward(Tensor hidden_states, Tensor temb, Tensor rotary_emb);
 
 public:
@@ -111,10 +118,21 @@ private:
 class JointTransformerBlock : public Module {
 public:
     static constexpr bool USE_4BIT = true;
-    using GEMM = std::conditional_t<USE_4BIT, GEMM_W4A4, GEMM_W8A8>;
+    using GEMM                     = std::conditional_t<USE_4BIT, GEMM_W4A4, GEMM_W8A8>;
 
-    JointTransformerBlock(int dim, int num_attention_heads, int attention_head_dim, bool context_pre_only, bool use_fp4, Tensor::ScalarType dtype, Device device);
-    std::tuple<Tensor, Tensor> forward(Tensor hidden_states, Tensor encoder_hidden_states, Tensor temb, Tensor rotary_emb, Tensor rotary_emb_context, float sparsityRatio);
+    JointTransformerBlock(int dim,
+                          int num_attention_heads,
+                          int attention_head_dim,
+                          bool context_pre_only,
+                          bool use_fp4,
+                          Tensor::ScalarType dtype,
+                          Device device);
+    std::tuple<Tensor, Tensor> forward(Tensor hidden_states,
+                                       Tensor encoder_hidden_states,
+                                       Tensor temb,
+                                       Tensor rotary_emb,
+                                       Tensor rotary_emb_context,
+                                       float sparsityRatio);
 
 public:
     const int dim;
@@ -143,35 +161,35 @@ private:
 class FluxModel : public Module {
 public:
     FluxModel(bool use_fp4, bool offload, Tensor::ScalarType dtype, Device device);
-    Tensor forward(
-        Tensor hidden_states,
-        Tensor encoder_hidden_states,
-        Tensor temb,
-        Tensor rotary_emb_img,
-        Tensor rotary_emb_context,
-        Tensor rotary_emb_single,
-        Tensor controlnet_block_samples,
-        Tensor controlnet_single_block_samples,
-        bool skip_first_layer = false);
-    std::tuple<Tensor, Tensor> forward_layer(
-        size_t layer,
-        Tensor hidden_states,
-        Tensor encoder_hidden_states,
-        Tensor temb,
-        Tensor rotary_emb_img,
-        Tensor rotary_emb_context,
-        Tensor controlnet_block_samples,
-        Tensor controlnet_single_block_samples);
+    Tensor forward(Tensor hidden_states,
+                   Tensor encoder_hidden_states,
+                   Tensor temb,
+                   Tensor rotary_emb_img,
+                   Tensor rotary_emb_context,
+                   Tensor rotary_emb_single,
+                   Tensor controlnet_block_samples,
+                   Tensor controlnet_single_block_samples,
+                   bool skip_first_layer = false);
+    std::tuple<Tensor, Tensor> forward_layer(size_t layer,
+                                             Tensor hidden_states,
+                                             Tensor encoder_hidden_states,
+                                             Tensor temb,
+                                             Tensor rotary_emb_img,
+                                             Tensor rotary_emb_context,
+                                             Tensor controlnet_block_samples,
+                                             Tensor controlnet_single_block_samples);
     void setAttentionImpl(AttentionImpl impl);
 
-    void set_residual_callback(std::function<Tensor(const Tensor&)> cb);
+    void set_residual_callback(std::function<Tensor(const Tensor &)> cb);
+
 public:
     const Tensor::ScalarType dtype;
 
     std::vector<std::unique_ptr<JointTransformerBlock>> transformer_blocks;
     std::vector<std::unique_ptr<FluxSingleTransformerBlock>> single_transformer_blocks;
 
-    std::function<Tensor(const Tensor&)> residual_callback;
+    std::function<Tensor(const Tensor &)> residual_callback;
+
 private:
     bool offload;
 };

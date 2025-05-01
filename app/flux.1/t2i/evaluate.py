@@ -2,9 +2,8 @@ import argparse
 import os
 
 import torch
-from tqdm import tqdm
-
 from data import get_dataset
+from tqdm import tqdm
 from utils import get_pipeline, hash_str_to_int
 
 

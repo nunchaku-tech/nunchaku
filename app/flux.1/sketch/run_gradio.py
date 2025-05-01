@@ -8,16 +8,16 @@ from datetime import datetime
 import GPUtil
 import numpy as np
 import torch
-from PIL import Image
-
 from flux_pix2pix_pipeline import FluxPix2pixTurboPipeline
-from nunchaku.models.safety_checker import SafetyChecker
-from nunchaku.models.transformers.transformer_flux import NunchakuFluxTransformer2dModel
+from PIL import Image
 from utils import get_args
 from vars import DEFAULT_SKETCH_GUIDANCE, DEFAULT_STYLE_NAME, MAX_SEED, STYLE_NAMES, STYLES
 
+from nunchaku.models.safety_checker import SafetyChecker
+from nunchaku.models.transformers.transformer_flux import NunchakuFluxTransformer2dModel
+
 # import gradio last to avoid conflicts with other imports
-import gradio as gr
+import gradio as gr  # noqa: isort: skip
 
 blank_image = Image.new("RGB", (1024, 1024), (255, 255, 255))
 
@@ -109,7 +109,7 @@ def run(image, prompt: str, prompt_template: str, sketch_guidance: float, seed: 
     return result_image, latency_str
 
 
-with gr.Blocks(css_paths="assets/style.css", title=f"SVDQuant Sketch-to-Image Demo") as demo:
+with gr.Blocks(css_paths="assets/style.css", title="SVDQuant Sketch-to-Image Demo") as demo:
     with open("assets/description.html", "r") as f:
         DESCRIPTION = f.read()
     gpus = GPUtil.getGPUs()
@@ -119,7 +119,7 @@ with gr.Blocks(css_paths="assets/style.css", title=f"SVDQuant Sketch-to-Image De
         device_info = f"Running on {gpu.name} with {memory:.0f} GiB memory."
     else:
         device_info = "Running on CPU 🥶 This demo does not work on CPU."
-    notice = f'<strong>Notice:</strong>&nbsp;We will replace unsafe prompts with a default prompt: "A peaceful world."'
+    notice = '<strong>Notice:</strong>&nbsp;We will replace unsafe prompts with a default prompt: "A peaceful world."'
 
     def get_header_str():
 

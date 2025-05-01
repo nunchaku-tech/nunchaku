@@ -1,8 +1,8 @@
 # Copy the packer from https://github.com/mit-han-lab/deepcompressor/
 import torch
 
-from .utils import pad
 from ...utils import ceil_divide
+from .utils import pad
 
 
 class MmaWeightPackerBase:

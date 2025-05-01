@@ -1,0 +1,38 @@
+BasedOnStyle:  LLVM           # K&R / "attach" braces like the code now
+IndentWidth:   4              # 4‑space indents everywhere
+TabWidth:      4
+UseTab:        Never          # never convert to tabs
+ColumnLimit:   120
+
+AccessModifierOffset: -4
+
+BreakBeforeBraces: Attach     # `void foo() {` — brace on same line
+BraceWrapping:
+  AfterNamespace:  false      # `namespace x {` on same line
+  SplitEmptyFunction: false
+  SplitEmptyRecord:  false
+  SplitEmptyNamespace: false
+
+PointerAlignment: Right       # `int *ptr`, `const Foo *bar`
+ReferenceAlignment: Pointer   # `int &ref` -> same rule as pointers
+
+SortIncludes: false           # keep the hand‑crafted include order
+IncludeBlocks: Preserve
+
+SortUsingDeclarations: false
+
+IndentPPDirectives: None      # keep `#pragma` / `#if` at column 0
+
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine:  false
+AllowShortBlocksOnASingleLine:        false
+BinPackParameters:            false   # one parameter per line (as written)
+BinPackArguments:             false
+
+AlignAfterOpenBracket: Align  # preserve the current hanging‑indent style
+AlignConsecutiveAssignments:  true
+AlignConsecutiveDeclarations: false
+
+SpaceAfterTemplateKeyword: false
+
+BreakTemplateDeclarations: Yes

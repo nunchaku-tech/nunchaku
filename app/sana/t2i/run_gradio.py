@@ -8,13 +8,13 @@ from datetime import datetime
 import GPUtil
 import spaces
 import torch
-
-from nunchaku.models.safety_checker import SafetyChecker
 from utils import get_pipeline
 from vars import EXAMPLES, MAX_SEED
 
+from nunchaku.models.safety_checker import SafetyChecker
+
 # import gradio last to avoid conflicts with other imports
-import gradio as gr
+import gradio as gr  # noqa: isort: skip
 
 
 def get_args() -> argparse.Namespace:
@@ -73,7 +73,7 @@ def generate(
         prompt = "A peaceful world."
     images, latency_strs = [], []
     for i, pipeline in enumerate(pipelines):
-        progress = gr.Progress(track_tqdm=True)
+        gr.Progress(track_tqdm=True)
         start_time = time.time()
         image = pipeline(
             prompt=prompt,
@@ -124,11 +124,11 @@ if len(gpus) > 0:
     device_info = f"Running on {gpu.name} with {memory:.0f} GiB memory."
 else:
     device_info = "Running on CPU 🥶 This demo does not work on CPU."
-notice = f'<strong>Notice:</strong>&nbsp;We will replace unsafe prompts with a default prompt: "A peaceful world."'
+notice = '<strong>Notice:</strong>&nbsp;We will replace unsafe prompts with a default prompt: "A peaceful world."'
 
 with gr.Blocks(
     css_paths=[f"assets/frame{len(args.precisions)}.css", "assets/common.css"],
-    title=f"SVDQuant SANA-1600M Demo",
+    title="SVDQuant SANA-1600M Demo",
 ) as demo:
 
     def get_header_str():

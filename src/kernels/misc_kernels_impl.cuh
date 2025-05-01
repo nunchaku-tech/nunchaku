@@ -9,7 +9,6 @@
 
 namespace nunchaku::kernels {
 
-
 template<typename T>
 __global__ void add_kernel(T *a, T *b, T *c, size_t length) {
     int i = threadIdx.x + blockIdx.x * blockDim.x;
@@ -24,12 +23,21 @@ struct alignas(sizeof(T) * unroll) Tvec {
 };
 
 template<typename T, int unroll, bool no_scale>
-__global__ void mul_add_kernel(T *x, T *scale, T *bias, T scale_shift, size_t length, int mod_scale, int mod_bias, int64_t batch_stride_x, int64_t batch_stride_scale, int64_t batch_stride_bias) {
+__global__ void mul_add_kernel(T *x,
+                               T *scale,
+                               T *bias,
+                               T scale_shift,
+                               size_t length,
+                               int mod_scale,
+                               int mod_bias,
+                               int64_t batch_stride_x,
+                               int64_t batch_stride_scale,
+                               int64_t batch_stride_bias) {
     const int batch_id = blockIdx.y;
-    int thread = threadIdx.x + blockIdx.x * blockDim.x;
-    int i = thread * unroll;
-    int i_scale = i % mod_scale;
-    int i_bias = i % mod_bias;
+    int thread         = threadIdx.x + blockIdx.x * blockDim.x;
+    int i              = thread * unroll;
+    int i_scale        = i % mod_scale;
+    int i_bias         = i % mod_bias;
 
     if (i >= length) {
         return;
@@ -37,9 +45,9 @@ __global__ void mul_add_kernel(T *x, T *scale, T *bias, T scale_shift, size_t le
 
     using Tvec = nunchaku::kernels::Tvec<T, unroll>;
 
-    Tvec rx = *reinterpret_cast<Tvec *>(&x[i + batch_stride_x * batch_id]);
+    Tvec rx     = *reinterpret_cast<Tvec *>(&x[i + batch_stride_x * batch_id]);
     Tvec rscale = *reinterpret_cast<Tvec *>(&scale[i_scale + batch_stride_scale * batch_id]);
-    Tvec rbias = *reinterpret_cast<Tvec *>(&bias[i_bias + batch_stride_bias * batch_id]);
+    Tvec rbias  = *reinterpret_cast<Tvec *>(&bias[i_bias + batch_stride_bias * batch_id]);
 
 #pragma unroll
     for (int k = 0; k < unroll; k++) {
@@ -58,16 +66,16 @@ __global__ void mul_add_kernel(T *x, T *scale, T *bias, T scale_shift, size_t le
 
     *reinterpret_cast<Tvec *>(&x[i + batch_stride_x * batch_id]) = rx;
 
-// #pragma unroll
-//     for (int k = 0; k < unroll; k++) {
-//         // assert(i < length);
-//         x[i] = x[i] * scale[i_scale] + bias[i_bias];
-//         i++;
-//         i_scale++;
-//         i_bias++;
-//         // assert(i_scale < mod_scale);
-//         // assert(i_bias < mod_bias);
-//     }
+    // #pragma unroll
+    //     for (int k = 0; k < unroll; k++) {
+    //         // assert(i < length);
+    //         x[i] = x[i] * scale[i_scale] + bias[i_bias];
+    //         i++;
+    //         i_scale++;
+    //         i_bias++;
+    //         // assert(i_scale < mod_scale);
+    //         // assert(i_bias < mod_bias);
+    //     }
 }
 
 template<typename T, size_t N>
@@ -82,12 +90,13 @@ __global__ void split_mod_kernel(T *input, std::array<T *, N> output, size_t len
 }
 
 template<typename T>
-__global__ void EmbeddingKernel(int32_t *__restrict__ input_id, T *__restrict__ output, T *__restrict__ lookup, int embed_dim) {
+__global__ void
+EmbeddingKernel(int32_t *__restrict__ input_id, T *__restrict__ output, T *__restrict__ lookup, int embed_dim) {
     int i = blockIdx.x;
 
-    int32_t token_id = input_id[i];
+    int32_t token_id     = input_id[i];
     T *output_sample_ptr = output + i * embed_dim;
-    T *target_embed = lookup + token_id * embed_dim;
+    T *target_embed      = lookup + token_id * embed_dim;
 
     for (int j = threadIdx.x; j < embed_dim; j += blockDim.x) {
         output_sample_ptr[j] = target_embed[j];
@@ -97,7 +106,7 @@ __global__ void EmbeddingKernel(int32_t *__restrict__ input_id, T *__restrict__ 
 template<typename T>
 __global__ void argmax_sample_kernel(T *input, int32_t *output, int hidden_dim) {
     float maxValue = -1e20;
-    int argmax = 0;
+    int argmax     = 0;
     for (int i = threadIdx.x; i < hidden_dim; i += blockDim.x) {
         float data = (float)input[blockIdx.x * hidden_dim + i];
         if (data > maxValue) {
@@ -105,7 +114,7 @@ __global__ void argmax_sample_kernel(T *input, int32_t *output, int hidden_dim) 
             argmax   = i;
         }
     }
-    // blockAllReduceMax seems to be broken when T=half 
+    // blockAllReduceMax seems to be broken when T=half
     float maxValueBlock = vllm::blockAllReduceMax(maxValue);
     if (maxValue == maxValueBlock) {
         output[blockIdx.x] = argmax;
@@ -127,14 +136,14 @@ __global__ void splitqkv_kernel(T *qkv, T *q, T *k, T *v, int q_size, int kv_siz
     }
 }
 
-template <typename T, int unroll>
-__global__ void quant_kernel_static(const T * input, int8_t * output, T scale, size_t length) {
+template<typename T, int unroll>
+__global__ void quant_kernel_static(const T *input, int8_t *output, T scale, size_t length) {
     int i = (blockIdx.x * blockDim.x + threadIdx.x) * unroll;
     if (i >= length) {
         return;
     }
 
-    using Tvec = nunchaku::kernels::Tvec<T, unroll>;
+    using Tvec  = nunchaku::kernels::Tvec<T, unroll>;
     using I8vec = nunchaku::kernels::Tvec<int8_t, unroll>;
 
     Tvec rinput = *reinterpret_cast<const Tvec *>(&input[i]);
@@ -149,14 +158,14 @@ __global__ void quant_kernel_static(const T * input, int8_t * output, T scale, s
     *reinterpret_cast<I8vec *>(&output[i]) = routput;
 }
 
-template <typename T, int unroll>
-__global__ void quant_kernel_static_fuse_gelu(const T * input, int8_t * output, T scale, size_t length) {
+template<typename T, int unroll>
+__global__ void quant_kernel_static_fuse_gelu(const T *input, int8_t *output, T scale, size_t length) {
     int i = (blockIdx.x * blockDim.x + threadIdx.x) * unroll;
     if (i >= length) {
         return;
     }
 
-    using Tvec = nunchaku::kernels::Tvec<T, unroll>;
+    using Tvec  = nunchaku::kernels::Tvec<T, unroll>;
     using I8vec = nunchaku::kernels::Tvec<int8_t, unroll>;
 
     Tvec rinput = *reinterpret_cast<const Tvec *>(&input[i]);
@@ -175,10 +184,10 @@ template<typename Tin, typename Tout, int unroll>
 __global__ void cast_kernel(const Tin *input, Tout *output, size_t length) {
     const int i = (blockIdx.x * blockDim.x + threadIdx.x) * unroll;
 
-    using Tvec_in = nunchaku::kernels::Tvec<Tin, unroll>;
+    using Tvec_in  = nunchaku::kernels::Tvec<Tin, unroll>;
     using Tvec_out = nunchaku::kernels::Tvec<Tout, unroll>;
 
-    Tvec_in  rinput = *reinterpret_cast<const Tvec_in *>(&input[i]);
+    Tvec_in rinput = *reinterpret_cast<const Tvec_in *>(&input[i]);
     Tvec_out routput;
 
 #pragma unroll
@@ -196,16 +205,15 @@ __global__ void cast_kernel(const Tin *input, Tout *output, size_t length) {
 // input:  [..., N]
 // output: [..., K] of index in reverse order
 template<typename T, int K>
-__global__
-void topk_kernel(const T *input, int *output, int N, int strideInput, int numRows) {
-    const int row = blockIdx.x * blockDim.x + threadIdx.x;
+__global__ void topk_kernel(const T *input, int *output, int N, int strideInput, int numRows) {
+    const int row    = blockIdx.x * blockDim.x + threadIdx.x;
     const int offset = row * strideInput;
 
     if (row >= numRows) {
         return;
     }
 
-    T   val[K];
+    T val[K];
     int16_t idx[K];
 
 #pragma unroll
@@ -224,7 +232,7 @@ void topk_kernel(const T *input, int *output, int N, int strideInput, int numRow
     for (int i = K; i < N; i++) {
         T newval = input[offset + i];
 
-        T minval = val[0];
+        T minval   = val[0];
         int minpos = 0;
 #pragma unroll
         for (int j = 1; j < K; j++) {
@@ -259,4 +267,4 @@ void topk_kernel(const T *input, int *output, int N, int strideInput, int numRow
     }
 }
 
-};  // namespace nunchaku::kernels
+}; // namespace nunchaku::kernels

@@ -22,4 +22,4 @@ Tensor topk(Tensor x, int k);
 template<size_t N>
 std::array<Tensor, N> split_mod(Tensor input);
 
-};  // namespace nunchaku::kernels
+}; // namespace nunchaku::kernels

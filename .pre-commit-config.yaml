@@ -1,6 +1,52 @@
+# Adapted from https://github.com/sgl-project/sglang/blob/main/.pre-commit-config.yaml
+default_stages: [ pre-commit, pre-push, manual ]
+
 repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-symlinks
+      - id: destroyed-symlinks
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+        args: [ --allow-multiple-documents ]
+      - id: check-toml
+      - id: check-ast
+      - id: check-added-large-files
+      - id: check-merge-conflict
+      #      - id: check-shebang-scripts-are-executable
+      - id: detect-private-key
+      #      - id: debug-statements
+      - id: no-commit-to-branch
+  - repo: https://github.com/PyCQA/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.3.2
+    rev: v0.11.2
     hooks:
       - id: ruff
-        args: ["--output-format", "github"]
+        args: [ --fixable=F401 ]
+        files: ^(nunchaku/|examples/|tests/|app/)
+        exclude: \.ipynb$
+  - repo: https://github.com/psf/black
+    rev: 24.10.0
+    hooks:
+      - id: black-jupyter
+      - id: black
+        args: [ -l, "120" ]
+        files: ^(nunchaku/|examples/|tests/|app/)
+  - repo: https://github.com/pre-commit/mirrors-clang-format
+    rev: v20.1.3
+    hooks:
+      - id: clang-format
+        types_or: [ c++, cuda ]
+        args: [ --style=file, --verbose ]
+  - repo: https://github.com/kynan/nbstripout
+    rev: 0.8.1
+    hooks:
+      - id: nbstripout
+        args:
+          - '--keep-output'
+          - '--extra-keys=metadata.kernelspec metadata.language_info.version'

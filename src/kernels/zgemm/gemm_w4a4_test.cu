@@ -11,7 +11,7 @@ void test_rmsnorm_rope(Tensor input, Tensor output, Tensor norm_q, Tensor norm_k
     assert(input.shape.dataExtent == output.shape.dataExtent);
     assert(input.scalar_type() == Tensor::FP16);
 
-    using GEMM = Epilogues<GEMMConfig_W4A4_FP16>;
+    using GEMM     = Epilogues<GEMMConfig_W4A4_FP16>;
     using Epilogue = GEMM::EpilogueRMSNormRope;
 
     assert(M % GEMM::BLOCK_M == 0);
@@ -26,21 +26,18 @@ void test_rmsnorm_rope(Tensor input, Tensor output, Tensor norm_q, Tensor norm_k
     dim3 grid(M / GEMM::BLOCK_M, N / GEMM::BLOCK_N);
 
     func<<<grid, GEMM::WARP_SIZE * GEMM::NUM_WARPS, kernel::SHMEM_SIZE, getCurrentCUDAStream()>>>(
-        typename kernel::Arguments{
-            .input = input.data_ptr<GEMM::half_t>(),
-            .output = output.data_ptr<GEMM::half_t>(),
-            .M = M,
-            .N = N,
-            .actualM = M,
-            .actualN = N,
-            .argsEpilogue = typename Epilogue::Arguments{
-                .rotary_emb = rotary_emb.data_ptr<typename Epilogue::packed_rotemb_t>(),
-                .rmsnorm_weight_q = norm_q.data_ptr<GEMM::half_t>(),
-                .rmsnorm_weight_k = norm_k.data_ptr<GEMM::half_t>(),
-                .epsilon = 1e-6,
-            }
-        }
-    );
+        typename kernel::Arguments{.input        = input.data_ptr<GEMM::half_t>(),
+                                   .output       = output.data_ptr<GEMM::half_t>(),
+                                   .M            = M,
+                                   .N            = N,
+                                   .actualM      = M,
+                                   .actualN      = N,
+                                   .argsEpilogue = typename Epilogue::Arguments{
+                                       .rotary_emb       = rotary_emb.data_ptr<typename Epilogue::packed_rotemb_t>(),
+                                       .rmsnorm_weight_q = norm_q.data_ptr<GEMM::half_t>(),
+                                       .rmsnorm_weight_k = norm_k.data_ptr<GEMM::half_t>(),
+                                       .epsilon          = 1e-6,
+                                   }});
     checkCUDA(cudaGetLastError());
 }
 
@@ -52,7 +49,7 @@ void test_pack_qkv(Tensor input, Tensor out_q, Tensor out_k, Tensor out_v, int n
 
     Tensor output = Tensor::empty_like(input);
 
-    using GEMM = Epilogues<GEMMConfig_W4A4_FP16>;
+    using GEMM     = Epilogues<GEMMConfig_W4A4_FP16>;
     using Epilogue = GEMM::EpiloguePackQKV;
 
     assert(M % GEMM::BLOCK_M == 0);
@@ -68,24 +65,25 @@ void test_pack_qkv(Tensor input, Tensor out_q, Tensor out_k, Tensor out_v, int n
 
     func<<<grid, GEMM::WARP_SIZE * GEMM::NUM_WARPS, kernel::SHMEM_SIZE, getCurrentCUDAStream()>>>(
         typename kernel::Arguments{
-            .input = input.data_ptr<GEMM::half_t>(),
-            .output = output.data_ptr<GEMM::half_t>(),
-            .M = M,
-            .N = N,
-            .actualM = M,
-            .actualN = N,
+            .input        = input.data_ptr<GEMM::half_t>(),
+            .output       = output.data_ptr<GEMM::half_t>(),
+            .M            = M,
+            .N            = N,
+            .actualM      = M,
+            .actualN      = N,
             .argsEpilogue = typename Epilogue::Arguments{
-                .out_q = out_q.data_ptr<typename Epilogue::packed_qkv_t>(),
-                .out_k = out_k.data_ptr<typename Epilogue::packed_qkv_t>(),
-                .out_v = out_v.data_ptr<typename Epilogue::packed_qkv_t>(),
+                .out_q   = out_q.data_ptr<typename Epilogue::packed_qkv_t>(),
+                .out_k   = out_k.data_ptr<typename Epilogue::packed_qkv_t>(),
+                .out_v   = out_v.data_ptr<typename Epilogue::packed_qkv_t>(),
                 .actualM = numTokens,
-                .strideHead_q = int(out_q.stride(1) * out_q.scalar_size() / sizeof(GEMM::EpiloguePackQKV::packed_qkv_t)),
-                .strideHead_k = int(out_k.stride(1) * out_k.scalar_size() / sizeof(GEMM::EpiloguePackQKV::packed_qkv_t)),
-                .strideHead_v = int(out_v.stride(1) * out_v.scalar_size() / sizeof(GEMM::EpiloguePackQKV::packed_qkv_t)),
-            }
-        }
-    );
+                .strideHead_q =
+                    int(out_q.stride(1) * out_q.scalar_size() / sizeof(GEMM::EpiloguePackQKV::packed_qkv_t)),
+                .strideHead_k =
+                    int(out_k.stride(1) * out_k.scalar_size() / sizeof(GEMM::EpiloguePackQKV::packed_qkv_t)),
+                .strideHead_v =
+                    int(out_v.stride(1) * out_v.scalar_size() / sizeof(GEMM::EpiloguePackQKV::packed_qkv_t)),
+            }});
     checkCUDA(cudaGetLastError());
 }
 
-};  // namespace nunchaku::kernels
+}; // namespace nunchaku::kernels

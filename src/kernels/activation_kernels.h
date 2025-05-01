@@ -3,9 +3,8 @@
 #include "common.h"
 #include "Tensor.h"
 
-void silu(
-  Tensor& out,     // [..., d]
-  Tensor& input);
+void silu(Tensor &out, // [..., d]
+          Tensor &input);
 
 void silu_and_mul(Tensor &out,    // [..., d]
                   Tensor &input); // [..., 2 * d]
@@ -25,5 +24,5 @@ void invoke_dequant_silu_and_mul_quant(Tensor &out,   // [..., d]
                                        const float scale_gate,
                                        const float scale_up,
                                        Tensor &scale_out, // [num_tokens]
-                                       Tensor &tmp // [num_tokens, d]
+                                       Tensor &tmp        // [num_tokens, d]
 );

@@ -20,9 +20,8 @@ private:
 
 class RMSNorm : public Module {
 public:
-    RMSNorm(int hidden_size, float eps, bool use_quant, Tensor::ScalarType dtype, Device device) : 
-        use_quant(use_quant), variance_epsilon(eps)
-    {
+    RMSNorm(int hidden_size, float eps, bool use_quant, Tensor::ScalarType dtype, Device device)
+        : use_quant(use_quant), variance_epsilon(eps) {
         weight = Tensor::allocate({hidden_size}, dtype, device);
         registerParams(weight, "weight");
     }
@@ -36,13 +35,16 @@ public:
 
 class RMSNormGeneral {
     friend class LlamaDecoderLayer;
+
 public:
-    RMSNormGeneral(int hidden_size, bool act_sum, float eps, bool use_per_token_quant, Device device) 
-        : act_sum(act_sum), use_per_token_quant(use_per_token_quant), variance_epsilon(eps)
-    {
+    RMSNormGeneral(int hidden_size, bool act_sum, float eps, bool use_per_token_quant, Device device)
+        : act_sum(act_sum), use_per_token_quant(use_per_token_quant), variance_epsilon(eps) {
         this->weight = Tensor::ones({hidden_size}, Tensor::FP32, device);
     }
-    void forward(Tensor x, Tensor quantized_hidden_states_buffer, Tensor quantized_scale_buffer, Tensor quantized_sum_buffer) {
+    void forward(Tensor x,
+                 Tensor quantized_hidden_states_buffer,
+                 Tensor quantized_scale_buffer,
+                 Tensor quantized_sum_buffer) {
         if (act_sum) {
             forward_with_act_sum(x, quantized_hidden_states_buffer, quantized_scale_buffer, quantized_sum_buffer);
         } else {
@@ -51,8 +53,14 @@ public:
     }
 
 private:
-    void forward_with_act_sum(Tensor x, Tensor quantized_hidden_states_buffer, Tensor quantized_scale_buffer, Tensor quantized_sum_buffer);
-    void forward_wo_act_sum(Tensor x, Tensor quantized_hidden_states_buffer, Tensor quantized_scale_buffer, Tensor quantized_sum_buffer);
+    void forward_with_act_sum(Tensor x,
+                              Tensor quantized_hidden_states_buffer,
+                              Tensor quantized_scale_buffer,
+                              Tensor quantized_sum_buffer);
+    void forward_wo_act_sum(Tensor x,
+                            Tensor quantized_hidden_states_buffer,
+                            Tensor quantized_scale_buffer,
+                            Tensor quantized_sum_buffer);
 
 private:
     const bool act_sum;

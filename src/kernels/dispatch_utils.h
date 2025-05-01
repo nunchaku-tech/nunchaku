@@ -53,17 +53,16 @@ inline auto dispatch(Tensor::ScalarType scalarType, F &&func) {
 }
 
 #pragma nv_diagnostic push
-// warning #445-D: template parameter "scalar_t" is not used in declaring the parameter types of function template "lambda []()->auto::operator auto (*)()"
-#pragma nv_diag_suppress 445    
+// warning #445-D: template parameter "scalar_t" is not used in declaring the parameter types of function template
+// "lambda []()->auto::operator auto (*)()"
+#pragma nv_diag_suppress 445
 template<typename T>
 inline bool isTypeMatch(Tensor::ScalarType scalarType) {
-    return dispatch(scalarType, []<typename scalar_t>() {
-        return std::is_same_v<scalar_t, T>;
-    });
+    return dispatch(scalarType, []<typename scalar_t>() { return std::is_same_v<scalar_t, T>; });
 }
 #pragma nv_diagnostic pop
 
-template<typename F, int ...N>
+template<typename F, int... N>
 inline auto dispatchVal(int val, std::integer_sequence<int, N...>, F &&func) {
     auto call = [&]<int i>() {
         if (val == i) {
@@ -81,6 +80,5 @@ inline auto dispatchBool(bool val, F &&func) {
         func.template operator()<false>();
     }
 }
-
 
 #define VLLM_DISPATCH_FLOATING_TYPES(TYPE, NAME, ...) dispatchFloat(TYPE, [&]<typename scalar_t>() { __VA_ARGS__(); });

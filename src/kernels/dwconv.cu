@@ -219,28 +219,30 @@ Tensor dwconv_f16(Tensor input, Tensor weight, Tensor out, Tensor bias) {
     // weight = weight.copy(weight.device());
 
     dispatchF16(weight.dtype(), [&]<typename half_t>() {
-
-        using ElementOutput = half_t;
-        using ElementAccumulator = half_t;
+        using ElementOutput          = half_t;
+        using ElementAccumulator     = half_t;
         using ElementComputeEpilogue = half_t;
-        using ElementInputA = half_t;
-        using ElementInputB = half_t;
+        using ElementInputA          = half_t;
+        using ElementInputB          = half_t;
 
         using LayoutInputA = cutlass::layout::TensorNHWC;
         using LayoutInputB = cutlass::layout::TensorNHWC;
         using LayoutOutput = cutlass::layout::TensorNHWC;
 
         using ThreadBlockOutputShape = cutlass::conv::TensorNHWCShape<1, 8, 8, 64>;
-        using FilterShape = cutlass::MatrixShape<3, 3>;
+        using FilterShape            = cutlass::MatrixShape<3, 3>;
 
         using ThreadblockShape = cutlass::gemm::GemmShape<ThreadBlockOutputShape::kNHW, 64, FilterShape::kCount>;
-        using WarpShape = cutlass::gemm::GemmShape<16, 64, FilterShape::kCount>;
+        using WarpShape        = cutlass::gemm::GemmShape<16, 64, FilterShape::kCount>;
         using InstructionShape = cutlass::gemm::GemmShape<1, 1, 1>;
 
         using DepthwiseDirect2dConv = typename cutlass::conv::kernel::DefaultDepthwiseDirect2dConvFprop<
-            ElementInputA, LayoutInputA,
-            ElementInputB, LayoutInputB,
-            ElementOutput, LayoutOutput,
+            ElementInputA,
+            LayoutInputA,
+            ElementInputB,
+            LayoutInputB,
+            ElementOutput,
+            LayoutOutput,
             ElementAccumulator,
             cutlass::arch::OpClassSimt,
             cutlass::arch::Sm80,
@@ -249,15 +251,14 @@ Tensor dwconv_f16(Tensor input, Tensor weight, Tensor out, Tensor bias) {
             FilterShape,
             WarpShape,
             InstructionShape,
-            cutlass::epilogue::thread::LinearCombination<
-                ElementOutput, 
-                128 / cutlass::sizeof_bits<ElementOutput>::value, 
-                ElementOutput, ElementComputeEpilogue>,
-            cutlass::conv::threadblock::DepthwiseDirect2dConvIdentityThreadblockSwizzle<
-                1,
-                ThreadBlockOutputShape::kN,
-                ThreadBlockOutputShape::kH,
-                ThreadBlockOutputShape::kW>,
+            cutlass::epilogue::thread::LinearCombination<ElementOutput,
+                                                         128 / cutlass::sizeof_bits<ElementOutput>::value,
+                                                         ElementOutput,
+                                                         ElementComputeEpilogue>,
+            cutlass::conv::threadblock::DepthwiseDirect2dConvIdentityThreadblockSwizzle<1,
+                                                                                        ThreadBlockOutputShape::kN,
+                                                                                        ThreadBlockOutputShape::kH,
+                                                                                        ThreadBlockOutputShape::kW>,
             4,
             cutlass::arch::OpMultiplyAdd,
             cutlass::conv::IteratorAlgorithm::kFixedStrideDilation,
@@ -267,15 +268,14 @@ Tensor dwconv_f16(Tensor input, Tensor weight, Tensor out, Tensor bias) {
 
         using DeviceKernel = typename cutlass::conv::device::DirectConvolution<DepthwiseDirect2dConv>;
 
-        cutlass::conv::Conv2dProblemSize problem_size(
-            cutlass::Tensor4DCoord(N, H, W, C_),
-            cutlass::Tensor4DCoord(K, R, S, C__),
-            cutlass::Tensor4DCoord(1, 1, 1, 1),
-            cutlass::MatrixCoord(1, 1),
-            cutlass::MatrixCoord(1, 1),
-            cutlass::conv::Mode::kCrossCorrelation,
-            1,
-            C_ // groups
+        cutlass::conv::Conv2dProblemSize problem_size(cutlass::Tensor4DCoord(N, H, W, C_),
+                                                      cutlass::Tensor4DCoord(K, R, S, C__),
+                                                      cutlass::Tensor4DCoord(1, 1, 1, 1),
+                                                      cutlass::MatrixCoord(1, 1),
+                                                      cutlass::MatrixCoord(1, 1),
+                                                      cutlass::conv::Mode::kCrossCorrelation,
+                                                      1,
+                                                      C_ // groups
         );
 
         const int P = problem_size.P;
@@ -292,11 +292,17 @@ Tensor dwconv_f16(Tensor input, Tensor weight, Tensor out, Tensor bias) {
 
         Tensor tmp_weight = Tensor::empty_like(weight);
 
-        cutlass::TensorRef<ElementInputA, LayoutInputA> a_ref(input.data_ptr<ElementInputA>(), LayoutInputA(input.stride(2), input.stride(1), input.stride(0)));
-        cutlass::TensorRef<ElementInputB, LayoutInputB> b_ref(weight.data_ptr<ElementInputB>(), LayoutInputB(weight.stride(2), weight.stride(1), weight.stride(0)));
-        cutlass::TensorRef<ElementOutput, LayoutOutput> c_ref(bias.valid() ? bias.data_ptr<ElementOutput>() : out.data_ptr<ElementOutput>(), LayoutOutput(0, 0, 0));
-        cutlass::TensorRef<ElementOutput, LayoutOutput> d_ref(out.data_ptr<ElementOutput>(), LayoutOutput(out.stride(2), out.stride(1), out.stride(0)));
-        cutlass::TensorRef<ElementOutput, LayoutOutput> tmpw_ref(tmp_weight.data_ptr<ElementOutput>(), LayoutOutput(tmp_weight.stride(2), tmp_weight.stride(1), tmp_weight.stride(0)));
+        cutlass::TensorRef<ElementInputA, LayoutInputA> a_ref(
+            input.data_ptr<ElementInputA>(), LayoutInputA(input.stride(2), input.stride(1), input.stride(0)));
+        cutlass::TensorRef<ElementInputB, LayoutInputB> b_ref(
+            weight.data_ptr<ElementInputB>(), LayoutInputB(weight.stride(2), weight.stride(1), weight.stride(0)));
+        cutlass::TensorRef<ElementOutput, LayoutOutput> c_ref(
+            bias.valid() ? bias.data_ptr<ElementOutput>() : out.data_ptr<ElementOutput>(), LayoutOutput(0, 0, 0));
+        cutlass::TensorRef<ElementOutput, LayoutOutput> d_ref(
+            out.data_ptr<ElementOutput>(), LayoutOutput(out.stride(2), out.stride(1), out.stride(0)));
+        cutlass::TensorRef<ElementOutput, LayoutOutput> tmpw_ref(
+            tmp_weight.data_ptr<ElementOutput>(),
+            LayoutOutput(tmp_weight.stride(2), tmp_weight.stride(1), tmp_weight.stride(0)));
 
         typename DeviceKernel::Arguments arguments{
             problem_size,
@@ -314,7 +320,6 @@ Tensor dwconv_f16(Tensor input, Tensor weight, Tensor out, Tensor bias) {
 
         BufferCUDA workspace(workspace_size);
         auto stream = getCurrentCUDAStream();
-
 
         cutlass::Status status = implicit_gemm_op.can_implement(arguments);
         if (status != cutlass::Status::kSuccess) {
