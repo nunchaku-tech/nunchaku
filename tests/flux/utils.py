@@ -201,8 +201,6 @@ def run_test(
     if not already_generate(save_dir_16bit, max_dataset_size):
         pipeline_init_kwargs = {"text_encoder": None, "text_encoder2": None} if task == "redux" else {}
         pipeline = pipeline_cls.from_pretrained(model_id_16bit, torch_dtype=dtype, **pipeline_init_kwargs)
-        gpu_properties = torch.cuda.get_device_properties(0)
-        gpu_memory = gpu_properties.total_memory / (1024**2)
 
         if len(lora_names) > 0:
             for i, (lora_name, lora_strength) in enumerate(zip(lora_names, lora_strengths)):
@@ -212,27 +210,7 @@ def run_test(
                 )
             pipeline.set_adapters([f"lora_{i}" for i in range(len(lora_names))], lora_strengths)
 
-        if gpu_memory > 36 * 1024:
-            pipeline = pipeline.to("cuda")
-        elif gpu_memory < 26 * 1024:
-            pipeline.transformer.enable_group_offload(
-                onload_device=torch.device("cuda"),
-                offload_device=torch.device("cpu"),
-                offload_type="leaf_level",
-                use_stream=True,
-            )
-            if pipeline.text_encoder is not None:
-                pipeline.text_encoder.to("cuda")
-            if pipeline.text_encoder_2 is not None:
-                apply_group_offloading(
-                    pipeline.text_encoder_2,
-                    onload_device=torch.device("cuda"),
-                    offload_type="block_level",
-                    num_blocks_per_group=2,
-                )
-            pipeline.vae.to("cuda")
-        else:
-            pipeline.enable_model_cpu_offload()
+        pipeline = offload_pipeline(pipeline)
 
         run_pipeline(
             batch_size=batch_size,
@@ -344,3 +322,34 @@ def run_test(
     lpips = compute_lpips(save_dir_16bit, save_dir_4bit)
     print(f"lpips: {lpips}")
     assert lpips < expected_lpips * 1.1
+
+
+def offload_pipeline(pipeline: FluxPipeline) -> FluxPipeline:
+    gpu_properties = torch.cuda.get_device_properties(0)
+    gpu_memory = gpu_properties.total_memory / (1024**2)
+    device = torch.device("cuda")
+    cpu = torch.device("cpu")
+
+    if gpu_memory > 36 * 1024:
+        pipeline = pipeline.to(device)
+    elif gpu_memory < 26 * 1024:
+        pipeline.transformer.enable_group_offload(
+            onload_device=device,
+            offload_device=cpu,
+            offload_type="leaf_level",
+            use_stream=True,
+        )
+        if pipeline.text_encoder is not None:
+            pipeline.text_encoder.to(device)
+        if pipeline.text_encoder_2 is not None:
+            apply_group_offloading(
+                pipeline.text_encoder_2,
+                onload_device=device,
+                offload_type="block_level",
+                num_blocks_per_group=2,
+            )
+        pipeline.vae.to(device)
+    else:
+        pipeline.enable_model_cpu_offload()
+
+    return pipeline

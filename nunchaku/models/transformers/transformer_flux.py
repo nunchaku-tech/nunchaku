@@ -184,6 +184,14 @@ class NunchakuFluxTransformerBlocks(nn.Module):
     def __del__(self):
         self.m.reset()
 
+    def norm1(
+        self,
+        hidden_states: torch.Tensor,
+        emb: torch.Tensor,
+        idx: int = 0,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        return self.m.norm_one_forward(idx, hidden_states, emb)
+
 
 ## copied from diffusers 0.30.3
 def rope(pos: torch.Tensor, dim: int, theta: int) -> torch.Tensor:
