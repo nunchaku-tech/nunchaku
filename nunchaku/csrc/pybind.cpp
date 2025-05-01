@@ -17,11 +17,11 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
             py::arg("bf16"),
             py::arg("deviceId")
         )
-        .def("set_residual_callback", [](QuantizedFluxModel &self, pybind11::object cb) {
-            if (cb.is_none()) {
+        .def("set_residual_callback", [](QuantizedFluxModel &self, pybind11::object call_back) {
+            if (call_back.is_none()) {
                 self.set_residual_callback(pybind11::function()); 
             } else {
-                self.set_residual_callback(cb);  
+                self.set_residual_callback(call_back);
             }
         })
         .def("reset", &QuantizedFluxModel::reset)
