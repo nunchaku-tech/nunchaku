@@ -1,0 +1,5 @@
+# pulid related
+insightface
+opencv-python
+facexlib
+onnxruntime

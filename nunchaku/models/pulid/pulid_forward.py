@@ -43,7 +43,7 @@ def pulid_forward(
             `self.processor` in
             [diffusers.models.attention_processor](https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/attention_processor.py).
         return_dict (`bool`, *optional*, defaults to `True`):
-            Whether or not to return a [`~models.transformer_2d.Transformer2DModelOutput`] instead of a plain
+            Whether to return a [`~models.transformer_2d.Transformer2DModelOutput`] instead of a plain
             tuple.
 
     Returns:
