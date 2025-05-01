@@ -11,7 +11,7 @@
 
 **Nunchaku**是一款专为4-bit神经网络优化的高性能推理引擎，基于我们的论文 [SVDQuant](http://arxiv.org/abs/2411.05007) 提出。底层量化库请参考 [DeepCompressor](https://github.com/mit-han-lab/deepcompressor)。
 
-欢迎加入我们的用户群：[**Slack**](https://join.slack.com/t/nunchaku/shared_invite/zt-3170agzoz-NgZzWaTrEj~n2KEV3Hpl5Q)、[**Discord**](https://discord.gg/Wk6PnwX9Sm) 和 [**微信**](./assets/wechat.jpg)，与社区交流！更多详情请见[此处](https://github.com/mit-han-lab/nunchaku/issues/149)。如有任何问题、建议或贡献意向，欢迎随时联系！
+欢迎加入我们的用户群：[**Slack**](https://join.slack.com/t/nunchaku/shared_invite/zt-3170agzoz-NgZzWaTrEj~n2KEV3Hpl5Q)、[**Discord**](https://discord.gg/Wk6PnwX9Sm) 和 [**微信**](https://huggingface.co/mit-han-lab/nunchaku-artifacts/resolve/main/nunchaku/assets/wechat.jpg)，与社区交流！更多详情请见[此处](https://github.com/mit-han-lab/nunchaku/issues/149)。如有任何问题、建议或贡献意向，欢迎随时联系！
 
 ## 最新动态
 
@@ -39,30 +39,28 @@
 
 ## 项目概览
 
-![teaser](./assets/teaser.jpg)
+![teaser](https://huggingface.co/mit-han-lab/nunchaku-artifacts/resolve/main/nunchaku/assets/teaser.jpg)
 SVDQuant 是一种支持4-bit权重和激活的后训练量化技术，能有效保持视觉质量。在12B FLUX.1-dev模型上，相比BF16模型实现了3.6倍内存压缩。通过消除CPU offloading，在16GB笔记本RTX 4090上比16位模型快8.7倍，比NF4 W4A16基线快3倍。在PixArt-∑模型上，其视觉质量显著优于其他W4A4甚至W4A8方案。"E2E"表示包含文本编码器和VAE解码器的端到端延迟。
 
 **SVDQuant: 通过低秩分量吸收异常值实现4-bit扩散模型量化**<br>
 [Muyang Li](https://lmxyy.me)\*, [Yujun Lin](https://yujunlin.com)\*, [Zhekai Zhang](https://hanlab.mit.edu/team/zhekai-zhang)\*, [Tianle Cai](https://www.tianle.website/#/), [Xiuyu Li](https://xiuyuli.com), [Junxian Guo](https://github.com/JerryGJX), [Enze Xie](https://xieenze.github.io), [Chenlin Meng](https://cs.stanford.edu/~chenlin/), [Jun-Yan Zhu](https://www.cs.cmu.edu/~junyanz/), [Song Han](https://hanlab.mit.edu/songhan) <br>
 *麻省理工学院、英伟达、卡内基梅隆大学、普林斯顿大学、加州大学伯克利分校、上海交通大学、pika实验室* <br>
 
-<p align="center">
-  <img src="assets/demo.gif" width="100%"/>
-</p>
+https://github.com/user-attachments/assets/fdd4ab68-6489-4c65-8768-259bd866e8f8
 
 ## 方法原理
 
 #### 量化方法 -- SVDQuant
 
-![intuition](./assets/intuition.gif)SVDQuant三阶段示意图。阶段1：原始激活 $\boldsymbol{X}$ 和权重 $\boldsymbol{W}$ 均含异常值，4-bit量化困难。阶段2：将激活异常值迁移至权重，得到更易量化的激活 $\hat{\boldsymbol{X}}$ 和更难量化的权重 $\hat{\boldsymbol{W}}$ 。阶段3：通过SVD将 $\hat{\boldsymbol{W}}$ 分解为低秩分量 $\boldsymbol{L}_1\boldsymbol{L}_2$ 和残差 $\hat{\boldsymbol{W}}-\boldsymbol{L}_1\boldsymbol{L}_2$ ，低秩分支以16位精度运行缓解量化难度。
+![intuition](https://huggingface.co/mit-han-lab/nunchaku-artifacts/resolve/main/nunchaku/assets/intuition.gif)SVDQuant三阶段示意图。阶段1：原始激活 $\boldsymbol{X}$ 和权重 $\boldsymbol{W}$ 均含异常值，4-bit量化困难。阶段2：将激活异常值迁移至权重，得到更易量化的激活 $\hat{\boldsymbol{X}}$ 和更难量化的权重 $\hat{\boldsymbol{W}}$ 。阶段3：通过SVD将 $\hat{\boldsymbol{W}}$ 分解为低秩分量 $\boldsymbol{L}_1\boldsymbol{L}_2$ 和残差 $\hat{\boldsymbol{W}}-\boldsymbol{L}_1\boldsymbol{L}_2$ ，低秩分支以16位精度运行缓解量化难度。
 
 #### Nunchaku引擎设计
 
-![engine](./assets/engine.jpg) (a) 原始低秩分支（秩32）因额外读写16位数据引入57%的延迟。Nunchaku通过核融合优化。(b) 将下投影与量化、上投影与4-bit计算分别融合，减少数据搬运。
+![engine](https://huggingface.co/mit-han-lab/nunchaku-artifacts/resolve/main/nunchaku/assets/engine.jpg) (a) 原始低秩分支（秩32）因额外读写16位数据引入57%的延迟。Nunchaku通过核融合优化。(b) 将下投影与量化、上投影与4-bit计算分别融合，减少数据搬运。
 
 ## 性能表现
 
-![efficiency](./assets/efficiency.jpg)SVDQuant 将12B FLUX.1模型的体积压缩了3.6倍，同时将原始16位模型的显存占用减少了3.5倍。借助Nunchaku，我们的INT4模型在桌面和笔记本的NVIDIA RTX 4090 GPU上比NF4 W4A16基线快了3.0倍。值得一提的是，在笔记本4090上，通过消除CPU offloading，总体加速达到了10.1倍。我们的NVFP4模型在RTX 5090 GPU上也比BF16和NF4快了3.1倍。
+![efficiency](https://huggingface.co/mit-han-lab/nunchaku-artifacts/resolve/main/nunchaku/assets/efficiency.jpg)SVDQuant 将12B FLUX.1模型的体积压缩了3.6倍，同时将原始16位模型的显存占用减少了3.5倍。借助Nunchaku，我们的INT4模型在桌面和笔记本的NVIDIA RTX 4090 GPU上比NF4 W4A16基线快了3.0倍。值得一提的是，在笔记本4090上，通过消除CPU offloading，总体加速达到了10.1倍。我们的NVFP4模型在RTX 5090 GPU上也比BF16和NF4快了3.1倍。
 
 ## 安装指南
 
@@ -215,7 +213,7 @@ pipeline.enable_sequential_cpu_offload()
 
 ## 自定义LoRA
 
-![lora](./assets/lora.jpg)
+![lora](https://huggingface.co/mit-han-lab/nunchaku-artifacts/resolve/main/nunchaku/assets/lora.jpg)
 
 [SVDQuant](http://arxiv.org/abs/2411.05007) 可以无缝集成现有的 LoRA，而无需重新量化。你可以简单地通过以下方式使用你的 LoRA：
 
@@ -275,7 +273,7 @@ transformer.update_lora_params(composed_lora)
 
 Nunchaku 支持 [FLUX.1-tools](https://blackforestlabs.ai/flux-1-tools/) 和 [FLUX.1-dev-ControlNet-Union-Pro](https://huggingface.co/Shakker-Labs/FLUX.1-dev-ControlNet-Union-Pro) 模型。示例脚本可以在 [`examples`](examples) 目录中找到。
 
-![control](./assets/control.jpg)
+![control](https://huggingface.co/mit-han-lab/nunchaku-artifacts/resolve/main/nunchaku/assets/control.jpg)
 
 ## ComfyUI
 
@@ -309,7 +307,7 @@ Nunchaku 支持 [FLUX.1-tools](https://blackforestlabs.ai/flux-1-tools/) 和 [FL
 
 ## 问题排查
 
-使用 Nunchaku 时遇到问题？请先查阅我们的[常见问题解答](docs/faq_ZH.md)寻找解决方案。若仍需要帮助，可通过[open an issue](https://github.com/mit-han-lab/nunchaku/issues)联系我们。也欢迎您通过 [**Slack**](https://join.slack.com/t/nunchaku/shared_invite/zt-3170agzoz-NgZzWaTrEj~n2KEV3Hpl5Q)、[**Discord**](https://discord.gg/Wk6PnwX9Sm) 或 [**微信**](./assets/wechat.jpg) 加入我们的社区讨论。
+使用 Nunchaku 时遇到问题？请先查阅我们的[常见问题解答](docs/faq_ZH.md)寻找解决方案。若仍需要帮助，可通过[open an issue](https://github.com/mit-han-lab/nunchaku/issues)联系我们。也欢迎您通过 [**Slack**](https://join.slack.com/t/nunchaku/shared_invite/zt-3170agzoz-NgZzWaTrEj~n2KEV3Hpl5Q)、[**Discord**](https://discord.gg/Wk6PnwX9Sm) 或 [**微信**](https://huggingface.co/mit-han-lab/nunchaku-artifacts/resolve/main/nunchaku/assets/wechat.jpg) 加入我们的社区讨论。
 
 ## 联系我们
 

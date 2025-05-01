@@ -47,17 +47,23 @@ class NunchakuModelLoaderMixin:
                 repo_id=pretrained_model_name_or_path, filename="transformer_blocks.safetensors", **download_kwargs
             )
 
+        cache_dir = kwargs.pop("cache_dir", None)
+        force_download = kwargs.pop("force_download", False)
+        proxies = kwargs.pop("proxies", None)
+        local_files_only = kwargs.pop("local_files_only", None)
+        token = kwargs.pop("token", None)
+        revision = kwargs.pop("revision", None)
         config, _, _ = cls.load_config(
             pretrained_model_name_or_path,
             subfolder=subfolder,
-            cache_dir=kwargs.get("cache_dir", None),
+            cache_dir=cache_dir,
             return_unused_kwargs=True,
             return_commit_hash=True,
-            force_download=kwargs.get("force_download", False),
-            proxies=kwargs.get("proxies", None),
-            local_files_only=kwargs.get("local_files_only", None),
-            token=kwargs.get("token", None),
-            revision=kwargs.get("revision", None),
+            force_download=force_download,
+            proxies=proxies,
+            local_files_only=local_files_only,
+            token=token,
+            revision=revision,
             user_agent={"diffusers": __version__, "file_type": "model", "framework": "pytorch"},
             **kwargs,
         )

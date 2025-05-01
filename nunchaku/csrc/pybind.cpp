@@ -55,6 +55,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
             py::arg("controlnet_single_block_samples") = py::none()
         )
         .def("forward_single_layer", &QuantizedFluxModel::forward_single_layer)
+        .def("norm_one_forward", &QuantizedFluxModel::norm_one_forward)
         .def("startDebug", &QuantizedFluxModel::startDebug)
         .def("stopDebug", &QuantizedFluxModel::stopDebug)
         .def("getDebugResults", &QuantizedFluxModel::getDebugResults)

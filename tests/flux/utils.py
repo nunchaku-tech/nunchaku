@@ -12,6 +12,7 @@ from tqdm import tqdm
 
 import nunchaku
 from nunchaku import NunchakuFluxTransformer2dModel, NunchakuT5EncoderModel
+from nunchaku.caching.diffusers_adapters import apply_cache_on_pipe
 from nunchaku.lora.flux.compose import compose_lora
 from ..data import get_dataset
 from ..utils import already_generate, compute_lpips, hash_str_to_int
@@ -141,6 +142,9 @@ def run_test(
     attention_impl: str = "flashattn2",  # "flashattn2" or "nunchaku-fp16"
     cpu_offload: bool = False,
     cache_threshold: float = 0,
+    use_double_fb_cache: bool = False,
+    residual_diff_threshold_multi: float = 0,
+    residual_diff_threshold_single: float = 0,
     lora_names: str | list[str] | None = None,
     lora_strengths: float | list[float] = 1.0,
     max_dataset_size: int = 4,
@@ -196,8 +200,6 @@ def run_test(
     if not already_generate(save_dir_16bit, max_dataset_size):
         pipeline_init_kwargs = {"text_encoder": None, "text_encoder2": None} if task == "redux" else {}
         pipeline = pipeline_cls.from_pretrained(model_id_16bit, torch_dtype=dtype, **pipeline_init_kwargs)
-        gpu_properties = torch.cuda.get_device_properties(0)
-        gpu_memory = gpu_properties.total_memory / (1024**2)
 
         if len(lora_names) > 0:
             for i, (lora_name, lora_strength) in enumerate(zip(lora_names, lora_strengths)):
@@ -207,27 +209,7 @@ def run_test(
                 )
             pipeline.set_adapters([f"lora_{i}" for i in range(len(lora_names))], lora_strengths)
 
-        if gpu_memory > 36 * 1024:
-            pipeline = pipeline.to("cuda")
-        elif gpu_memory < 26 * 1024:
-            pipeline.transformer.enable_group_offload(
-                onload_device=torch.device("cuda"),
-                offload_device=torch.device("cpu"),
-                offload_type="leaf_level",
-                use_stream=True,
-            )
-            if pipeline.text_encoder is not None:
-                pipeline.text_encoder.to("cuda")
-            if pipeline.text_encoder_2 is not None:
-                apply_group_offloading(
-                    pipeline.text_encoder_2,
-                    onload_device=torch.device("cuda"),
-                    offload_type="block_level",
-                    num_blocks_per_group=2,
-                )
-            pipeline.vae.to("cuda")
-        else:
-            pipeline.enable_model_cpu_offload()
+        pipeline = offload_pipeline(pipeline)
 
         run_pipeline(
             batch_size=batch_size,
@@ -259,6 +241,12 @@ def run_test(
         precision_str += "-co"
     if cache_threshold > 0:
         precision_str += f"-cache{cache_threshold}"
+    if use_double_fb_cache:
+        precision_str += "-dfb"
+    if residual_diff_threshold_multi > 0:
+        precision_str += f"-rdm{residual_diff_threshold_multi}"
+    if residual_diff_threshold_single > 0:
+        precision_str += f"-rds{residual_diff_threshold_single}"
     if i2f_mode is not None:
         precision_str += f"-i2f{i2f_mode}"
     if batch_size > 1:
@@ -303,6 +291,15 @@ def run_test(
             pipeline.enable_sequential_cpu_offload()
         else:
             pipeline = pipeline.to("cuda")
+
+        if use_double_fb_cache:
+            apply_cache_on_pipe(
+                pipeline,
+                use_double_fb_cache=use_double_fb_cache,
+                residual_diff_threshold_multi=residual_diff_threshold_multi,
+                residual_diff_threshold_single=residual_diff_threshold_single,
+            )
+
         run_pipeline(
             batch_size=batch_size,
             dataset=dataset,
@@ -324,3 +321,34 @@ def run_test(
     lpips = compute_lpips(save_dir_16bit, save_dir_4bit)
     print(f"lpips: {lpips}")
     assert lpips < expected_lpips * 1.1
+
+
+def offload_pipeline(pipeline: FluxPipeline) -> FluxPipeline:
+    gpu_properties = torch.cuda.get_device_properties(0)
+    gpu_memory = gpu_properties.total_memory / (1024**2)
+    device = torch.device("cuda")
+    cpu = torch.device("cpu")
+
+    if gpu_memory > 36 * 1024:
+        pipeline = pipeline.to(device)
+    elif gpu_memory < 26 * 1024:
+        pipeline.transformer.enable_group_offload(
+            onload_device=device,
+            offload_device=cpu,
+            offload_type="leaf_level",
+            use_stream=True,
+        )
+        if pipeline.text_encoder is not None:
+            pipeline.text_encoder.to(device)
+        if pipeline.text_encoder_2 is not None:
+            apply_group_offloading(
+                pipeline.text_encoder_2,
+                onload_device=device,
+                offload_type="block_level",
+                num_blocks_per_group=2,
+            )
+        pipeline.vae.to(device)
+    else:
+        pipeline.enable_model_cpu_offload()
+
+    return pipeline

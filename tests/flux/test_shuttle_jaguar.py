@@ -1,7 +1,7 @@
 import pytest
 
-from .utils import run_test
 from nunchaku.utils import get_precision, is_turing
+from .utils import run_test
 
 
 @pytest.mark.skipif(is_turing(), reason="Skip tests due to using Turing GPUs")

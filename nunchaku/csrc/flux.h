@@ -157,6 +157,22 @@ public:
         return hidden_states;
     }
 
+    // expose the norm1 forward method of the transformer blocks
+    // this is used by TeaCache to get the norm1 output
+    std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor> norm_one_forward(
+        int64_t idx,
+        torch::Tensor hidden_states,
+        torch::Tensor temb
+    ) {
+        AdaLayerNormZero::Output result = net->transformer_blocks.at(idx)->norm1.forward(from_torch(hidden_states), from_torch(temb));
+        return {
+            to_torch(result.x),
+            to_torch(result.gate_msa),
+            to_torch(result.shift_mlp),
+            to_torch(result.scale_mlp),
+            to_torch(result.gate_mlp)
+        };
+    }
 
     // must be called after loading lora
     // skip specific ranks in W4A4 layers
