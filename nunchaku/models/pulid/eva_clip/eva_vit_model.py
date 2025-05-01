@@ -44,9 +44,6 @@ class DropPath(nn.Module):
     def forward(self, x):
         return drop_path(x, self.drop_prob, self.training)
 
-    def extra_repr(self) -> str:
-        return "p={}".format(self.drop_prob)
-
 
 class Mlp(nn.Module):
     def __init__(
@@ -560,28 +557,9 @@ class EVAVisionTransformer(nn.Module):
             nn.init.constant_(m.bias, 0)
             nn.init.constant_(m.weight, 1.0)
 
-    def get_num_layers(self):
-        return len(self.blocks)
-
-    def lock(self, unlocked_groups=0, freeze_bn_stats=False):
-        assert unlocked_groups == 0, "partial locking not currently supported for this model"
-        for param in self.parameters():
-            param.requires_grad = False
-
     @torch.jit.ignore
     def set_grad_checkpointing(self, enable=True):
         self.grad_checkpointing = enable
-
-    @torch.jit.ignore
-    def no_weight_decay(self):
-        return {"pos_embed", "cls_token"}
-
-    def get_classifier(self):
-        return self.head
-
-    def reset_classifier(self, num_classes, global_pool=""):
-        self.num_classes = num_classes
-        self.head = nn.Linear(self.embed_dim, num_classes) if num_classes > 0 else nn.Identity()
 
     def forward_features(self, x, return_all_features=False, return_hidden=False, shuffle=False):
         x = self.patch_embed(x)

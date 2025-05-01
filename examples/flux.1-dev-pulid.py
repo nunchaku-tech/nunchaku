@@ -22,7 +22,7 @@ pipeline.transformer.forward = MethodType(pulid_forward, pipeline.transformer)
 id_image = load_image("https://github.com/ToTheBeginning/PuLID/blob/main/example_inputs/liuyifei.png?raw=true")
 
 image = pipeline(
-    "A woman holding a sign that says hello world",
+    "A woman holding a sign that says 'SVDQuant is fast!",
     id_image=id_image,
     id_weight=1,
     num_inference_steps=12,

@@ -12,16 +12,8 @@ from torch import TensorType
 try:
     import transformers
     from transformers import AutoModel, AutoModelForMaskedLM, AutoTokenizer, AutoConfig, PretrainedConfig
-    from transformers.modeling_outputs import (
-        BaseModelOutput,
-        BaseModelOutputWithPooling,
-        BaseModelOutputWithPoolingAndCrossAttentions,
-    )
 except ImportError:
     transformers = None
-
-    class BaseModelOutput:
-        pass
 
     class PretrainedConfig:
         pass
@@ -37,50 +29,6 @@ def _camel2snake(s):
 
 # TODO: ?last - for gpt-like models
 _POOLERS = {}
-
-
-def register_pooler(cls):
-    """Decorator registering pooler class"""
-    _POOLERS[_camel2snake(cls.__name__)] = cls
-    return cls
-
-
-@register_pooler
-class MeanPooler(nn.Module):
-    """Mean pooling"""
-
-    def forward(self, x: BaseModelOutput, attention_mask: TensorType):
-        masked_output = x.last_hidden_state * attention_mask.unsqueeze(-1)
-        return masked_output.sum(dim=1) / attention_mask.sum(-1, keepdim=True)
-
-
-@register_pooler
-class MaxPooler(nn.Module):
-    """Max pooling"""
-
-    def forward(self, x: BaseModelOutput, attention_mask: TensorType):
-        masked_output = x.last_hidden_state.masked_fill(attention_mask.unsqueeze(-1), -torch.inf)
-        return masked_output.max(1).values
-
-
-@register_pooler
-class ClsPooler(nn.Module):
-    """CLS token pooling"""
-
-    def __init__(self, use_pooler_output=True):
-        super().__init__()
-        self.cls_token_position = 0
-        self.use_pooler_output = use_pooler_output
-
-    def forward(self, x: BaseModelOutput, attention_mask: TensorType):
-        if (
-            self.use_pooler_output
-            and isinstance(x, (BaseModelOutputWithPooling, BaseModelOutputWithPoolingAndCrossAttentions))
-            and (x.pooler_output is not None)
-        ):
-            return x.pooler_output
-
-        return x.last_hidden_state[:, self.cls_token_position, :]
 
 
 class HFTextEncoder(nn.Module):
@@ -178,25 +126,6 @@ class HFTextEncoder(nn.Module):
         else:
             return input_ids
 
-    def forward_mlm(self, input_ids, image_embeds, mlm_probability=0.25):
-        labels = input_ids.clone()
-        attn_mask = (input_ids != self.config.pad_token_id).long()
-        image_atts = torch.ones(image_embeds.size()[:-1], dtype=torch.long).to(input_ids.device)
-        vocab_size = getattr(self.config, arch_dict[self.config.model_type]["config_names"]["vocab_size"])
-        probability_matrix = torch.full(labels.shape, mlm_probability)
-        input_ids, labels = self.mask(
-            input_ids, vocab_size, input_ids.device, targets=labels, probability_matrix=probability_matrix
-        )
-        mlm_output = self.transformer(
-            input_ids,
-            attention_mask=attn_mask,
-            encoder_hidden_states=image_embeds,
-            encoder_attention_mask=image_atts,
-            return_dict=True,
-            labels=labels,
-        )
-        return mlm_output.loss
-
     def forward(self, x: TensorType) -> TensorType:
         attn_mask = (x != self.config.pad_token_id).long()
         out = self.transformer(input_ids=x, attention_mask=attn_mask)
@@ -204,32 +133,9 @@ class HFTextEncoder(nn.Module):
 
         return self.proj(pooled_out)
 
-    def lock(self, unlocked_layers: int = 0, freeze_layer_norm: bool = True):
-        if not unlocked_layers:  # full freezing
-            for n, p in self.transformer.named_parameters():
-                p.requires_grad = (not freeze_layer_norm) if "LayerNorm" in n.split(".") else False
-            return
-
-        encoder = self.transformer.encoder if hasattr(self.transformer, "encoder") else self.transformer
-        layer_list = getattr(encoder, arch_dict[self.config.model_type]["config_names"]["layer_attr"])
-        print(f"Unlocking {unlocked_layers}/{len(layer_list) + 1} layers of hf model")
-        embeddings = getattr(
-            self.transformer, arch_dict[self.config.model_type]["config_names"]["token_embeddings_attr"]
-        )
-        modules = [embeddings, *layer_list][:-unlocked_layers]
-        # freeze layers
-        for module in modules:
-            for n, p in module.named_parameters():
-                p.requires_grad = (not freeze_layer_norm) if "LayerNorm" in n.split(".") else False
-
     @torch.jit.ignore
     def set_grad_checkpointing(self, enable=True):
         self.transformer.gradient_checkpointing_enable()
-
-    def get_num_layers(self):
-        encoder = self.transformer.encoder if hasattr(self.transformer, "encoder") else self.transformer
-        layer_list = getattr(encoder, arch_dict[self.config.model_type]["config_names"]["layer_attr"])
-        return len(layer_list)
 
     def init_parameters(self):
         pass

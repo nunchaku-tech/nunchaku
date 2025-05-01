@@ -10,7 +10,7 @@ import torch
 
 from .constants import OPENAI_DATASET_MEAN, OPENAI_DATASET_STD
 from .model import CLIP, convert_to_custom_text_state_dict, CustomCLIP, get_cast_dtype
-from .pretrained import download_pretrained, get_pretrained_cfg, is_pretrained_cfg, list_pretrained_tags_by_model
+from .pretrained import download_pretrained, get_pretrained_cfg, list_pretrained_tags_by_model
 from .transform import image_transform
 from .utils import resize_clip_pos_embed, resize_eva_pos_embed, resize_evaclip_pos_embed, resize_visual_pos_embed
 
@@ -49,14 +49,6 @@ _rescan_model_configs()  # initial populate of model config registry
 def list_models():
     """enumerate available model architectures based on config files"""
     return list(_MODEL_CONFIGS.keys())
-
-
-def add_model_config(path):
-    """add model config path or file and update registry"""
-    if not isinstance(path, Path):
-        path = Path(path)
-    _MODEL_CONFIG_PATHS.append(path)
-    _rescan_model_configs()
 
 
 def get_model_config(model_name):

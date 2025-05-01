@@ -220,18 +220,10 @@ class CLIP(nn.Module):
 
         self.logit_scale = nn.Parameter(torch.ones([]) * np.log(1 / 0.07))
 
-    def lock_image_tower(self, unlocked_groups=0, freeze_bn_stats=False):
-        # lock image tower as per LiT - https://arxiv.org/abs/2111.07991
-        self.visual.lock(unlocked_groups=unlocked_groups, freeze_bn_stats=freeze_bn_stats)
-
     @torch.jit.ignore
     def set_grad_checkpointing(self, enable=True):
         self.visual.set_grad_checkpointing(enable)
         self.transformer.grad_checkpointing = enable
-
-    @torch.jit.ignore
-    def no_weight_decay(self):
-        return {"logit_scale"}
 
     def encode_image(self, image, normalize: bool = False):
         features = self.visual(image)
@@ -272,21 +264,10 @@ class CustomCLIP(nn.Module):
         self.text = _build_text_tower(embed_dim, text_cfg, quick_gelu, cast_dtype)
         self.logit_scale = nn.Parameter(torch.ones([]) * np.log(1 / 0.07))
 
-    def lock_image_tower(self, unlocked_groups=0, freeze_bn_stats=False):
-        # lock image tower as per LiT - https://arxiv.org/abs/2111.07991
-        self.visual.lock(unlocked_groups=unlocked_groups, freeze_bn_stats=freeze_bn_stats)
-
-    def lock_text_tower(self, unlocked_layers: int = 0, freeze_layer_norm: bool = True):
-        self.text.lock(unlocked_layers, freeze_layer_norm)
-
     @torch.jit.ignore
     def set_grad_checkpointing(self, enable=True):
         self.visual.set_grad_checkpointing(enable)
         self.text.set_grad_checkpointing(enable)
-
-    @torch.jit.ignore
-    def no_weight_decay(self):
-        return {"logit_scale"}
 
     def encode_image(self, image, normalize: bool = False):
         features = self.visual(image)
@@ -323,18 +304,3 @@ def convert_to_custom_text_state_dict(state_dict: dict):
             new_state_dict[k] = v
         return new_state_dict
     return state_dict
-
-
-def trace_model(model, batch_size=256, device=torch.device("cpu")):
-    model.eval()
-    image_size = model.visual.image_size
-    example_images = torch.ones((batch_size, 3, image_size, image_size), device=device)
-    example_text = torch.zeros((batch_size, model.context_length), dtype=torch.int, device=device)
-    model = torch.jit.trace_module(
-        model,
-        inputs=dict(
-            forward=(example_images, example_text), encode_text=(example_text,), encode_image=(example_images,)
-        ),
-    )
-    model.visual.image_size = image_size
-    return model

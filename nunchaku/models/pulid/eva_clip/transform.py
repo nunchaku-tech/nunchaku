@@ -45,23 +45,6 @@ def _convert_to_rgb(image):
     return image.convert("RGB")
 
 
-# class CatGen(nn.Module):
-#     def __init__(self, num=4):
-#         self.num = num
-#     def mixgen_batch(image, text):
-#         batch_size = image.shape[0]
-#         index = np.random.permutation(batch_size)
-
-#         cat_images = []
-#         for i in range(batch_size):
-#             # image mixup
-#             image[i,:] = lam * image[i,:] + (1 - lam) * image[index[i],:]
-#             # text concat
-#             text[i] = tokenizer((str(text[i]) + " " + str(text[index[i]])))[0]
-#         text = torch.stack(text)
-#         return image, text
-
-
 def image_transform(
     image_size: int,
     is_train: bool,

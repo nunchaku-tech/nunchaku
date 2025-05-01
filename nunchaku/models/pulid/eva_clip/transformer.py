@@ -33,23 +33,6 @@ except ImportError:
     print("Please 'pip install xformers'")
 
 
-class LayerNormFp32(nn.LayerNorm):
-    """Subclass torch's LayerNorm to handle fp16 (by casting to float32 and back)."""
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    def forward(self, x: torch.Tensor):
-        output = F.layer_norm(
-            x.float(),
-            self.normalized_shape,
-            self.weight.float() if self.weight is not None else None,
-            self.bias.float() if self.bias is not None else None,
-            self.eps,
-        )
-        return output.type_as(x)
-
-
 class LayerNorm(nn.LayerNorm):
     """Subclass torch's LayerNorm (with cast back to input dtype)."""
 
@@ -117,38 +100,6 @@ class PatchDropout(nn.Module):
             return x, patch_indices_keep
 
         return x
-
-
-def _in_projection_packed(
-    q: torch.Tensor,
-    k: torch.Tensor,
-    v: torch.Tensor,
-    w: torch.Tensor,
-    b: Optional[torch.Tensor] = None,
-):
-    """
-    https://github.com/pytorch/pytorch/blob/db2a237763eb8693a20788be94f8c192e762baa8/torch/nn/functional.py#L4726
-    """
-    E = q.size(-1)
-    if k is v:
-        if q is k:
-            # self-attention
-            return F.linear(q, w, b).chunk(3, dim=-1)
-        else:
-            # encoder-decoder attention
-            w_q, w_kv = w.split([E, E * 2])
-            if b is None:
-                b_q = b_kv = None
-            else:
-                b_q, b_kv = b.split([E, E * 2])
-            return (F.linear(q, w_q, b_q),) + F.linear(k, w_kv, b_kv).chunk(2, dim=-1)
-    else:
-        w_q, w_k, w_v = w.chunk(3)
-        if b is None:
-            b_q = b_k = b_v = None
-        else:
-            b_q, b_k, b_v = b.chunk(3)
-        return F.linear(q, w_q, b_q), F.linear(k, w_k, b_k), F.linear(v, w_v, b_v)
 
 
 class Attention(nn.Module):
@@ -245,222 +196,6 @@ class Attention(nn.Module):
         x = self.out_proj(x)
         x = self.out_drop(x)
         return x
-
-
-class CustomAttention(nn.Module):
-    def __init__(
-        self,
-        dim,
-        num_heads=8,
-        qkv_bias=True,
-        scaled_cosine=True,
-        scale_heads=False,
-        logit_scale_max=math.log(1.0 / 0.01),
-        attn_drop=0.0,
-        proj_drop=0.0,
-        xattn=False,
-    ):
-        super().__init__()
-        self.scaled_cosine = scaled_cosine
-        self.scale_heads = scale_heads
-        assert dim % num_heads == 0, "dim should be divisible by num_heads"
-        self.num_heads = num_heads
-        self.head_dim = dim // num_heads
-        self.scale = self.head_dim**-0.5
-        self.logit_scale_max = logit_scale_max
-
-        # keeping in_proj in this form (instead of nn.Linear) to match weight scheme of original
-        self.in_proj_weight = nn.Parameter(torch.randn((dim * 3, dim)) * self.scale)
-        if qkv_bias:
-            self.in_proj_bias = nn.Parameter(torch.zeros(dim * 3))
-        else:
-            self.in_proj_bias = None
-
-        if self.scaled_cosine:
-            self.logit_scale = nn.Parameter(torch.log(10 * torch.ones((num_heads, 1, 1))))
-        else:
-            self.logit_scale = None
-        self.attn_drop = nn.Dropout(attn_drop)
-        if self.scale_heads:
-            self.head_scale = nn.Parameter(torch.ones((num_heads, 1, 1)))
-        else:
-            self.head_scale = None
-        self.out_proj = nn.Linear(dim, dim)
-        self.out_drop = nn.Dropout(proj_drop)
-        self.xattn = xattn
-        self.xattn_drop = attn_drop
-
-    def forward(
-        self, query: torch.Tensor, key: torch.Tensor, value: torch.Tensor, attn_mask: Optional[torch.Tensor] = None
-    ):
-        q, k, v = _in_projection_packed(query, key, value, self.in_proj_weight, self.in_proj_bias)
-        N_q, B_q, C_q = q.shape
-        N_k, B_k, C_k = k.shape
-        N_v, B_v, C_v = v.shape
-        if self.xattn:
-            # B, N, C -> B, N, num_heads, C
-            q = q.permute(1, 0, 2).reshape(B_q, N_q, self.num_heads, -1)
-            k = k.permute(1, 0, 2).reshape(B_k, N_k, self.num_heads, -1)
-            v = v.permute(1, 0, 2).reshape(B_v, N_v, self.num_heads, -1)
-
-            x = xops.memory_efficient_attention(
-                q,
-                k,
-                v,
-                p=self.xattn_drop,
-                scale=self.scale if self.logit_scale is None else None,
-                attn_bias=xops.LowerTriangularMask() if attn_mask is not None else None,
-            )
-        else:
-            # B*H, L, C
-            q = q.contiguous().view(N_q, B_q * self.num_heads, -1).transpose(0, 1)
-            k = k.contiguous().view(N_k, B_k * self.num_heads, -1).transpose(0, 1)
-            v = v.contiguous().view(N_v, B_v * self.num_heads, -1).transpose(0, 1)
-
-            if self.logit_scale is not None:
-                # B*H, N_q, N_k
-                attn = torch.bmm(F.normalize(q, dim=-1), F.normalize(k, dim=-1).transpose(-1, -2))
-                logit_scale = torch.clamp(self.logit_scale, max=self.logit_scale_max).exp()
-                attn = attn.view(B_q, self.num_heads, N_q, N_k) * logit_scale
-                attn = attn.view(-1, N_q, N_k)
-            else:
-                q = q * self.scale
-                attn = torch.bmm(q, k.transpose(-1, -2))
-
-            if attn_mask is not None:
-                if attn_mask.dtype == torch.bool:
-                    new_attn_mask = torch.zeros_like(attn_mask, dtype=q.dtype)
-                    new_attn_mask.masked_fill_(attn_mask, float("-inf"))
-                    attn_mask = new_attn_mask
-                attn += attn_mask
-
-            attn = attn.softmax(dim=-1)
-            attn = self.attn_drop(attn)
-
-            x = torch.bmm(attn, v)
-
-        if self.head_scale is not None:
-            x = x.view(B_q, self.num_heads, N_q, C_q) * self.head_scale
-            x = x.view(-1, N_q, C_q)
-        x = x.transpose(0, 1).reshape(N_q, B_q, C_q)
-        x = self.out_proj(x)
-        x = self.out_drop(x)
-        return x
-
-
-class CustomResidualAttentionBlock(nn.Module):
-    def __init__(
-        self,
-        d_model: int,
-        n_head: int,
-        mlp_ratio: float = 4.0,
-        ls_init_value: float = None,
-        act_layer: Callable = nn.GELU,
-        norm_layer: Callable = LayerNorm,
-        scale_cosine_attn: bool = False,
-        scale_heads: bool = False,
-        scale_attn: bool = False,
-        scale_fc: bool = False,
-        cross_attn: bool = False,
-        xattn: bool = False,
-    ):
-        super().__init__()
-
-        self.ln_1 = norm_layer(d_model)
-        self.ln_1_k = norm_layer(d_model) if cross_attn else self.ln_1
-        self.ln_1_v = norm_layer(d_model) if cross_attn else self.ln_1
-        self.attn = CustomAttention(
-            d_model,
-            n_head,
-            qkv_bias=True,
-            attn_drop=0.0,
-            proj_drop=0.0,
-            scaled_cosine=scale_cosine_attn,
-            scale_heads=scale_heads,
-            xattn=xattn,
-        )
-
-        self.ln_attn = norm_layer(d_model) if scale_attn else nn.Identity()
-        self.ls_1 = LayerScale(d_model, ls_init_value) if ls_init_value is not None else nn.Identity()
-
-        self.ln_2 = norm_layer(d_model)
-        mlp_width = int(d_model * mlp_ratio)
-        self.mlp = nn.Sequential(
-            OrderedDict(
-                [
-                    ("c_fc", nn.Linear(d_model, mlp_width)),
-                    ("ln", norm_layer(mlp_width) if scale_fc else nn.Identity()),
-                    ("gelu", act_layer()),
-                    ("c_proj", nn.Linear(mlp_width, d_model)),
-                ]
-            )
-        )
-
-        self.ls_2 = LayerScale(d_model, ls_init_value) if ls_init_value is not None else nn.Identity()
-
-    def forward(self, q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, attn_mask: Optional[torch.Tensor] = None):
-        q = q + self.ls_1(self.ln_attn(self.attn(self.ln_1(q), self.ln_1_k(k), self.ln_1_v(v), attn_mask=attn_mask)))
-        q = q + self.ls_2(self.mlp(self.ln_2(q)))
-        return q
-
-
-class CustomTransformer(nn.Module):
-    def __init__(
-        self,
-        width: int,
-        layers: int,
-        heads: int,
-        mlp_ratio: float = 4.0,
-        ls_init_value: float = None,
-        act_layer: Callable = nn.GELU,
-        norm_layer: Callable = LayerNorm,
-        scale_cosine_attn: bool = True,
-        scale_heads: bool = False,
-        scale_attn: bool = False,
-        scale_fc: bool = False,
-        cross_attn: bool = False,
-        xattn: bool = False,
-    ):
-        super().__init__()
-        self.width = width
-        self.layers = layers
-        self.grad_checkpointing = False
-        self.xattn = xattn
-
-        self.resblocks = nn.ModuleList(
-            [
-                CustomResidualAttentionBlock(
-                    width,
-                    heads,
-                    mlp_ratio,
-                    ls_init_value=ls_init_value,
-                    act_layer=act_layer,
-                    norm_layer=norm_layer,
-                    scale_cosine_attn=scale_cosine_attn,
-                    scale_heads=scale_heads,
-                    scale_attn=scale_attn,
-                    scale_fc=scale_fc,
-                    cross_attn=cross_attn,
-                    xattn=xattn,
-                )
-                for _ in range(layers)
-            ]
-        )
-
-    def get_cast_dtype(self) -> torch.dtype:
-        return self.resblocks[0].mlp.c_fc.weight.dtype
-
-    def forward(
-        self, q: torch.Tensor, k: torch.Tensor = None, v: torch.Tensor = None, attn_mask: Optional[torch.Tensor] = None
-    ):
-        if k is None and v is None:
-            k = v = q
-        for r in self.resblocks:
-            if self.grad_checkpointing and not torch.jit.is_scripting():
-                q = checkpoint(r, q, k, v, attn_mask)
-            else:
-                q = r(q, k, v, attn_mask=attn_mask)
-        return q
 
 
 class ResidualAttentionBlock(nn.Module):
@@ -601,49 +336,9 @@ class VisionTransformer(nn.Module):
         self.ln_post = norm_layer(width)
         self.proj = nn.Parameter(scale * torch.randn(width, output_dim))
 
-    def lock(self, unlocked_groups=0, freeze_bn_stats=False):
-        for param in self.parameters():
-            param.requires_grad = False
-
-        if unlocked_groups != 0:
-            groups = [
-                [
-                    self.conv1,
-                    self.class_embedding,
-                    self.positional_embedding,
-                    self.ln_pre,
-                ],
-                *self.transformer.resblocks[:-1],
-                [
-                    self.transformer.resblocks[-1],
-                    self.ln_post,
-                ],
-                self.proj,
-            ]
-
-            def _unlock(x):
-                if isinstance(x, Sequence):
-                    for g in x:
-                        _unlock(g)
-                else:
-                    if isinstance(x, torch.nn.Parameter):
-                        x.requires_grad = True
-                    else:
-                        for p in x.parameters():
-                            p.requires_grad = True
-
-            _unlock(groups[-unlocked_groups:])
-
-    def get_num_layers(self):
-        return self.transformer.layers
-
     @torch.jit.ignore
     def set_grad_checkpointing(self, enable=True):
         self.transformer.grad_checkpointing = enable
-
-    @torch.jit.ignore
-    def no_weight_decay(self):
-        return {"positional_embedding", "class_embedding"}
 
     def forward(self, x: torch.Tensor, return_all_features: bool = False):
         x = self.conv1(x)  # shape = [*, width, grid, grid]
@@ -744,14 +439,6 @@ class TextTransformer(nn.Module):
     @torch.jit.ignore
     def set_grad_checkpointing(self, enable=True):
         self.transformer.grad_checkpointing = enable
-
-    @torch.jit.ignore
-    def no_weight_decay(self):
-        # return {'positional_embedding', 'token_embedding'}
-        return {"positional_embedding"}
-
-    def get_num_layers(self):
-        return self.transformer.layers
 
     def build_attention_mask(self):
         # lazily create causal attention mask, with full attention between the vision tokens

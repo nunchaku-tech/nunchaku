@@ -90,13 +90,6 @@ class PuLIDPipeline(nn.Module):
         # other configs
         self.debug_img_list = []
 
-    def components_to_device(self, device):
-        # everything but pulid_ca
-        self.face_helper.face_det = self.face_helper.face_det.to(device)
-        self.face_helper.face_parse = self.face_helper.face_parse.to(device)
-        self.clip_vision_model = self.clip_vision_model.to(device)
-        self.pulid_encoder = self.pulid_encoder.to(device)
-
     def load_pretrain(self, pretrain_path=None, version="v0.9.0"):
         hf_hub_download("guozinan/PuLID", f"pulid_flux_{version}.safetensors", local_dir="models")
         ckpt_path = f"models/pulid_flux_{version}.safetensors"

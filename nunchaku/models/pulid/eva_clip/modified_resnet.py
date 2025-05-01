@@ -157,13 +157,6 @@ class ModifiedResNet(nn.Module):
                 if name.endswith("bn3.weight"):
                     nn.init.zeros_(param)
 
-    def lock(self, unlocked_groups=0, freeze_bn_stats=False):
-        assert unlocked_groups == 0, "partial locking not currently supported for this model"
-        for param in self.parameters():
-            param.requires_grad = False
-        if freeze_bn_stats:
-            freeze_batch_norm_2d(self)
-
     @torch.jit.ignore
     def set_grad_checkpointing(self, enable=True):
         # FIXME support for non-transformer

@@ -204,12 +204,6 @@ def list_pretrained_tags_by_model(model: str):
     return tags
 
 
-def is_pretrained_cfg(model: str, tag: str):
-    if model not in _PRETRAINED:
-        return False
-    return _clean_tag(tag) in _PRETRAINED[model]
-
-
 def get_pretrained_cfg(model: str, tag: str):
     if model not in _PRETRAINED:
         return {}
