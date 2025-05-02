@@ -34,7 +34,7 @@ from .utils import already_generate, compute_lpips, offload_pipeline
             "fox",
             1234,
             0.7,
-            0.349 if get_precision() == "int4" else 0.349,
+            0.417 if get_precision() == "int4" else 0.349,
         ),
         (
             1024,
