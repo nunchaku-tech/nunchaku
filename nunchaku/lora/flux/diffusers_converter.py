@@ -14,6 +14,12 @@ def to_diffusers(input_lora: str | dict[str, torch.Tensor], output_path: str | N
         tensors = load_state_dict_in_safetensors(input_lora, device="cpu")
     else:
         tensors = {k: v for k, v in input_lora.items()}
+
+    ### convert the FP8 tensors to BF16
+    for k, v in tensors.items():
+        if v.dtype not in [torch.float64, torch.float32, torch.bfloat16, torch.float16]:
+            tensors[k] = v.to(torch.bfloat16)
+
     new_tensors, alphas = FluxLoraLoaderMixin.lora_state_dict(tensors, return_alphas=True)
 
     if alphas is not None and len(alphas) > 0:
