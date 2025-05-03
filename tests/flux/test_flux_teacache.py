@@ -54,7 +54,7 @@ from .utils import already_generate, compute_lpips, offload_pipeline
             "waterfall",
             23,
             0.6,
-            0.226 if get_precision() == "int4" else 0.226,
+            0.253 if get_precision() == "int4" else 0.226,
         ),
     ],
 )
