@@ -117,6 +117,9 @@ def convert_to_nunchaku_transformer_block_lowrank_dict(  # noqa: C901
         if orig_lora[0] is None or orig_lora[1] is None:
             assert orig_lora[0] is None and orig_lora[1] is None
             orig_lora = None
+        elif orig_lora[0].numel() == 0 or orig_lora[1].numel() == 0:
+            assert orig_lora[0].numel() == 0 and orig_lora[1].numel() == 0
+            orig_lora = None
         else:
             assert orig_lora[0] is not None and orig_lora[1] is not None
             orig_lora = (

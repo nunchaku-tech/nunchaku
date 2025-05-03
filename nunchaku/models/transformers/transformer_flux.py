@@ -333,6 +333,17 @@ class NunchakuFluxTransformer2dModel(FluxTransformer2DModel, NunchakuModelLoader
             elif "qweight" in k:
                 # only the shape information of this tensor is needed
                 new_quantized_part_sd[k] = v.to("meta")
+
+                # if the tensor has qweight, but does not have low-rank branch, we need to add some artificial tensors
+                for t in ["lora_up", "lora_down"]:
+                    new_k = k.replace(".qweight", f".{t}")
+                    if new_k not in quantized_part_sd:
+                        oc, ic = v.shape
+                        ic = ic * 2  # v is packed into INT8, so we need to double the size
+                        new_quantized_part_sd[k.replace(".qweight", f".{t}")] = torch.zeros(
+                            (0, ic) if t == "lora_down" else (oc, 0), device=v.device, dtype=torch.bfloat16
+                        )
+
             elif "lora" in k:
                 new_quantized_part_sd[k] = v
         transformer._quantized_part_sd = new_quantized_part_sd
