@@ -5,6 +5,7 @@ from diffusers import FluxPipeline
 
 from nunchaku import NunchakuFluxTransformer2dModel
 from nunchaku.utils import get_precision
+
 from ..utils import compute_lpips
 
 
