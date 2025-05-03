@@ -11,10 +11,13 @@ from ..utils import compute_lpips
 
 def test_lora_reset():
     precision = get_precision()  # auto-detect your precision is 'int4' or 'fp4' based on your GPU
-    transformer = NunchakuFluxTransformer2dModel.from_pretrained(f"mit-han-lab/svdq-{precision}-flux.1-dev")
+    transformer = NunchakuFluxTransformer2dModel.from_pretrained(
+        f"mit-han-lab/svdq-{precision}-flux.1-dev", offload=True
+    )
     pipeline = FluxPipeline.from_pretrained(
         "black-forest-labs/FLUX.1-dev", transformer=transformer, torch_dtype=torch.bfloat16
-    ).to("cuda")
+    )
+    pipeline.enable_sequential_cpu_offload()
 
     save_dir = os.path.join("test_results", "bf16", "flux", "lora_reset")
     os.makedirs(save_dir, exist_ok=True)
