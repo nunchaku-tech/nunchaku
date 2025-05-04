@@ -396,16 +396,13 @@ class FluxCachedTransformerBlocks(nn.Module):
         image_rotary_emb = image_rotary_emb.to(self.device)
 
         if controlnet_block_samples is not None:
-
             controlnet_block_samples = (
                 torch.stack(controlnet_block_samples).to(self.device) if len(controlnet_block_samples) > 0 else None
             )
-        if controlnet_single_block_samples is not None and len(controlnet_single_block_samples) > 0:
-            controlnet_single_block_samples = (
-                torch.stack(controlnet_single_block_samples).to(self.device)
-                if len(controlnet_single_block_samples) > 0
-                else None
-            )
+        if controlnet_single_block_samples:
+            controlnet_single_block_samples = torch.stack(controlnet_single_block_samples).to(self.device)
+        else:
+            controlnet_single_block_samples = None
 
         assert image_rotary_emb.ndim == 6
         assert image_rotary_emb.shape[0] == 1
