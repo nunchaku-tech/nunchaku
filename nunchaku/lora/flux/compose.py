@@ -136,5 +136,4 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--output-path", type=str, required=True, help="path to the output safetensors file")
     args = parser.parse_args()
     assert len(args.input_paths) == len(args.strengths)
-    composed = compose_lora(list(zip(args.input_paths, args.strengths)))
-    save_file(composed, args.output_path)
+    compose_lora(list(zip(args.input_paths, args.strengths)), args.output_path)
