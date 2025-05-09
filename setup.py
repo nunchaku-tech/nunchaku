@@ -24,18 +24,71 @@ class CustomBuildExtension(BuildExtension):
         super().build_extensions()
 
 
+def get_cuda_home() -> str:
+    """Get CUDA home directory with better diagnostics."""
+    # Common CUDA installation paths
+    common_paths = [
+        "/usr/local/cuda",
+        "/usr/cuda",
+        "/opt/cuda",
+    ]
+    
+    # First try environment variables
+    for env_var in ["CUDA_HOME", "CUDA_PATH"]:
+        cuda_home = os.getenv(env_var)
+        if cuda_home and os.path.exists(os.path.join(cuda_home, "bin/nvcc")):
+            print(f"Found CUDA via {env_var}: {cuda_home}")
+            return cuda_home
+
+    # Then try PyTorch's CUDA_HOME
+    if CUDA_HOME and os.path.exists(os.path.join(CUDA_HOME, "bin/nvcc")):
+        print(f"Found CUDA via PyTorch: {CUDA_HOME}")
+        return CUDA_HOME
+
+    # Finally try common paths
+    for path in common_paths:
+        if os.path.exists(os.path.join(path, "bin/nvcc")):
+            print(f"Found CUDA in common path: {path}")
+            return path
+
+    # If we get here, try to find any nvcc binary
+    for path in common_paths:
+        if os.path.exists(path):
+            print(f"CUDA directory exists but nvcc not found: {path}")
+            print(f"Contents of {os.path.join(path, 'bin')}:")
+            try:
+                print(os.listdir(os.path.join(path, "bin")))
+            except:
+                print("(cannot list directory)")
+
+    raise Exception(
+        "CUDA installation not found. Please ensure CUDA is installed and one of these is set:\n"
+        "- CUDA_HOME environment variable\n"
+        "- CUDA_PATH environment variable\n"
+        "Or CUDA is installed in one of: " + ", ".join(common_paths)
+    )
+
+
 def get_sm_targets() -> list[str]:
-    nvcc_path = os.path.join(CUDA_HOME, "bin/nvcc") if CUDA_HOME else "nvcc"
+    """Get list of target SM architectures."""
+    cuda_home = get_cuda_home()
+    nvcc_path = os.path.join(cuda_home, "bin/nvcc")
+    
     try:
         nvcc_output = subprocess.check_output([nvcc_path, "--version"]).decode()
+        print(f"nvcc found at: {nvcc_path}")
+        print(f"nvcc output:\n{nvcc_output}")
+        
         match = re.search(r"release (\d+\.\d+), V(\d+\.\d+\.\d+)", nvcc_output)
         if match:
             nvcc_version = match.group(2)
+            print(f"Parsed nvcc version: {nvcc_version}")
         else:
-            raise Exception("nvcc version not found")
-        print(f"Found nvcc version: {nvcc_version}")
-    except:
-        raise Exception("nvcc not found")
+            raise Exception("Could not parse nvcc version from output: " + nvcc_output)
+    except subprocess.CalledProcessError as e:
+        raise Exception(f"Error running {nvcc_path}: {e}")
+    except Exception as e:
+        raise Exception(f"Error getting nvcc version: {e}")
 
     support_sm120 = packaging_version.parse(nvcc_version) >= packaging_version.parse("12.8")
 
@@ -140,6 +193,7 @@ if __name__ == "__main__":
             "src/layernorm.cpp",
             "src/Linear.cpp",
             *ncond("src/FluxModel.cpp"),
+            *ncond("src/OminiFluxModel.cpp"),
             *ncond("src/SanaModel.cpp"),
             "src/Serialization.cpp",
             "src/Module.cpp",

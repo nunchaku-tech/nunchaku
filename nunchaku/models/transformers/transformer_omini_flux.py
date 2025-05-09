@@ -12,7 +12,7 @@ from packaging.version import Version
 from safetensors.torch import load_file
 from torch import nn
 
-from ..._C import QuantizedFluxModel
+from ..._C import QuantizedOminiFluxModel
 from ..._C import utils as cutils
 from ...lora.flux.nunchaku_converter import fuse_vectors, to_nunchaku
 from ...lora.flux.utils import is_nunchaku_format
@@ -23,47 +23,92 @@ SVD_RANK = 32
 
 # Get log level from environment variable (default to INFO)
 log_level = os.getenv("LOG_LEVEL", "INFO").upper()
-
+print(f"Log level: {log_level}")
 # Configure logging
 logging.basicConfig(level=getattr(logging, log_level, logging.INFO), format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
+# Initialize C++ logging explicitly
+# from ..._C import _C
+# Force C++ to use the same log level as Python
+print(f"Setting C++ log level to {log_level}")
+cutils.set_log_level(log_level.lower())  # spdlog uses lowercase level names
 
-class NunchakuFluxTransformerBlocks(nn.Module):
-    def __init__(self, m: QuantizedFluxModel, device: str | torch.device):
-        super(NunchakuFluxTransformerBlocks, self).__init__()
-        self.m = m
+# Force stderr to flush immediately to ensure logs appear
+import sys
+sys.stderr.flush()
+
+# Explicitly print with syscalls to ensure visibility
+import os
+os.write(2, f"C++ logging initialized with level {log_level}\n".encode())
+
+cutils.set_log_level(log_level)
+
+class NunchakuOminiFluxTransformerBlocks(nn.Module):
+    """A PyTorch nn.Module wrapper for the Nunchaku C++ OminiFluxModel.
+
+    This class handles the interface between the Python-based Diffusers pipeline
+    and the underlying C++ implementation of the OminiFlux transformer blocks.
+    It prepares inputs, calls the C++ forward pass, and processes outputs.
+    """
+    def __init__(self, m: QuantizedOminiFluxModel, device: str | torch.device):
+        super(NunchakuOminiFluxTransformerBlocks, self).__init__()
+        self.m = m  # The C++ QuantizedOminiFluxModel instance
         self.dtype = torch.bfloat16 if m.isBF16() else torch.float16
         self.device = device
 
     @staticmethod
     def pack_rotemb(rotemb: torch.Tensor) -> torch.Tensor:
+        """Packs rotary embeddings into the format expected by the C++ kernel.
+
+        The C++ kernel expects a specific memory layout for rotary embeddings
+        to optimize performance. This function reshapes and permutes the input
+        `rotemb` tensor to match that layout.
+
+        Args:
+            rotemb: The rotary embedding tensor, expected to be of shape
+                    (B, M, D // 2, 1, 2) and dtype float32, where D is head dimension.
+
+        Returns:
+            The packed rotary embedding tensor of shape (B, M, D).
+        """
         assert rotemb.dtype == torch.float32
         B = rotemb.shape[0]
         M = rotemb.shape[1]
         D = rotemb.shape[2] * 2
+        logger.debug(f"pack_rotemb input shape: {rotemb.shape}")
+        logger.debug(f"B={B}, M={M}, D={D}")
         assert rotemb.shape == (B, M, D // 2, 1, 2)
-        assert M % 16 == 0
-        assert D % 8 == 0
+        assert M % 16 == 0, f"M ({M}) must be divisible by 16"
+        assert D % 8 == 0, f"D ({D}) must be divisible by 8"
+        
+        # Log intermediate shapes
         rotemb = rotemb.reshape(B, M // 16, 16, D // 8, 8)
+        logger.debug(f"After first reshape: {rotemb.shape}")
+        
         rotemb = rotemb.permute(0, 1, 3, 2, 4)
-        # 16*8 pack, FP32 accumulator (C) format
-        # https://docs.nvidia.com/cuda/parallel-thread-execution/#mma-16816-c
-        ##########################################|--M--|--D--|
-        ##########################################|-3--4--5--6|
-        ##########################################  :  :  :  :
+        logger.debug(f"After permute: {rotemb.shape}")
+        
         rotemb = rotemb.reshape(*rotemb.shape[0:3], 2, 8, 4, 2)
+        logger.debug(f"After second reshape: {rotemb.shape}")
+        
         rotemb = rotemb.permute(0, 1, 2, 4, 5, 3, 6)
+        logger.debug(f"After second permute: {rotemb.shape}")
+        
         rotemb = rotemb.contiguous()
         rotemb = rotemb.view(B, M, D)
+        logger.debug(f"Final output shape: {rotemb.shape}")
         return rotemb
 
     def forward(
         self,
         hidden_states: torch.Tensor,
+        cond_hidden_states: torch.Tensor,
         temb: torch.Tensor,
+        cond_temb: torch.Tensor,
         encoder_hidden_states: torch.Tensor,
         image_rotary_emb: torch.Tensor,
+        cond_rotary_emb: torch.Tensor,
         id_embeddings=None,
         id_weight=None,
         joint_attention_kwargs=None,
@@ -71,9 +116,36 @@ class NunchakuFluxTransformerBlocks(nn.Module):
         controlnet_single_block_samples=None,
         skip_first_layer=False,
     ):
+        """Performs the forward pass through the entire OminiFlux model.
+
+        This method prepares all inputs (converting to appropriate dtypes and devices,
+        packing rotary embeddings, handling ControlNet inputs) and then calls the
+        forward method of the C++ `QuantizedOminiFluxModel`.
+
+        Args:
+            hidden_states: Image latents.
+            cond_hidden_states: Conditional latents.
+            temb: Time embeddings.
+            cond_temb: Conditional time embeddings.
+            encoder_hidden_states: Text encoder hidden states.
+            image_rotary_emb: Rotary embeddings for image and text combined.
+            cond_rotary_emb: Rotary embeddings for conditional inputs.
+            id_embeddings: Optional ID embeddings.
+            id_weight: Weight for ID embeddings.
+            joint_attention_kwargs: Optional kwargs for joint attention.
+            controlnet_block_samples: ControlNet features for joint blocks.
+            controlnet_single_block_samples: ControlNet features for single blocks.
+            skip_first_layer: If True, skips the first layer in the C++ model.
+
+        Returns:
+            A tuple containing (encoder_hidden_states, hidden_states) after processing,
+            both converted back to the original dtype and device.
+        """
         # batch_size = hidden_states.shape[0]
         txt_tokens = encoder_hidden_states.shape[1]
         img_tokens = hidden_states.shape[1]
+        cond_tokens = cond_hidden_states.shape[1]
+
 
         self.id_embeddings = id_embeddings
         self.id_weight = id_weight
@@ -85,20 +157,23 @@ class NunchakuFluxTransformerBlocks(nn.Module):
         original_device = hidden_states.device
 
         hidden_states = hidden_states.to(self.dtype).to(self.device)
+        cond_hidden_states = cond_hidden_states.to(self.dtype).to(self.device)
         encoder_hidden_states = encoder_hidden_states.to(self.dtype).to(self.device)
         temb = temb.to(self.dtype).to(self.device)
+        cond_temb = cond_temb.to(self.dtype).to(self.device)
         image_rotary_emb = image_rotary_emb.to(self.device)
+        cond_rotary_emb = cond_rotary_emb.to(self.device)
 
         if controlnet_block_samples is not None:
-            if len(controlnet_block_samples) > 0:
+            if isinstance(controlnet_block_samples, list) and len(controlnet_block_samples) > 0:
                 controlnet_block_samples = torch.stack(controlnet_block_samples).to(self.device)
-            else:
+            elif isinstance(controlnet_block_samples, list):
                 controlnet_block_samples = None
 
         if controlnet_single_block_samples is not None:
-            if len(controlnet_single_block_samples) > 0:
+            if isinstance(controlnet_single_block_samples, list) and len(controlnet_single_block_samples) > 0:
                 controlnet_single_block_samples = torch.stack(controlnet_single_block_samples).to(self.device)
-            else:
+            elif isinstance(controlnet_single_block_samples, list):
                 controlnet_single_block_samples = None
 
         assert image_rotary_emb.ndim == 6
@@ -110,17 +185,25 @@ class NunchakuFluxTransformerBlocks(nn.Module):
         rotary_emb_txt = image_rotary_emb[:, :txt_tokens, ...]  # .to(self.dtype)
         rotary_emb_img = image_rotary_emb[:, txt_tokens:, ...]  # .to(self.dtype)
         rotary_emb_single = image_rotary_emb  # .to(self.dtype)
+        cond_rotary_emb = cond_rotary_emb.reshape([1, cond_tokens, *cond_rotary_emb.shape[3:]])
+
 
         rotary_emb_txt = self.pack_rotemb(pad_tensor(rotary_emb_txt, 256, 1))
         rotary_emb_img = self.pack_rotemb(pad_tensor(rotary_emb_img, 256, 1))
         rotary_emb_single = self.pack_rotemb(pad_tensor(rotary_emb_single, 256, 1))
+        rotary_emb_cond = self.pack_rotemb(pad_tensor(cond_rotary_emb, 256, 1))
+
+    
         hidden_states = self.m.forward(
             hidden_states,
+            cond_hidden_states,
             encoder_hidden_states,
             temb,
+            cond_temb,
             rotary_emb_img,
             rotary_emb_txt,
             rotary_emb_single,
+            rotary_emb_cond,
             controlnet_block_samples,
             controlnet_single_block_samples,
             skip_first_layer,
@@ -130,9 +213,9 @@ class NunchakuFluxTransformerBlocks(nn.Module):
             self.reset_residual_callback()
 
         hidden_states = hidden_states.to(original_dtype).to(original_device)
-
         encoder_hidden_states = hidden_states[:, :txt_tokens, ...]
         hidden_states = hidden_states[:, txt_tokens:, ...]
+        #cond_hidden_states = cond_hidden_states[:, txt_tokens:txt_tokens+img_tokens, ...]
 
         return encoder_hidden_states, hidden_states
 
@@ -140,29 +223,67 @@ class NunchakuFluxTransformerBlocks(nn.Module):
         self,
         idx: int,
         hidden_states: torch.Tensor,
+        cond_hidden_states: torch.Tensor,
         encoder_hidden_states: torch.Tensor,
         temb: torch.Tensor,
+        cond_temb: torch.Tensor,
         image_rotary_emb: torch.Tensor,
+        cond_rotary_emb: torch.Tensor,
         joint_attention_kwargs=None,
         controlnet_block_samples=None,
         controlnet_single_block_samples=None,
     ):
+        """
+        Performs a forward pass through a single specified layer of the OminiFlux model.
+
+        Similar to the main `forward` method, but only executes a single layer
+        identified by `idx`. This is useful for debugging, analysis, or layer-wise
+        interventions.
+
+        Args:
+            idx: The index of the transformer layer to execute.
+            hidden_states: Image latents.
+            cond_hidden_states: Conditional latents.
+            encoder_hidden_states: Text encoder hidden states.
+            temb: Time embeddings.
+            cond_temb: Conditional time embeddings.
+            image_rotary_emb: Rotary embeddings for image and text combined.
+            cond_rotary_emb: Rotary embeddings for conditional inputs.
+            joint_attention_kwargs: Optional kwargs for joint attention.
+            controlnet_block_samples: ControlNet features for joint blocks.
+            controlnet_single_block_samples: ControlNet features for single blocks.
+
+        Returns:
+            A tuple (hidden_states, encoder_hidden_states, cond_hidden_states)
+            after processing by the specified layer, converted back to original dtype/device.
+            Note the order matches the C++ backend's return order for `forward_layer`.
+        """
         # batch_size = hidden_states.shape[0]
         txt_tokens = encoder_hidden_states.shape[1]
         img_tokens = hidden_states.shape[1]
+        cond_tokens = cond_hidden_states.shape[1]
 
         original_dtype = hidden_states.dtype
         original_device = hidden_states.device
 
         hidden_states = hidden_states.to(self.dtype).to(self.device)
         encoder_hidden_states = encoder_hidden_states.to(self.dtype).to(self.device)
+        cond_hidden_states = cond_hidden_states.to(self.dtype).to(self.device)
         temb = temb.to(self.dtype).to(self.device)
+        cond_temb = cond_temb.to(self.dtype).to(self.device)
         image_rotary_emb = image_rotary_emb.to(self.device)
+        cond_rotary_emb= cond_rotary_emb.to(self.device)
 
         if controlnet_block_samples is not None:
-            controlnet_block_samples = torch.stack(controlnet_block_samples).to(self.device)
+            if isinstance(controlnet_block_samples, list) and len(controlnet_block_samples) > 0:
+                controlnet_block_samples = torch.stack(controlnet_block_samples).to(self.device)
+            elif isinstance(controlnet_block_samples, list):
+                controlnet_block_samples = None
         if controlnet_single_block_samples is not None:
-            controlnet_single_block_samples = torch.stack(controlnet_single_block_samples).to(self.device)
+            if isinstance(controlnet_single_block_samples, list) and len(controlnet_single_block_samples) > 0:
+                controlnet_single_block_samples = torch.stack(controlnet_single_block_samples).to(self.device)
+            elif isinstance(controlnet_single_block_samples, list):
+                controlnet_single_block_samples = None
 
         assert image_rotary_emb.ndim == 6
         assert image_rotary_emb.shape[0] == 1
@@ -173,26 +294,43 @@ class NunchakuFluxTransformerBlocks(nn.Module):
         rotary_emb_txt = image_rotary_emb[:, :txt_tokens, ...]  # .to(self.dtype)
         rotary_emb_img = image_rotary_emb[:, txt_tokens:, ...]  # .to(self.dtype)
 
+        cond_rotary_emb = cond_rotary_emb.reshape([1, cond_tokens, *cond_rotary_emb.shape[3:]])
+        
+
         rotary_emb_txt = self.pack_rotemb(pad_tensor(rotary_emb_txt, 256, 1))
         rotary_emb_img = self.pack_rotemb(pad_tensor(rotary_emb_img, 256, 1))
-
-        hidden_states, encoder_hidden_states = self.m.forward_layer(
+        rotary_emb_cond = self.pack_rotemb(pad_tensor(rotary_emb_cond, 256, 1))
+        
+            
+        hidden_states, encoder_hidden_states, cond_hidden_states = self.m.forward_layer(
             idx,
             hidden_states,
+            cond_hidden_states,
             encoder_hidden_states,
             temb,
+            cond_temb,
             rotary_emb_img,
             rotary_emb_txt,
+            rotary_emb_cond,
             controlnet_block_samples,
             controlnet_single_block_samples,
         )
 
         hidden_states = hidden_states.to(original_dtype).to(original_device)
+        cond_hidden_states = cond_hidden_states.to(original_dtype).to(original_device)
         encoder_hidden_states = encoder_hidden_states.to(original_dtype).to(original_device)
-
-        return encoder_hidden_states, hidden_states
+        return hidden_states, encoder_hidden_states, cond_hidden_states
 
     def set_residual_callback(self):
+        """Sets a residual callback function for the C++ model.
+
+        This allows Python code to inject or modify residuals at specific points
+        within the C++ model's execution, typically used for techniques like PuLID.
+        The callback receives a tensor from C++, processes it, and returns a tensor
+        that C++ will add as a residual.
+        `self.pulid_ca` and `self.pulid_ca_idx` are assumed to be set externally
+        if this callback is used for PuLID-like functionality.
+        """
         id_embeddings = self.id_embeddings
         pulid_ca = self.pulid_ca
         pulid_ca_idx = [self.pulid_ca_idx]
@@ -207,18 +345,35 @@ class NunchakuFluxTransformerBlocks(nn.Module):
         self.m.set_residual_callback(callback)
 
     def reset_residual_callback(self):
+        """Clears any previously set residual callback in the C++ model."""
         self.callback_holder = None
         self.m.set_residual_callback(None)
 
     def __del__(self):
+        """Ensures the C++ model resources are released when the Python object is deleted."""
         self.m.reset()
 
     def norm1(
         self,
         hidden_states: torch.Tensor,
         emb: torch.Tensor,
-        idx: int = 0,
+        idx: int = 0, # Index of the transformer block
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Calls the `norm_one_forward` method of the C++ model for a specific block.
+
+        This is typically used to get the output of the first AdaLayerNormZero layer
+        within a OminiJointTransformerBlock. This can be useful for caching or other
+        optimizations (e.g., TeaCache).
+
+        Args:
+            hidden_states: The input hidden states to the norm layer.
+            emb: The conditioning embedding for the norm layer.
+            idx: The index of the transformer block whose norm1 is to be called.
+
+        Returns:
+            A tuple containing: (norm_x, gate_msa, shift_mlp, scale_mlp, gate_mlp),
+            which are the outputs of the OminiAdaLayerNormZero module.
+        """
         return self.m.norm_one_forward(idx, hidden_states, emb)
 
 
@@ -247,11 +402,20 @@ def rope(pos: torch.Tensor, dim: int, theta: int) -> torch.Tensor:
 class EmbedND(nn.Module):
     def __init__(self, dim: int, theta: int, axes_dim: list[int]):
         super(EmbedND, self).__init__()
-        self.dim = dim
-        self.theta = theta
-        self.axes_dim = axes_dim
+        self.dim = dim          # Dimensionality of the embedding for each axis
+        self.theta = theta      # Base for the sinusoidal frequency calculation
+        self.axes_dim = axes_dim # List of embedding dimensions for each axis in `ids`
 
     def forward(self, ids: torch.Tensor) -> torch.Tensor:
+        """Computes N-dimensional rotary positional embeddings.
+
+        Args:
+            ids: A tensor of shape (..., N_axes) containing integer coordinates for N axes.
+
+        Returns:
+            A tensor of shape (1, 1, sum(axes_dim), 1, 2) containing the
+            concatenated rotary embeddings for all axes.
+        """
         if Version(diffusers.__version__) >= Version("0.31.0"):
             ids = ids[None, ...]
         n_axes = ids.shape[-1]
@@ -261,33 +425,45 @@ class EmbedND(nn.Module):
 
 def load_quantized_module(
     path: str, device: str | torch.device = "cuda", use_fp4: bool = False, offload: bool = False, bf16: bool = True
-) -> QuantizedFluxModel:
+) -> QuantizedOminiFluxModel:
+    """Loads a quantized OminiFluxModel from a saved Nunchaku checkpoint.
+
+    Args:
+        path: Path to the Nunchaku checkpoint file.
+        device: The CUDA device to load the model onto.
+        use_fp4: Whether the model was quantized with FP4 (as opposed to INT4).
+        offload: Whether to enable layer offloading in the C++ model.
+        bf16: Whether to use bfloat16 (True) or float16 (False) for the model's dtype.
+
+    Returns:
+        An instance of the C++ `QuantizedOminiFluxModel`.
+    """
     device = torch.device(device)
     assert device.type == "cuda"
-    m = QuantizedFluxModel()
+    m = QuantizedOminiFluxModel()
     cutils.disable_memory_auto_release()
     m.init(use_fp4, offload, bf16, 0 if device.index is None else device.index)
     m.load(path)
     return m
 
 
-class NunchakuFluxTransformer2dModel(FluxTransformer2DModel, NunchakuModelLoaderMixin):
+class NunchakuOminiFluxTransformer2dModel(FluxTransformer2DModel, NunchakuModelLoaderMixin):
     @register_to_config
     def __init__(
         self,
-        patch_size: int = 1,
-        in_channels: int = 64,
-        out_channels: int | None = None,
-        num_layers: int = 19,
-        num_single_layers: int = 38,
-        attention_head_dim: int = 128,
-        num_attention_heads: int = 24,
-        joint_attention_dim: int = 4096,
-        pooled_projection_dim: int = 768,
-        guidance_embeds: bool = False,
-        axes_dims_rope: tuple[int] = (16, 56, 56),
+        patch_size: int = 1,            # Patch size for image tokenization (relevant for original DiT, less so here)
+        in_channels: int = 64,          # Number of input channels to the first layer (x_embedder)
+        out_channels: int | None = None,  # Number of output channels from the last layer (proj_out)
+        num_layers: int = 19,           # Number of joint transformer blocks
+        num_single_layers: int = 38,    # Number of single transformer blocks
+        attention_head_dim: int = 128,  # Dimension of each attention head
+        num_attention_heads: int = 24,  # Number of attention heads
+        joint_attention_dim: int = 4096, # Not directly used by OminiFlux, legacy from DiT
+        pooled_projection_dim: int = 768,# Dimension of pooled text projections
+        guidance_embeds: bool = False,  # Whether the model uses explicit guidance embeddings
+        axes_dims_rope: tuple[int] = (16, 56, 56), # Dimensions for N-D RoPE (e.g., text, height, width)
     ):
-        super(NunchakuFluxTransformer2dModel, self).__init__(
+        super(NunchakuOminiFluxTransformer2dModel, self).__init__(
             patch_size=patch_size,
             in_channels=in_channels,
             out_channels=out_channels,
@@ -352,24 +528,54 @@ class NunchakuFluxTransformer2dModel(FluxTransformer2DModel, NunchakuModelLoader
 
         return transformer
 
-    def inject_quantized_module(self, m: QuantizedFluxModel, device: str | torch.device = "cuda"):
+    def inject_quantized_module(self, m: QuantizedOminiFluxModel, device: str | torch.device = "cuda"):
+        """
+        Injects the C++ `QuantizedOminiFluxModel` into this PyTorch module.
+
+        This method sets up the necessary connections and replaces parts of the
+        standard Diffusers FluxTransformer2DModel with the Nunchaku-accelerated
+        components.
+
+        Args:
+            m: The initialized C++ `QuantizedOminiFluxModel` instance.
+            device: The device the model is on.
+        """
         print("Injecting quantized module")
         self.pos_embed = EmbedND(dim=self.inner_dim, theta=10000, axes_dim=[16, 56, 56])
 
         ### Compatible with the original forward method
-        self.transformer_blocks = nn.ModuleList([NunchakuFluxTransformerBlocks(m, device)])
+        # The entire C++ model is wrapped in a single NunchakuOminiFluxTransformerBlocks module.
+        # The original `transformer_blocks` and `single_transformer_blocks` lists from Diffusers
+        # are effectively replaced by this single wrapper.
+        self.transformer_blocks = nn.ModuleList([NunchakuOminiFluxTransformerBlocks(m, device)])
         self.single_transformer_blocks = nn.ModuleList([])
 
         return self
 
     def set_attention_impl(self, impl: str):
+        """Sets the attention implementation in the C++ model.
+
+        Args:
+            impl: A string identifying the attention implementation, e.g.,
+                  "flashattn2" or "nunchaku-fp16".
+        """
         block = self.transformer_blocks[0]
-        assert isinstance(block, NunchakuFluxTransformerBlocks)
+        assert isinstance(block, NunchakuOminiFluxTransformerBlocks)
         block.m.setAttentionImpl(impl)
 
     ### LoRA Related Functions
 
     def _expand_module(self, module_name: str, new_shape: tuple[int, int]):
+        """Expands a linear module (nn.Linear) to a new shape if LoRA weights require it.
+
+        If a LoRA layer has dimensions larger than the original weight matrix,
+        this function creates a new `nn.Linear` module with the expanded shape,
+        copies the original weights, and updates the stored state dict.
+
+        Args:
+            module_name: The fully qualified name of the nn.Linear module to expand.
+            new_shape: The target shape (out_features, in_features) for the module.
+        """
         module = self.get_submodule(module_name)
         assert isinstance(module, nn.Linear)
         weight_shape = module.weight.shape
@@ -401,6 +607,16 @@ class NunchakuFluxTransformer2dModel(FluxTransformer2DModel, NunchakuModelLoader
                 setattr(self.config, "in_channels", new_value)
 
     def _update_unquantized_part_lora_params(self, strength: float = 1):
+        """Applies loaded LoRA parameters to the unquantized parts of the model.
+
+        This method first checks if any unquantized linear layers need to be expanded
+        to accommodate the LoRA dimensions. Then, it iterates through the original
+        unquantized weights, adds the LoRA delta (scaled by `strength`), and updates
+        the model's state dict.
+
+        Args:
+            strength: The scaling factor for the LoRA weights.
+        """
         # check if we need to expand the linear layers
         device = next(self.parameters()).device
         for k, v in self._unquantized_part_loras.items():
@@ -463,6 +679,21 @@ class NunchakuFluxTransformer2dModel(FluxTransformer2DModel, NunchakuModelLoader
         self.load_state_dict(new_state_dict, strict=True)
 
     def update_lora_params(self, path_or_state_dict: str | dict[str, torch.Tensor]):
+        """Loads and applies LoRA parameters to both quantized and unquantized parts.
+
+        This is the main entry point for applying LoRA to the model.
+        It handles:
+        1. Loading LoRA weights from a file or dictionary.
+        2. Converting to Nunchaku format if necessary.
+        3. Separating LoRA weights for unquantized and quantized parts.
+        4. Applying unquantized LoRAs via `_update_unquantized_part_lora_params`.
+        5. Fusing LoRA vectors with base quantized vectors for the C++ model.
+        6. Loading the updated quantized weights/vectors into the C++ model.
+
+        Args:
+            path_or_state_dict: Path to a LoRA safetensors file or a state dictionary
+                                containing LoRA weights.
+        """
         if isinstance(path_or_state_dict, dict):
             state_dict = {
                 k: v for k, v in path_or_state_dict.items()
@@ -497,15 +728,29 @@ class NunchakuFluxTransformer2dModel(FluxTransformer2DModel, NunchakuModelLoader
         # Get the vectors from the quantized part
 
         block = self.transformer_blocks[0]
-        assert isinstance(block, NunchakuFluxTransformerBlocks)
+        assert isinstance(block, NunchakuOminiFluxTransformerBlocks)
 
         block.m.loadDict(state_dict, True)
 
     # This function can only be used with a single LoRA.
     # For multiple LoRAs, please fuse the lora scale into the weights.
     def set_lora_strength(self, strength: float = 1):
+        """Sets the strength of the currently loaded LoRA layers.
+
+        This method adjusts the scaling factor applied to the LoRA weights.
+        It affects both the unquantized parts (by re-applying with new strength)
+        and the quantized parts (by telling the C++ model the new scale or
+        re-fusing vectors).
+
+        Note: This function is primarily designed for a single active LoRA.
+        For multiple LoRAs, it's generally better to fuse them with their respective
+        strengths into the base weights.
+
+        Args:
+            strength: The new LoRA strength/scaling factor.
+        """
         block = self.transformer_blocks[0]
-        assert isinstance(block, NunchakuFluxTransformerBlocks)
+        assert isinstance(block, NunchakuOminiFluxTransformerBlocks)
         block.m.setLoraScale(SVD_RANK, strength)
         if len(self._unquantized_part_loras) > 0:
             self._update_unquantized_part_lora_params(strength)
@@ -514,6 +759,12 @@ class NunchakuFluxTransformer2dModel(FluxTransformer2DModel, NunchakuModelLoader
             block.m.loadDict(vector_dict, True)
 
     def reset_x_embedder(self):
+        """Resets the `x_embedder` (initial convolution) to its original `in_channels`.
+
+        If LoRA loading expanded `in_channels` of `x_embedder`, this function
+        reverts it to the original channel count defined during model initialization.
+        This is important when removing or changing LoRAs that modified input channels.
+        """
         # if change the model in channels, we need to update the x_embedder
         if self._original_in_channels != self.config.in_channels:
             assert self._original_in_channels < self.config.in_channels
@@ -535,6 +786,13 @@ class NunchakuFluxTransformer2dModel(FluxTransformer2DModel, NunchakuModelLoader
             setattr(self.config, "in_channels", self._original_in_channels)
 
     def reset_lora(self):
+        """Resets all applied LoRA modifications.
+
+        This involves:
+        1. Removing LoRA effects from unquantized parameters by reapplying with zero strength (effectively).
+        2. Reloading the original (non-LoRA) quantized weights/vectors into the C++ model.
+        3. Resetting the `x_embedder` if its `in_channels` was changed by LoRA.
+        """
         unquantized_part_loras = {}
         if len(self._unquantized_part_loras) > 0 or len(unquantized_part_loras) > 0:
             self._unquantized_part_loras = unquantized_part_loras
@@ -551,9 +809,11 @@ class NunchakuFluxTransformer2dModel(FluxTransformer2DModel, NunchakuModelLoader
     def forward(
         self,
         hidden_states: torch.Tensor,
+        cond_hidden_states: torch.Tensor,
         encoder_hidden_states: torch.Tensor = None,
         pooled_projections: torch.Tensor = None,
         timestep: torch.LongTensor = None,
+        cond_ids: torch.Tensor = None,
         img_ids: torch.Tensor = None,
         txt_ids: torch.Tensor = None,
         guidance: torch.Tensor = None,
@@ -564,33 +824,35 @@ class NunchakuFluxTransformer2dModel(FluxTransformer2DModel, NunchakuModelLoader
         controlnet_blocks_repeat: bool = False,
     ) -> Union[torch.FloatTensor, Transformer2DModelOutput]:
         """
-        Copied from diffusers.models.flux.transformer_flux.py
+        Main forward pass of the NunchakuOminiFluxTransformer2dModel.
+
+        This method orchestrates the entire generation process for the transformer part.
+        It takes various inputs (hidden states, text embeddings, time steps, etc.),
+        prepares them, and passes them to the Nunchaku-accelerated transformer blocks.
 
         Args:
-            hidden_states (`torch.FloatTensor` of shape `(batch size, channel, height, width)`):
-                Input `hidden_states`.
-            encoder_hidden_states (`torch.FloatTensor` of shape `(batch size, sequence_len, embed_dims)`):
-                Conditional embeddings (embeddings computed from the input conditions such as prompts) to use.
-            pooled_projections (`torch.FloatTensor` of shape `(batch_size, projection_dim)`): Embeddings projected
-                from the embeddings of input conditions.
-            timestep ( `torch.LongTensor`):
-                Used to indicate denoising step.
-            block_controlnet_hidden_states: (`list` of `torch.Tensor`):
-                A list of tensors that if specified are added to the residuals of transformer blocks.
-            joint_attention_kwargs (`dict`, *optional*):
-                A kwargs dictionary that if specified is passed along to the `AttentionProcessor` as defined under
-                `self.processor` in
-                [diffusers.models.attention_processor](https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/attention_processor.py).
-            return_dict (`bool`, *optional*, defaults to `True`):
-                Whether or not to return a [`~models.transformer_2d.Transformer2DModelOutput`] instead of a plain
-                tuple.
+            hidden_states: The image latents, shape `(B, C, H, W)`.
+            cond_hidden_states: The conditional latents, shape `(B, C, H_cond, W_cond)`.
+            encoder_hidden_states: Text encoder outputs, shape `(B, S_txt, D_txt)`.
+            pooled_projections: Pooled text embeddings, shape `(B, D_pool)`.
+            timestep: Current denoising timestep.
+            cond_ids: Positional IDs for conditional latents.
+            img_ids: Positional IDs for image latents.
+            txt_ids: Positional IDs for text latents.
+            guidance: Guidance scale tensor (if `guidance_embeds` is True).
+            joint_attention_kwargs: Kwargs for joint attention (e.g., IP-Adapter).
+            controlnet_block_samples: ControlNet features for joint blocks.
+            controlnet_single_block_samples: ControlNet features for single blocks.
+            return_dict: Whether to return a `Transformer2DModelOutput` or a tuple.
+            controlnet_blocks_repeat: Not used in this version.
 
         Returns:
-            If `return_dict` is True, an [`~models.transformer_2d.Transformer2DModelOutput`] is returned, otherwise a
-            `tuple` where the first element is the sample tensor.
+            If `return_dict` is True, a `Transformer2DModelOutput` with the denoised sample.
+            Otherwise, a tuple containing the denoised sample.
         """
+        # Initial convolution to project input latents to inner dimension
         hidden_states = self.x_embedder(hidden_states)
-        
+        cond_hidden_states = self.x_embedder(cond_hidden_states)
 
         timestep = timestep.to(hidden_states.dtype) * 1000
         if guidance is not None:
@@ -603,8 +865,12 @@ class NunchakuFluxTransformer2dModel(FluxTransformer2DModel, NunchakuModelLoader
             if guidance is None
             else self.time_text_embed(timestep, guidance, pooled_projections)
         )
+        cond_temb = (
+            self.time_text_embed(torch.zeros_like(timestep), pooled_projections)
+            if guidance is None
+            else self.time_text_embed(torch.zeros_like(timestep), guidance, pooled_projections)
+        )
 
-    
         encoder_hidden_states = self.context_embedder(encoder_hidden_states)
 
         if txt_ids.ndim == 3:
@@ -620,8 +886,13 @@ class NunchakuFluxTransformer2dModel(FluxTransformer2DModel, NunchakuModelLoader
             )
             img_ids = img_ids[0]
 
+        # print(txt_ids.shape, img_ids.shape)
+        # print(cond_ids.shape)
         ids = torch.cat((txt_ids, img_ids), dim=0)
         image_rotary_emb = self.pos_embed(ids)
+        cond_rotary_emb = self.pos_embed(cond_ids)
+
+        # print(image_rotary_emb.shape, cond_rotary_emb.shape)
 
         if joint_attention_kwargs is not None and "ip_adapter_image_embeds" in joint_attention_kwargs:
             ip_adapter_image_embeds = joint_attention_kwargs.pop("ip_adapter_image_embeds")
@@ -631,16 +902,20 @@ class NunchakuFluxTransformer2dModel(FluxTransformer2DModel, NunchakuModelLoader
         nunchaku_block = self.transformer_blocks[0]
         encoder_hidden_states, hidden_states = nunchaku_block(
             hidden_states=hidden_states,
+            cond_hidden_states=cond_hidden_states,
             encoder_hidden_states=encoder_hidden_states,
             temb=temb,
+            cond_temb=cond_temb,
             image_rotary_emb=image_rotary_emb,
+            cond_rotary_emb=cond_rotary_emb,
             joint_attention_kwargs=joint_attention_kwargs,
             controlnet_block_samples=controlnet_block_samples,
             controlnet_single_block_samples=controlnet_single_block_samples,
         )
-        hidden_states = torch.cat([encoder_hidden_states, hidden_states], dim=1)
-        hidden_states = hidden_states[:, encoder_hidden_states.shape[1] :, ...]
+        #hidden_states = torch.cat([encoder_hidden_states, hidden_states], dim=1)
+        #hidden_states = hidden_states[:, encoder_hidden_states.shape[1] :, ...]
         hidden_states = self.norm_out(hidden_states, temb)
+    
         output = self.proj_out(hidden_states)
 
         if not return_dict:

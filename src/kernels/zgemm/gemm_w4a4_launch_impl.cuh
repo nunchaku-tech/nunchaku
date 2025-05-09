@@ -1,4 +1,7 @@
 #include "gemm_w4a4_launch.cuh"
+#include <iostream>
+
+using spdlog::fmt_lib::format;
 
 namespace nunchaku::kernels {
 
@@ -350,6 +353,19 @@ void GEMM_W4A4_Launch<GEMMConfig_W4A4_FP16, false>::gemm_w4a4(
         // assert(isTypeMatch<half_t>(rotary_emb.scalar_type()));
         assert(rotary_emb.scalar_type() == Tensor::FP32);
         assert(rotary_emb.ndims() == 3);
+        spdlog::error("GEMM Kernel: rotary_emb.shape = [{}, {}, {}]",
+                      rotary_emb.shape[0], rotary_emb.shape[1], rotary_emb.shape[2]);
+        spdlog::error("GEMM Kernel: act.shape = {}", act.shape.str());
+        spdlog::error("GEMM Kernel: act.numel() = {}, act.shape[-1] = {}", act.numel(), act.shape[-1]);
+        spdlog::error("GEMM Kernel: M (from act) = {}", M);
+        spdlog::error("GEMM Kernel: Expected M for rotary_emb = {}", rotary_emb.shape[0] * rotary_emb.shape[1]);
+        spdlog::error("rotary_emb.shape[0]={}, rotary_emb.shape[1]={}, M={}", rotary_emb.shape[0], rotary_emb.shape[1], M);
+
+        // std::cerr << "DIRECT OUTPUT - rotary_emb.shape = [" 
+        //   << rotary_emb.shape[0] << ", " 
+        //   << rotary_emb.shape[1] << ", " 
+        //   << rotary_emb.shape[2] << "], M = " 
+        //   << M << std::endl;
         assert(rotary_emb.shape[0] * rotary_emb.shape[1] == M);
         assert(rotary_emb.shape[2] == Epilogues::EpilogueRMSNormRope::HEAD_DIM);
 
