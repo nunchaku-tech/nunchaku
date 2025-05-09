@@ -137,3 +137,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
     assert len(args.input_paths) == len(args.strengths)
     composed = compose_lora(list(zip(args.input_paths, args.strengths)))
+    save_file(composed, args.output_path)
