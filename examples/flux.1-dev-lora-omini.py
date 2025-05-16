@@ -67,8 +67,8 @@ pipeline = OminiFluxDownsizeAllInOnePipeline.from_pretrained(
 # `compose_lora` likely merges these LoRAs into a single state dictionary.
 composed_lora = compose_lora(
     [
-        ("/mnt/sdb/lc/world_engine/output/fluxdev-empty-lora-1024-64-downsize-flux_shift-lr5e-5-2-balanced-8gpu-downsize-retrain/checkpoint-6200/design.safetensors", 1.125),
-        ("/mnt/sdb/lc/ckpt/shortcut-8-step-v2.safetensors", 1.2),
+        ("PATH_TO_OMINI.safetensors", 1.125),
+        ("PATH_TO_HyperSD.safetensors", 0.125),
     ]
 )  # set your lora strengths here when using composed lora
 
