@@ -67,7 +67,7 @@ public:
     Output forward(Tensor x, Tensor emb);
 
 public:
-    const int dim;      // Dimensionality of the input and output tensors
+    const int dim;       // Dimensionality of the input and output tensors
     const bool pre_only; // Flag to indicate if only pre-attention conditioning parameters are computed
 
 private:
@@ -109,18 +109,23 @@ public:
     using GEMM                     = std::conditional_t<USE_4BIT, GEMM_W4A4, GEMM_W8A8>;
 
     OminiFluxSingleTransformerBlock(int dim,
-                               int num_attention_heads,
-                               int attention_head_dim,
-                               int mlp_ratio, // Ratio to determine MLP hidden dimension (dim * mlp_ratio)
-                               bool use_fp4, // Whether to use 4-bit quantization for GEMM layers
-                               Tensor::ScalarType dtype, // Data type for computations
-                               Device device);          // Device for tensor allocation
+                                    int num_attention_heads,
+                                    int attention_head_dim,
+                                    int mlp_ratio, // Ratio to determine MLP hidden dimension (dim * mlp_ratio)
+                                    bool use_fp4,  // Whether to use 4-bit quantization for GEMM layers
+                                    Tensor::ScalarType dtype, // Data type for computations
+                                    Device device);           // Device for tensor allocation
 
-   // Forward pass for the single transformer block
-   // Takes hidden_states, conditional_hidden_states, time embeddings (temb, cond_temb),
-   // and rotary embeddings (rotary_emb, cond_rotary_emb).
-   // Returns a tuple of processed hidden_states and cond_hidden_states.
-   std::tuple<Tensor, Tensor> forward(Tensor hidden_states, Tensor cond_hidden_states, Tensor temb, Tensor cond_temb, Tensor rotary_emb, Tensor cond_rotary_emb);
+    // Forward pass for the single transformer block
+    // Takes hidden_states, conditional_hidden_states, time embeddings (temb, cond_temb),
+    // and rotary embeddings (rotary_emb, cond_rotary_emb).
+    // Returns a tuple of processed hidden_states and cond_hidden_states.
+    std::tuple<Tensor, Tensor> forward(Tensor hidden_states,
+                                       Tensor cond_hidden_states,
+                                       Tensor temb,
+                                       Tensor cond_temb,
+                                       Tensor rotary_emb,
+                                       Tensor cond_rotary_emb);
 
 public:
     const int dim;            // Input/output dimension of the block
@@ -132,12 +137,12 @@ public:
 
 private:
     OminiAdaLayerNormZeroSingle norm; // AdaLayerNorm for this block
-    GEMM mlp_fc1;                   // First linear layer of the MLP
-    GEMM mlp_fc2;                   // Second linear layer of the MLP
-    GEMM qkv_proj;                 // Linear layer for Q, K, V projection
-    RMSNorm norm_q, norm_k;         // RMSNorm for Q and K before attention
-    OminiAttention attn;            // Multi-head attention module
-    GEMM out_proj;                  // Output projection layer after attention
+    GEMM mlp_fc1;                     // First linear layer of the MLP
+    GEMM mlp_fc2;                     // Second linear layer of the MLP
+    GEMM qkv_proj;                    // Linear layer for Q, K, V projection
+    RMSNorm norm_q, norm_k;           // RMSNorm for Q and K before attention
+    OminiAttention attn;              // Multi-head attention module
+    GEMM out_proj;                    // Output projection layer after attention
 };
 
 // A joint transformer block for the OminiFlux architecture.
@@ -150,12 +155,12 @@ public:
     using GEMM                     = std::conditional_t<USE_4BIT, GEMM_W4A4, GEMM_W8A8>;
 
     OminiJointTransformerBlock(int dim,
-                          int num_attention_heads,
-                          int attention_head_dim,
-                          bool context_pre_only, // If true, context conditioning is applied only before attention
-                          bool use_fp4,          // Whether to use 4-bit quantization for GEMM layers
-                          Tensor::ScalarType dtype,      // Data type for computations
-                          Device device);               // Device for tensor allocation
+                               int num_attention_heads,
+                               int attention_head_dim,
+                               bool context_pre_only, // If true, context conditioning is applied only before attention
+                               bool use_fp4,          // Whether to use 4-bit quantization for GEMM layers
+                               Tensor::ScalarType dtype, // Data type for computations
+                               Device device);           // Device for tensor allocation
 
     // Forward pass for the joint transformer block
     // Takes hidden_states (image), cond_hidden_states (conditional), encoder_hidden_states (text/context),
@@ -163,36 +168,36 @@ public:
     // and an optional sparsity ratio for attention.
     // Returns a tuple of processed hidden_states, cond_hidden_states, and encoder_hidden_states.
     std::tuple<Tensor, Tensor, Tensor> forward(Tensor hidden_states,
-                                       Tensor cond_hidden_states,
-                                       Tensor encoder_hidden_states,
-                                       Tensor temb,
-                                       Tensor cond_temb,
-                                       Tensor rotary_emb,         // Rotary embedding for image
-                                       Tensor rotary_emb_context, // Rotary embedding for context/text
-                                       Tensor cond_rotary_emb,    // Rotary embedding for conditional input
-                                       float sparsityRatio);
+                                               Tensor cond_hidden_states,
+                                               Tensor encoder_hidden_states,
+                                               Tensor temb,
+                                               Tensor cond_temb,
+                                               Tensor rotary_emb,         // Rotary embedding for image
+                                               Tensor rotary_emb_context, // Rotary embedding for context/text
+                                               Tensor cond_rotary_emb,    // Rotary embedding for conditional input
+                                               float sparsityRatio);
 
 public:
-    const int dim;              // Input/output dimension of the block
-    const int dim_head;         // Dimension of each attention head
-    const int num_heads;        // Number of attention heads
+    const int dim;               // Input/output dimension of the block
+    const int dim_head;          // Dimension of each attention head
+    const int num_heads;         // Number of attention heads
     const bool context_pre_only; // True if context conditioning is only pre-attention
     OminiAdaLayerNormZero norm1; // AdaLayerNorm for image features
 
     OminiAttentionImpl attnImpl = OminiAttentionImpl::FlashAttention2; // Attention implementation to use
 
 private:
-    OminiAdaLayerNormZero norm1_context; // AdaLayerNorm for context/text features
-    GEMM qkv_proj;                     // QKV projection for image features
-    GEMM qkv_proj_context;            // QKV projection for context/text features
-    RMSNorm norm_q, norm_k;            // RMSNorm for image Q and K
-    RMSNorm norm_added_q, norm_added_k; // RMSNorm for context Q and K (often termed 'added' or cross-attention QK)
-    OminiAttention attn;               // Multi-head attention module
-    GEMM out_proj;                     // Output projection for image features
-    GEMM out_proj_context;             // Output projection for context/text features
-    LayerNorm norm2;                   // LayerNorm before MLP for image features
-    LayerNorm norm2_context;           // LayerNorm before MLP for context/text features
-    GEMM mlp_fc1, mlp_fc2;             // MLP layers for image features
+    OminiAdaLayerNormZero norm1_context;   // AdaLayerNorm for context/text features
+    GEMM qkv_proj;                         // QKV projection for image features
+    GEMM qkv_proj_context;                 // QKV projection for context/text features
+    RMSNorm norm_q, norm_k;                // RMSNorm for image Q and K
+    RMSNorm norm_added_q, norm_added_k;    // RMSNorm for context Q and K (often termed 'added' or cross-attention QK)
+    OminiAttention attn;                   // Multi-head attention module
+    GEMM out_proj;                         // Output projection for image features
+    GEMM out_proj_context;                 // Output projection for context/text features
+    LayerNorm norm2;                       // LayerNorm before MLP for image features
+    LayerNorm norm2_context;               // LayerNorm before MLP for context/text features
+    GEMM mlp_fc1, mlp_fc2;                 // MLP layers for image features
     GEMM mlp_context_fc1, mlp_context_fc2; // MLP layers for context/text features
 };
 
@@ -214,10 +219,10 @@ public:
                    Tensor encoder_hidden_states,
                    Tensor temb,
                    Tensor cond_temb,
-                   Tensor rotary_emb_img,     // Rotary embeddings for image features
-                   Tensor rotary_emb_context, // Rotary embeddings for context/text features
-                   Tensor rotary_emb_single,  // Rotary embeddings for single (concatenated) features
-                   Tensor rotary_emb_cond,    // Rotary embeddings for conditional features
+                   Tensor rotary_emb_img,                  // Rotary embeddings for image features
+                   Tensor rotary_emb_context,              // Rotary embeddings for context/text features
+                   Tensor rotary_emb_single,               // Rotary embeddings for single (concatenated) features
+                   Tensor rotary_emb_cond,                 // Rotary embeddings for conditional features
                    Tensor controlnet_block_samples,        // ControlNet features for joint blocks
                    Tensor controlnet_single_block_samples, // ControlNet features for single blocks
                    bool skip_first_layer = false);
@@ -226,16 +231,16 @@ public:
     // Allows for inspecting or modifying intermediate representations.
     // Returns a tuple of (image_hidden_states, text_encoder_hidden_states, conditional_hidden_states).
     std::tuple<Tensor, Tensor, Tensor> forward_layer(size_t layer,
-                                             Tensor hidden_states,
-                                             Tensor cond_hidden_states,
-                                             Tensor encoder_hidden_states,
-                                             Tensor temb,
-                                             Tensor cond_temb,
-                                             Tensor rotary_emb_img,
-                                             Tensor rotary_emb_context,
-                                             Tensor rotary_emb_cond,
-                                             Tensor controlnet_block_samples,
-                                             Tensor controlnet_single_block_samples);
+                                                     Tensor hidden_states,
+                                                     Tensor cond_hidden_states,
+                                                     Tensor encoder_hidden_states,
+                                                     Tensor temb,
+                                                     Tensor cond_temb,
+                                                     Tensor rotary_emb_img,
+                                                     Tensor rotary_emb_context,
+                                                     Tensor rotary_emb_cond,
+                                                     Tensor controlnet_block_samples,
+                                                     Tensor controlnet_single_block_samples);
 
     // Sets the attention implementation (e.g., FlashAttention2) for all attention modules.
     void setAttentionImpl(OminiAttentionImpl impl);

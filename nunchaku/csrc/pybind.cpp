@@ -18,10 +18,10 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
         // Exposes the 'init' method for model initialization
         .def("init",
              &QuantizedFluxModel::init,
-             py::arg("use_fp4"),      // Argument: whether to use FP4 quantization
-             py::arg("offload"),      // Argument: whether to enable layer offloading
-             py::arg("bf16"),         // Argument: whether to use bfloat16 precision
-             py::arg("deviceId"))   // Argument: CUDA device ID
+             py::arg("use_fp4"),  // Argument: whether to use FP4 quantization
+             py::arg("offload"),  // Argument: whether to enable layer offloading
+             py::arg("bf16"),     // Argument: whether to use bfloat16 precision
+             py::arg("deviceId")) // Argument: CUDA device ID
         // Exposes 'set_residual_callback' to allow Python functions to be called from C++
         .def("set_residual_callback",
              [](QuantizedFluxModel &self, pybind11::object call_back) {
@@ -33,7 +33,10 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
              })
         .def("reset", &QuantizedFluxModel::reset) // Exposes model reset functionality
         .def("load", &QuantizedFluxModel::load, py::arg("path"), py::arg("partial") = false) // Load model from path
-        .def("loadDict", &QuantizedFluxModel::loadDict, py::arg("dict"), py::arg("partial") = false) // Load model from a Python dictionary (state_dict)
+        .def("loadDict",
+             &QuantizedFluxModel::loadDict,
+             py::arg("dict"),
+             py::arg("partial") = false) // Load model from a Python dictionary (state_dict)
         // Exposes the main 'forward' pass of the model
         .def("forward",
              &QuantizedFluxModel::forward,
@@ -45,7 +48,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
              py::arg("rotary_emb_single"),
              py::arg("controlnet_block_samples")        = py::none(), // Optional ControlNet features
              py::arg("controlnet_single_block_samples") = py::none(), // Optional ControlNet features for single blocks
-             py::arg("skip_first_layer")                = false)     // Optional: skip the first layer
+             py::arg("skip_first_layer")                = false)                     // Optional: skip the first layer
         // Exposes 'forward_layer' for running a single layer
         .def("forward_layer",
              &QuantizedFluxModel::forward_layer,
@@ -57,13 +60,16 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
              py::arg("rotary_emb_context"),
              py::arg("controlnet_block_samples")        = py::none(),
              py::arg("controlnet_single_block_samples") = py::none())
-        .def("forward_single_layer", &QuantizedFluxModel::forward_single_layer) // Forward pass for a single type of block
-        .def("norm_one_forward", &QuantizedFluxModel::norm_one_forward) // Forward pass for the first norm layer of a block
+        .def("forward_single_layer",
+             &QuantizedFluxModel::forward_single_layer) // Forward pass for a single type of block
+        .def("norm_one_forward",
+             &QuantizedFluxModel::norm_one_forward)         // Forward pass for the first norm layer of a block
         .def("startDebug", &QuantizedFluxModel::startDebug) // Debugging utilities
         .def("stopDebug", &QuantizedFluxModel::stopDebug)
         .def("getDebugResults", &QuantizedFluxModel::getDebugResults)
         .def("setLoraScale", &QuantizedFluxModel::setLoraScale) // Set LoRA scaling factor
-        .def("setAttentionImpl", &QuantizedFluxModel::setAttentionImpl) // Set attention implementation (e.g., flashattn2)
+        .def("setAttentionImpl",
+             &QuantizedFluxModel::setAttentionImpl)  // Set attention implementation (e.g., flashattn2)
         .def("isBF16", &QuantizedFluxModel::isBF16); // Check if model is using bfloat16
     py::class_<QuantizedSanaModel>(m, "QuantizedSanaModel")
         .def(py::init<>())
@@ -106,10 +112,10 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
         .def(py::init<>())
         .def("init",
              &QuantizedOminiFluxModel::init,
-             py::arg("use_fp4"),      // Use 4-bit precision for quantization
-             py::arg("offload"),      // Enable layer offloading to CPU
-             py::arg("bf16"),         // Use bfloat16, otherwise float16
-             py::arg("deviceId"))   // CUDA device ID
+             py::arg("use_fp4"),  // Use 4-bit precision for quantization
+             py::arg("offload"),  // Enable layer offloading to CPU
+             py::arg("bf16"),     // Use bfloat16, otherwise float16
+             py::arg("deviceId")) // CUDA device ID
         .def("set_residual_callback",
              [](QuantizedOminiFluxModel &self, pybind11::object call_back) {
                  if (call_back.is_none()) {
@@ -119,8 +125,14 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
                  }
              })
         .def("reset", &QuantizedOminiFluxModel::reset) // Resets the model state
-        .def("load", &QuantizedOminiFluxModel::load, py::arg("path"), py::arg("partial") = false) // Load weights from a file path
-        .def("loadDict", &QuantizedOminiFluxModel::loadDict, py::arg("dict"), py::arg("partial") = false) // Load weights from a Python dictionary (state_dict like)
+        .def("load",
+             &QuantizedOminiFluxModel::load,
+             py::arg("path"),
+             py::arg("partial") = false) // Load weights from a file path
+        .def("loadDict",
+             &QuantizedOminiFluxModel::loadDict,
+             py::arg("dict"),
+             py::arg("partial") = false) // Load weights from a Python dictionary (state_dict like)
         // Defines the main forward pass with all its arguments.
         .def("forward",
              &QuantizedOminiFluxModel::forward,
@@ -135,11 +147,11 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
              py::arg("rotary_emb_cond"),       // Rotary embeddings for conditional inputs
              py::arg("controlnet_block_samples")        = py::none(), // Optional ControlNet features for joint blocks
              py::arg("controlnet_single_block_samples") = py::none(), // Optional ControlNet features for single blocks
-             py::arg("skip_first_layer")                = false)     // Option to skip the first layer
+             py::arg("skip_first_layer")                = false)                     // Option to skip the first layer
         // Defines the forward pass for a single specified layer.
         .def("forward_layer",
              &QuantizedOminiFluxModel::forward_layer,
-             py::arg("idx"),                   // Index of the layer to run
+             py::arg("idx"), // Index of the layer to run
              py::arg("hidden_states"),
              py::arg("cond_hidden_states"),
              py::arg("encoder_hidden_states"),
@@ -152,11 +164,12 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
              py::arg("controlnet_single_block_samples") = py::none())
         // Exposes the forward method of the first AdaLayerNorm in a specified block (used for caching like TeaCache).
         .def("norm_one_forward", &QuantizedOminiFluxModel::norm_one_forward)
-        .def("startDebug", &QuantizedOminiFluxModel::startDebug)     // Debug utilities
+        .def("startDebug", &QuantizedOminiFluxModel::startDebug) // Debug utilities
         .def("stopDebug", &QuantizedOminiFluxModel::stopDebug)
         .def("getDebugResults", &QuantizedOminiFluxModel::getDebugResults)
         .def("setLoraScale", &QuantizedOminiFluxModel::setLoraScale) // Sets the scaling factor for LoRA layers
-        .def("setAttentionImpl", &QuantizedOminiFluxModel::setAttentionImpl) // Chooses attention kernel (e.g., "flashattn2")
+        .def("setAttentionImpl",
+             &QuantizedOminiFluxModel::setAttentionImpl)  // Chooses attention kernel (e.g., "flashattn2")
         .def("isBF16", &QuantizedOminiFluxModel::isBF16); // Checks if the model is configured for bfloat16
 
     // Submodule for exposing specific C++ operators (kernels) to Python.

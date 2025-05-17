@@ -307,12 +307,12 @@ void OminiAttention::setForceFP16(Module *module, bool value) {
 // This block is used when processing image and conditional tokens separately
 // after the initial joint processing phase.
 OminiFluxSingleTransformerBlock::OminiFluxSingleTransformerBlock(int dim,
-                                                       int num_attention_heads,
-                                                       int attention_head_dim,
-                                                       int mlp_ratio,
-                                                       bool use_fp4,
-                                                       Tensor::ScalarType dtype,
-                                                       Device device)
+                                                                 int num_attention_heads,
+                                                                 int attention_head_dim,
+                                                                 int mlp_ratio,
+                                                                 bool use_fp4,
+                                                                 Tensor::ScalarType dtype,
+                                                                 Device device)
     : dim(dim), dim_head(attention_head_dim / num_attention_heads), num_heads(num_attention_heads),
       mlp_hidden_dim(dim * mlp_ratio), norm(dim, dtype, device),
       mlp_fc1(dim, mlp_hidden_dim, true, use_fp4, dtype, device),
@@ -329,39 +329,37 @@ OminiFluxSingleTransformerBlock::OminiFluxSingleTransformerBlock(int dim,
 // Applies AdaLayerNorm, self-attention, and MLP layers to both.
 // `temb` and `cond_temb` are time embeddings for conditioning.
 // `rotary_emb` and `cond_rotary_emb` are rotary position embeddings.
-std::tuple<Tensor, Tensor> OminiFluxSingleTransformerBlock::forward(Tensor hidden_states, 
-                                           Tensor cond_hidden_states, 
-                                           Tensor temb, 
-                                           Tensor cond_temb,
-                                           Tensor rotary_emb,
-                                           Tensor cond_rotary_emb) {
+std::tuple<Tensor, Tensor> OminiFluxSingleTransformerBlock::forward(Tensor hidden_states,
+                                                                    Tensor cond_hidden_states,
+                                                                    Tensor temb,
+                                                                    Tensor cond_temb,
+                                                                    Tensor rotary_emb,
+                                                                    Tensor cond_rotary_emb) {
 
     nvtxRangePushA("OminiFluxSingleTransformerBlock");
 
-    const int batch_size = hidden_states.shape[0];
-    const int num_tokens = hidden_states.shape[1];
+    const int batch_size      = hidden_states.shape[0];
+    const int num_tokens      = hidden_states.shape[1];
     const int num_cond_tokens = cond_hidden_states.shape[1];
 
-    auto &&[norm_hidden_states, gate] = this->norm.forward(hidden_states, temb);
+    auto &&[norm_hidden_states, gate]           = this->norm.forward(hidden_states, temb);
     auto &&[norm_cond_hidden_states, cond_gate] = this->norm.forward(cond_hidden_states, cond_temb);
     debug("norm_hidden_states", norm_hidden_states);
     debug("gate", gate);
     debug("norm_cond_hidden_states", norm_cond_hidden_states);
     debug("cond_gate", cond_gate);
 
-    Tensor residual = hidden_states;
+    Tensor residual      = hidden_states;
     Tensor residual_cond = cond_hidden_states;
 
     Tensor attn_output;
 
-
     debug("rotary_emb", rotary_emb);
 
     if (attnImpl == OminiAttentionImpl::FlashAttention2) {
-        Tensor concat_qkv = Tensor::allocate(
-            {batch_size, num_tokens + num_cond_tokens, dim * 3}, 
-            norm_hidden_states.scalar_type(), 
-            norm_hidden_states.device());
+        Tensor concat_qkv = Tensor::allocate({batch_size, num_tokens + num_cond_tokens, dim * 3},
+                                             norm_hidden_states.scalar_type(),
+                                             norm_hidden_states.device());
 
         for (int i = 0; i < batch_size; i++) {
             // Process image tokens
@@ -369,22 +367,14 @@ std::tuple<Tensor, Tensor> OminiFluxSingleTransformerBlock::forward(Tensor hidde
             // Process condition tokens
             Tensor qkv_cond = concat_qkv.slice(0, i, i + 1).slice(1, num_tokens, num_tokens + num_cond_tokens);
 
-            qkv_proj.forward(
-                norm_hidden_states.slice(0, i, i + 1),
-                qkv,
-                {},
-                norm_q.weight,
-                norm_k.weight,
-                rotary_emb);
+            qkv_proj.forward(norm_hidden_states.slice(0, i, i + 1), qkv, {}, norm_q.weight, norm_k.weight, rotary_emb);
 
-
-            qkv_proj.forward(
-                norm_cond_hidden_states.slice(0, i, i + 1),
-                qkv_cond,
-                {},
-                norm_q.weight,
-                norm_k.weight,
-                cond_rotary_emb);
+            qkv_proj.forward(norm_cond_hidden_states.slice(0, i, i + 1),
+                             qkv_cond,
+                             {},
+                             norm_q.weight,
+                             norm_k.weight,
+                             cond_rotary_emb);
         }
 
         attn_output = attn.forward(concat_qkv);
@@ -392,23 +382,24 @@ std::tuple<Tensor, Tensor> OminiFluxSingleTransformerBlock::forward(Tensor hidde
 
         // Split outputs
         if (batch_size == 1) {
-            hidden_states = attn_output.slice(1, 0, num_tokens);
+            hidden_states      = attn_output.slice(1, 0, num_tokens);
             cond_hidden_states = attn_output.slice(1, num_tokens, num_tokens + num_cond_tokens);
         } else {
             // Allocate output tensors
-            hidden_states = Tensor::allocate({batch_size, num_tokens, num_heads * dim_head}, attn_output.scalar_type(), attn_output.device());
-            cond_hidden_states = Tensor::allocate({batch_size, num_cond_tokens, num_heads * dim_head}, attn_output.scalar_type(), attn_output.device());
+            hidden_states = Tensor::allocate(
+                {batch_size, num_tokens, num_heads * dim_head}, attn_output.scalar_type(), attn_output.device());
+            cond_hidden_states = Tensor::allocate(
+                {batch_size, num_cond_tokens, num_heads * dim_head}, attn_output.scalar_type(), attn_output.device());
             // Copy for each batch
-            checkCUDA(cudaMemcpy2DAsync(
-                hidden_states.data_ptr(),
-                num_tokens * num_heads * dim_head * hidden_states.scalar_size(),
-                attn_output.data_ptr(),
-                (num_tokens + num_cond_tokens) * num_heads * dim_head * attn_output.scalar_size(),
-                num_tokens * num_heads * dim_head * hidden_states.scalar_size(),
-                batch_size,
-                cudaMemcpyDeviceToDevice,
-                getCurrentCUDAStream()
-            ));
+            checkCUDA(
+                cudaMemcpy2DAsync(hidden_states.data_ptr(),
+                                  num_tokens * num_heads * dim_head * hidden_states.scalar_size(),
+                                  attn_output.data_ptr(),
+                                  (num_tokens + num_cond_tokens) * num_heads * dim_head * attn_output.scalar_size(),
+                                  num_tokens * num_heads * dim_head * hidden_states.scalar_size(),
+                                  batch_size,
+                                  cudaMemcpyDeviceToDevice,
+                                  getCurrentCUDAStream()));
             checkCUDA(cudaMemcpy2DAsync(
                 cond_hidden_states.data_ptr(),
                 num_cond_tokens * num_heads * dim_head * cond_hidden_states.scalar_size(),
@@ -417,65 +408,59 @@ std::tuple<Tensor, Tensor> OminiFluxSingleTransformerBlock::forward(Tensor hidde
                 num_cond_tokens * num_heads * dim_head * cond_hidden_states.scalar_size(),
                 batch_size,
                 cudaMemcpyDeviceToDevice,
-                getCurrentCUDAStream()
-            ));
+                getCurrentCUDAStream()));
         }
     } else if (attnImpl == OminiAttentionImpl::NunchakuFP16) {
-        const int num_tokens_pad = ceilDiv((num_tokens), 256) * 256;
+        const int num_tokens_pad      = ceilDiv((num_tokens), 256) * 256;
         const int num_tokens_cond_pad = ceilDiv(num_cond_tokens, 256) * 256;
 
         Tensor concat_q, concat_k, concat_v;
         {
             nvtxRangePushA("qkv_proj");
             concat_q = Tensor::allocate({batch_size, num_heads, num_tokens_pad + num_tokens_cond_pad, dim_head},
-                            Tensor::FP16,
-                            norm_hidden_states.device());
+                                        Tensor::FP16,
+                                        norm_hidden_states.device());
             concat_k = Tensor::empty_like(concat_q);
             concat_v = Tensor::empty_like(concat_q);
 
             for (int i = 0; i < batch_size; i++) {
                 // Define slice functions
-                auto sliceImg = [&](Tensor x) { return x.slice(0, i, i + 1).slice(2, 0, num_tokens_pad); };
-                auto sliceCond = [&](Tensor x) { 
-                    return x.slice(0, i, i + 1).slice(2, num_tokens_pad, num_tokens_pad + num_tokens_cond_pad); 
+                auto sliceImg  = [&](Tensor x) { return x.slice(0, i, i + 1).slice(2, 0, num_tokens_pad); };
+                auto sliceCond = [&](Tensor x) {
+                    return x.slice(0, i, i + 1).slice(2, num_tokens_pad, num_tokens_pad + num_tokens_cond_pad);
                 };
 
-                        // Process image tokens QKV
-            qkv_proj.forward(
-                norm_hidden_states.slice(0, i, i + 1),
-                {},
-                {},
-                norm_q.weight,
-                norm_k.weight,
-                rotary_emb,
-                sliceImg(concat_q),
-                sliceImg(concat_k),
-                sliceImg(concat_v),
-                num_tokens);
+                // Process image tokens QKV
+                qkv_proj.forward(norm_hidden_states.slice(0, i, i + 1),
+                                 {},
+                                 {},
+                                 norm_q.weight,
+                                 norm_k.weight,
+                                 rotary_emb,
+                                 sliceImg(concat_q),
+                                 sliceImg(concat_k),
+                                 sliceImg(concat_v),
+                                 num_tokens);
 
-            // Process condition tokens QKV
-            qkv_proj.forward(
-                norm_cond_hidden_states.slice(0, i, i + 1),
-                {},
-                {},
-                norm_q.weight,
-                norm_k.weight,
-                cond_rotary_emb,
-                sliceCond(concat_q),
-                sliceCond(concat_k),
-                sliceCond(concat_v),
-                num_cond_tokens);
-
+                // Process condition tokens QKV
+                qkv_proj.forward(norm_cond_hidden_states.slice(0, i, i + 1),
+                                 {},
+                                 {},
+                                 norm_q.weight,
+                                 norm_k.weight,
+                                 cond_rotary_emb,
+                                 sliceCond(concat_q),
+                                 sliceCond(concat_k),
+                                 sliceCond(concat_v),
+                                 num_cond_tokens);
             }
 
             nvtxRangePop();
-
         }
 
-        Tensor o = Tensor::allocate(
-            {batch_size, num_tokens_pad + num_tokens_cond_pad, num_heads * dim_head},
-            norm_hidden_states.scalar_type(),
-            norm_hidden_states.device());
+        Tensor o = Tensor::allocate({batch_size, num_tokens_pad + num_tokens_cond_pad, num_heads * dim_head},
+                                    norm_hidden_states.scalar_type(),
+                                    norm_hidden_states.device());
 
         nvtxRangePushA("OminiAttention");
 
@@ -483,36 +468,33 @@ std::tuple<Tensor, Tensor> OminiFluxSingleTransformerBlock::forward(Tensor hidde
 
         nvtxRangePop();
 
-
         // Split outputs
         if (batch_size == 1 || num_tokens_pad == num_tokens) {
-            hidden_states = o.slice(1, 0, num_tokens);
+            hidden_states      = o.slice(1, 0, num_tokens);
             cond_hidden_states = o.slice(1, num_tokens_pad, num_tokens_pad + num_cond_tokens);
         } else {
             // Allocate output tensors
-            hidden_states = Tensor::allocate({batch_size, num_tokens, num_heads * dim_head}, o.scalar_type(), o.device());
-            cond_hidden_states = Tensor::allocate({batch_size, num_cond_tokens, num_heads * dim_head}, o.scalar_type(), o.device());
+            hidden_states =
+                Tensor::allocate({batch_size, num_tokens, num_heads * dim_head}, o.scalar_type(), o.device());
+            cond_hidden_states =
+                Tensor::allocate({batch_size, num_cond_tokens, num_heads * dim_head}, o.scalar_type(), o.device());
             // Copy for each batch
-            checkCUDA(cudaMemcpy2DAsync(
-                hidden_states.data_ptr(),
-                num_tokens * num_heads * dim_head * hidden_states.scalar_size(),
-                o.data_ptr(),
-                (num_tokens_pad + num_tokens_cond_pad) * num_heads * dim_head * o.scalar_size(),
-                num_tokens * num_heads * dim_head * hidden_states.scalar_size(),
-                batch_size,
-                cudaMemcpyDeviceToDevice,
-                getCurrentCUDAStream()
-            ));
-            checkCUDA(cudaMemcpy2DAsync(
-                cond_hidden_states.data_ptr(),
-                num_cond_tokens * num_heads * dim_head * cond_hidden_states.scalar_size(),
-                o.data_ptr<char>() + num_tokens_pad * num_heads * dim_head * o.scalar_size(),
-                (num_tokens_pad + num_tokens_cond_pad) * num_heads * dim_head * o.scalar_size(),
-                num_cond_tokens * num_heads * dim_head * cond_hidden_states.scalar_size(),
-                batch_size,
-                cudaMemcpyDeviceToDevice,
-                getCurrentCUDAStream()
-            ));
+            checkCUDA(cudaMemcpy2DAsync(hidden_states.data_ptr(),
+                                        num_tokens * num_heads * dim_head * hidden_states.scalar_size(),
+                                        o.data_ptr(),
+                                        (num_tokens_pad + num_tokens_cond_pad) * num_heads * dim_head * o.scalar_size(),
+                                        num_tokens * num_heads * dim_head * hidden_states.scalar_size(),
+                                        batch_size,
+                                        cudaMemcpyDeviceToDevice,
+                                        getCurrentCUDAStream()));
+            checkCUDA(cudaMemcpy2DAsync(cond_hidden_states.data_ptr(),
+                                        num_cond_tokens * num_heads * dim_head * cond_hidden_states.scalar_size(),
+                                        o.data_ptr<char>() + num_tokens_pad * num_heads * dim_head * o.scalar_size(),
+                                        (num_tokens_pad + num_tokens_cond_pad) * num_heads * dim_head * o.scalar_size(),
+                                        num_cond_tokens * num_heads * dim_head * cond_hidden_states.scalar_size(),
+                                        batch_size,
+                                        cudaMemcpyDeviceToDevice,
+                                        getCurrentCUDAStream()));
         }
     } else {
         assert(false);
@@ -549,12 +531,12 @@ std::tuple<Tensor, Tensor> OminiFluxSingleTransformerBlock::forward(Tensor hidde
 // Implements a joint transformer block for the OminiFlux model.
 // This block is used in the initial layers to jointly process image, conditional, and text (encoder) tokens.
 OminiJointTransformerBlock::OminiJointTransformerBlock(int dim,
-                                             int num_attention_heads,
-                                             int attention_head_dim,
-                                             bool context_pre_only,
-                                             bool use_fp4,
-                                             Tensor::ScalarType dtype,
-                                             Device device)
+                                                       int num_attention_heads,
+                                                       int attention_head_dim,
+                                                       bool context_pre_only,
+                                                       bool use_fp4,
+                                                       Tensor::ScalarType dtype,
+                                                       Device device)
     : dim(dim), dim_head(attention_head_dim / num_attention_heads), num_heads(num_attention_heads),
       context_pre_only(context_pre_only), norm1(dim, false, dtype, device),
       norm1_context(dim, context_pre_only, dtype, device), qkv_proj(dim, dim * 3, true, use_fp4, dtype, device),
@@ -583,14 +565,14 @@ OminiJointTransformerBlock::OminiJointTransformerBlock(int dim,
 // hidden_states: [Batch, Width * Height, dim]
 // encoder_hidden_states: [Batch, Token, dim]
 std::tuple<Tensor, Tensor, Tensor> OminiJointTransformerBlock::forward(Tensor hidden_states,
-                                                          Tensor cond_hidden_states,
-                                                          Tensor encoder_hidden_states,
-                                                          Tensor temb,
-                                                          Tensor cond_temb,
-                                                          Tensor rotary_emb,
-                                                          Tensor rotary_emb_context,
-                                                          Tensor cond_rotary_emb,
-                                                          float sparsityRatio) {
+                                                                       Tensor cond_hidden_states,
+                                                                       Tensor encoder_hidden_states,
+                                                                       Tensor temb,
+                                                                       Tensor cond_temb,
+                                                                       Tensor rotary_emb,
+                                                                       Tensor rotary_emb_context,
+                                                                       Tensor cond_rotary_emb,
+                                                                       float sparsityRatio) {
     int batch_size = hidden_states.shape[0];
     assert(encoder_hidden_states.shape[0] == batch_size);
 
@@ -598,8 +580,8 @@ std::tuple<Tensor, Tensor, Tensor> OminiJointTransformerBlock::forward(Tensor hi
 
     nvtxRangePushA("OminiAdaNorm");
 
-    int num_tokens_img = hidden_states.shape[1];
-    int num_tokens_txt = encoder_hidden_states.shape[1];
+    int num_tokens_img  = hidden_states.shape[1];
+    int num_tokens_txt  = encoder_hidden_states.shape[1];
     int num_tokens_cond = cond_hidden_states.shape[1];
 
     assert(hidden_states.shape[2] == dim);
@@ -631,16 +613,16 @@ std::tuple<Tensor, Tensor, Tensor> OminiJointTransformerBlock::forward(Tensor hi
     nvtxRangePop();
 
     auto stream = getCurrentCUDAStream();
-    
-    int num_tokens_img_pad = 0;
-    int num_tokens_txt_pad = 0;
+
+    int num_tokens_img_pad  = 0;
+    int num_tokens_txt_pad  = 0;
     int num_tokens_cond_pad = 0;
 
     Tensor raw_attn_output;
 
     if (attnImpl == OminiAttentionImpl::FlashAttention2) {
-        num_tokens_img_pad = num_tokens_img;
-        num_tokens_txt_pad = num_tokens_txt;
+        num_tokens_img_pad  = num_tokens_img;
+        num_tokens_txt_pad  = num_tokens_txt;
         num_tokens_cond_pad = num_tokens_cond;
 
         Tensor concat;
@@ -651,8 +633,9 @@ std::tuple<Tensor, Tensor, Tensor> OminiJointTransformerBlock::forward(Tensor hi
 
             const bool blockSparse = sparsityRatio > 0;
 
-            const int poolTokens = num_tokens_img / POOL_SIZE + num_tokens_txt / POOL_SIZE + num_tokens_cond / POOL_SIZE;
-            concat               = Tensor::allocate({batch_size, num_tokens_img + num_tokens_cond + num_tokens_txt, dim * 3},
+            const int poolTokens =
+                num_tokens_img / POOL_SIZE + num_tokens_txt / POOL_SIZE + num_tokens_cond / POOL_SIZE;
+            concat = Tensor::allocate({batch_size, num_tokens_img + num_tokens_cond + num_tokens_txt, dim * 3},
                                       norm1_output.x.scalar_type(),
                                       norm1_output.x.device());
 
@@ -663,27 +646,30 @@ std::tuple<Tensor, Tensor, Tensor> OminiJointTransformerBlock::forward(Tensor hi
 
             for (int i = 0; i < batch_size; i++) {
                 // txt first
-                Tensor qkv_context =
-                    concat.slice(0, i, i + 1).slice(1, 0, num_tokens_txt);
+                Tensor qkv_context = concat.slice(0, i, i + 1).slice(1, 0, num_tokens_txt);
 
                 Tensor qkv = concat.slice(0, i, i + 1).slice(1, num_tokens_txt, num_tokens_txt + num_tokens_img);
-                    
+
                 Tensor qkv_cond =
-                    concat.slice(0, i, i + 1).slice(1, num_tokens_txt + num_tokens_img, num_tokens_img + (num_tokens_cond + num_tokens_txt));
+                    concat.slice(0, i, i + 1)
+                        .slice(1, num_tokens_txt + num_tokens_img, num_tokens_img + (num_tokens_cond + num_tokens_txt));
 
                 Tensor pool_qkv_context =
                     pool.valid() ? pool.slice(0, i, i + 1).slice(1, 0, num_tokens_txt / POOL_SIZE) : Tensor{};
-                    
-                Tensor pool_qkv =
-                    pool.valid() ? pool.slice(0, i, i + 1).slice(1, num_tokens_txt / POOL_SIZE,
-                                                                    num_tokens_txt / POOL_SIZE + num_tokens_img / POOL_SIZE): Tensor{};
+
+                Tensor pool_qkv = pool.valid() ? pool.slice(0, i, i + 1)
+                                                     .slice(1,
+                                                            num_tokens_txt / POOL_SIZE,
+                                                            num_tokens_txt / POOL_SIZE + num_tokens_img / POOL_SIZE)
+                                               : Tensor{};
 
                 Tensor pool_qkv_cond = pool.valid()
-                                              ? pool.slice(0, i, i + 1)
-                                                    .slice(1,
-                                                           num_tokens_img / POOL_SIZE + num_tokens_txt / POOL_SIZE,
-                                                           (num_tokens_img / POOL_SIZE + num_tokens_cond / POOL_SIZE) + num_tokens_txt / POOL_SIZE)
-                                              : Tensor{};
+                                           ? pool.slice(0, i, i + 1)
+                                                 .slice(1,
+                                                        num_tokens_img / POOL_SIZE + num_tokens_txt / POOL_SIZE,
+                                                        (num_tokens_img / POOL_SIZE + num_tokens_cond / POOL_SIZE) +
+                                                            num_tokens_txt / POOL_SIZE)
+                                           : Tensor{};
 
                 // qkv_proj.forward(norm1_output.x.slice(0, i, i + 1), qkv);
                 // debug("qkv_raw", qkv);
@@ -695,9 +681,12 @@ std::tuple<Tensor, Tensor, Tensor> OminiJointTransformerBlock::forward(Tensor hi
                 debug("qkv", qkv);
 
                 debug("cond_rotary_emb", cond_rotary_emb);
-                qkv_proj.forward(
-                    norm1_cond_output.x.slice(0, i, i + 1), qkv_cond, pool_qkv_cond, norm_q.weight, norm_k.weight, cond_rotary_emb);
-                
+                qkv_proj.forward(norm1_cond_output.x.slice(0, i, i + 1),
+                                 qkv_cond,
+                                 pool_qkv_cond,
+                                 norm_q.weight,
+                                 norm_k.weight,
+                                 cond_rotary_emb);
 
                 // qkv_proj_context.forward(norm1_context_output.x.slice(0, i, i + 1), qkv_context);
                 // debug("qkv_context_raw", qkv_context);
@@ -732,11 +721,12 @@ std::tuple<Tensor, Tensor, Tensor> OminiJointTransformerBlock::forward(Tensor hi
 
         spdlog::debug("raw_attn_output={}", raw_attn_output.shape.str());
 
-        raw_attn_output = raw_attn_output.view(TensorShape{batch_size, num_tokens_img + num_tokens_cond + num_tokens_txt, num_heads, dim_head});
+        raw_attn_output = raw_attn_output.view(
+            TensorShape{batch_size, num_tokens_img + num_tokens_cond + num_tokens_txt, num_heads, dim_head});
 
     } else if (attnImpl == OminiAttentionImpl::NunchakuFP16) {
-        num_tokens_img_pad = ceilDiv(num_tokens_img, 256) * 256;
-        num_tokens_txt_pad = ceilDiv(num_tokens_txt, 256) * 256;
+        num_tokens_img_pad  = ceilDiv(num_tokens_img, 256) * 256;
+        num_tokens_txt_pad  = ceilDiv(num_tokens_txt, 256) * 256;
         num_tokens_cond_pad = ceilDiv(num_tokens_cond, 256) * 256;
 
         Tensor concat_q, concat_k, concat_v;
@@ -744,18 +734,24 @@ std::tuple<Tensor, Tensor, Tensor> OminiJointTransformerBlock::forward(Tensor hi
         {
             nvtxRangePushA("qkv_proj");
 
-            concat_q = Tensor::allocate({batch_size, num_heads, (num_tokens_img_pad + num_tokens_cond_pad) + num_tokens_txt_pad, dim_head},
-                                        Tensor::FP16,
-                                        norm1_output.x.device());
+            concat_q = Tensor::allocate(
+                {batch_size, num_heads, (num_tokens_img_pad + num_tokens_cond_pad) + num_tokens_txt_pad, dim_head},
+                Tensor::FP16,
+                norm1_output.x.device());
             concat_k = Tensor::empty_like(concat_q);
             concat_v = Tensor::empty_like(concat_q);
 
             for (int i = 0; i < batch_size; i++) {
                 // txt first
                 auto sliceTxt = [&](Tensor x) { return x.slice(0, i, i + 1).slice(2, 0, num_tokens_txt_pad); };
-                auto sliceImg = [&](Tensor x) { return x.slice(0, i, i + 1).slice(2, num_tokens_txt_pad, num_tokens_txt_pad + num_tokens_img_pad); };
+                auto sliceImg = [&](Tensor x) {
+                    return x.slice(0, i, i + 1).slice(2, num_tokens_txt_pad, num_tokens_txt_pad + num_tokens_img_pad);
+                };
                 auto sliceCond = [&](Tensor x) {
-                    return x.slice(0, i, i + 1).slice(2, num_tokens_txt_pad+num_tokens_img_pad, num_tokens_img_pad + num_tokens_txt_pad + num_tokens_cond_pad);
+                    return x.slice(0, i, i + 1)
+                        .slice(2,
+                               num_tokens_txt_pad + num_tokens_img_pad,
+                               num_tokens_img_pad + num_tokens_txt_pad + num_tokens_cond_pad);
                 };
 
                 qkv_proj.forward(norm1_output.x.slice(0, i, i + 1),
@@ -770,15 +766,15 @@ std::tuple<Tensor, Tensor, Tensor> OminiJointTransformerBlock::forward(Tensor hi
                                  num_tokens_img);
 
                 qkv_proj.forward(norm1_cond_output.x.slice(0, i, i + 1),
-                                {},
-                                {},
-                                norm_q.weight,
-                                norm_k.weight,
-                                cond_rotary_emb,
-                                sliceCond(concat_q),
-                                sliceCond(concat_k),
-                                sliceCond(concat_v),
-                                num_tokens_cond);
+                                 {},
+                                 {},
+                                 norm_q.weight,
+                                 norm_k.weight,
+                                 cond_rotary_emb,
+                                 sliceCond(concat_q),
+                                 sliceCond(concat_k),
+                                 sliceCond(concat_v),
+                                 num_tokens_cond);
 
                 qkv_proj_context.forward(norm1_context_output.x.slice(0, i, i + 1),
                                          {},
@@ -799,9 +795,10 @@ std::tuple<Tensor, Tensor, Tensor> OminiJointTransformerBlock::forward(Tensor hi
             nvtxRangePop();
         }
 
-        raw_attn_output = Tensor::allocate({batch_size, (num_tokens_img_pad + num_tokens_cond_pad) + num_tokens_txt_pad, num_heads * dim_head},
-                                           norm1_output.x.scalar_type(),
-                                           norm1_output.x.device());
+        raw_attn_output = Tensor::allocate(
+            {batch_size, (num_tokens_img_pad + num_tokens_cond_pad) + num_tokens_txt_pad, num_heads * dim_head},
+            norm1_output.x.scalar_type(),
+            norm1_output.x.device());
 
         nvtxRangePushA("Attention");
 
@@ -809,8 +806,8 @@ std::tuple<Tensor, Tensor, Tensor> OminiJointTransformerBlock::forward(Tensor hi
 
         nvtxRangePop();
 
-        raw_attn_output =
-            raw_attn_output.view(TensorShape{batch_size, (num_tokens_img_pad + num_tokens_cond_pad) + num_tokens_txt_pad, num_heads, dim_head});
+        raw_attn_output = raw_attn_output.view(TensorShape{
+            batch_size, (num_tokens_img_pad + num_tokens_cond_pad) + num_tokens_txt_pad, num_heads, dim_head});
     } else {
         assert(false);
     }
@@ -826,19 +823,19 @@ std::tuple<Tensor, Tensor, Tensor> OminiJointTransformerBlock::forward(Tensor hi
 
         Tensor raw_attn_output_split;
         if (batch_size == 1) {
-            raw_attn_output_split =
-                raw_attn_output.slice(1, num_tokens_txt_pad, num_tokens_txt_pad + num_tokens_img).reshape({batch_size, num_tokens_img, num_heads * dim_head});
+            raw_attn_output_split = raw_attn_output.slice(1, num_tokens_txt_pad, num_tokens_txt_pad + num_tokens_img)
+                                        .reshape({batch_size, num_tokens_img, num_heads * dim_head});
         } else {
             raw_attn_output_split = Tensor::allocate({batch_size, num_tokens_img, num_heads * dim_head},
                                                      raw_attn_output.scalar_type(),
                                                      raw_attn_output.device());
-            
+
             checkCUDA(cudaMemcpy2DAsync(raw_attn_output_split.data_ptr(),
                                         num_tokens_img * num_heads * dim_head * raw_attn_output_split.scalar_size(),
                                         raw_attn_output.data_ptr<char>() + num_tokens_txt_pad * num_heads * dim_head *
                                                                                raw_attn_output_split.scalar_size(),
-                                        ((num_tokens_img_pad + num_tokens_cond_pad) + num_tokens_txt_pad) * num_heads * dim_head *
-                                            raw_attn_output.scalar_size(),
+                                        ((num_tokens_img_pad + num_tokens_cond_pad) + num_tokens_txt_pad) * num_heads *
+                                            dim_head * raw_attn_output.scalar_size(),
                                         num_tokens_img * num_heads * dim_head * raw_attn_output_split.scalar_size(),
                                         batch_size,
                                         cudaMemcpyDeviceToDevice,
@@ -848,8 +845,8 @@ std::tuple<Tensor, Tensor, Tensor> OminiJointTransformerBlock::forward(Tensor hi
         spdlog::debug("raw_attn_output_split={}", raw_attn_output_split.shape.str());
         debug("img.raw_attn_output_split", raw_attn_output_split);
 
-        Tensor attn_output =
-            omini_forward_fc(out_proj, raw_attn_output_split); // std::get<Tensor>(out_proj.forward(raw_attn_output_split));
+        Tensor attn_output = omini_forward_fc(
+            out_proj, raw_attn_output_split); // std::get<Tensor>(out_proj.forward(raw_attn_output_split));
         debug("img.attn_output", attn_output);
 
 #if 1
@@ -895,24 +892,29 @@ std::tuple<Tensor, Tensor, Tensor> OminiJointTransformerBlock::forward(Tensor hi
 
         Tensor raw_attn_output_split_cond;
         if (batch_size == 1) {
-            raw_attn_output_split_cond = raw_attn_output.slice(1, num_tokens_txt_pad + num_tokens_img_pad, num_tokens_txt_pad + num_tokens_img_pad + num_tokens_cond).reshape({batch_size, num_tokens_cond, num_heads * dim_head});
+            raw_attn_output_split_cond = raw_attn_output
+                                             .slice(1,
+                                                    num_tokens_txt_pad + num_tokens_img_pad,
+                                                    num_tokens_txt_pad + num_tokens_img_pad + num_tokens_cond)
+                                             .reshape({batch_size, num_tokens_cond, num_heads * dim_head});
         } else {
             raw_attn_output_split_cond = Tensor::allocate({batch_size, num_tokens_cond, num_heads * dim_head},
-                                                     raw_attn_output.scalar_type(),
-                                                     raw_attn_output.device());
-            checkCUDA(cudaMemcpy2DAsync(raw_attn_output_split_cond.data_ptr(),
-                                        num_tokens_cond * num_heads * dim_head * raw_attn_output_split_cond.scalar_size(),
-                                        raw_attn_output.data_ptr<char>() + (num_tokens_txt_pad + num_tokens_img_pad) * num_heads * dim_head *
-                                            raw_attn_output_split_cond.scalar_size(),
-                                        ((num_tokens_img_pad + num_tokens_cond_pad) + num_tokens_txt_pad) * num_heads * dim_head *raw_attn_output_split_cond.scalar_size(),
-                                        num_tokens_cond * num_heads * dim_head * raw_attn_output_split_cond.scalar_size(),
-                                        batch_size, 
-                                        cudaMemcpyDeviceToDevice, 
-                                        stream));
+                                                          raw_attn_output.scalar_type(),
+                                                          raw_attn_output.device());
+            checkCUDA(cudaMemcpy2DAsync(
+                raw_attn_output_split_cond.data_ptr(),
+                num_tokens_cond * num_heads * dim_head * raw_attn_output_split_cond.scalar_size(),
+                raw_attn_output.data_ptr<char>() + (num_tokens_txt_pad + num_tokens_img_pad) * num_heads * dim_head *
+                                                       raw_attn_output_split_cond.scalar_size(),
+                ((num_tokens_img_pad + num_tokens_cond_pad) + num_tokens_txt_pad) * num_heads * dim_head *
+                    raw_attn_output_split_cond.scalar_size(),
+                num_tokens_cond * num_heads * dim_head * raw_attn_output_split_cond.scalar_size(),
+                batch_size,
+                cudaMemcpyDeviceToDevice,
+                stream));
         }
 
-        Tensor attn_output_cond = 
-            omini_forward_fc(out_proj, raw_attn_output_split_cond);
+        Tensor attn_output_cond = omini_forward_fc(out_proj, raw_attn_output_split_cond);
         debug("cond.attn_output_cond", attn_output_cond);
 #if 1
         kernels::mul_add_batch(attn_output_cond, cond_gate_msa, true, 0.0, cond_hidden_states, true);
@@ -929,7 +931,8 @@ std::tuple<Tensor, Tensor, Tensor> OminiJointTransformerBlock::forward(Tensor hi
         Tensor norm_cond_hidden_states = cond_hidden_states;
 #endif
 
-        // Tensor ff_output_cond = mlp_context_fc2.forward(GELU::forward(mlp_context_fc1.forward(norm_cond_hidden_states)));
+        // Tensor ff_output_cond =
+        // mlp_context_fc2.forward(GELU::forward(mlp_context_fc1.forward(norm_cond_hidden_states)));
         debug("cond.ff_input", norm_cond_hidden_states);
         Tensor ff_output_cond = omini_forward_mlp(mlp_fc1, mlp_fc2, norm_cond_hidden_states);
         debug("cond.ff_output", ff_output_cond);
@@ -940,7 +943,6 @@ std::tuple<Tensor, Tensor, Tensor> OminiJointTransformerBlock::forward(Tensor hi
         nvtxRangePop();
 
         spdlog::debug("ff_output_cond={}", cond_hidden_states.shape.str());
-        
     }
 
     if (context_pre_only) {
@@ -954,8 +956,8 @@ std::tuple<Tensor, Tensor, Tensor> OminiJointTransformerBlock::forward(Tensor hi
 
         Tensor raw_attn_output_split;
         if (batch_size == 1) {
-            raw_attn_output_split = raw_attn_output.slice(1, 0, num_tokens_txt)
-                                        .reshape({batch_size, num_tokens_txt, num_heads * dim_head});
+            raw_attn_output_split =
+                raw_attn_output.slice(1, 0, num_tokens_txt).reshape({batch_size, num_tokens_txt, num_heads * dim_head});
         } else {
             raw_attn_output_split = Tensor::allocate({batch_size, num_tokens_txt, num_heads * dim_head},
                                                      raw_attn_output.scalar_type(),
@@ -964,7 +966,8 @@ std::tuple<Tensor, Tensor, Tensor> OminiJointTransformerBlock::forward(Tensor hi
             checkCUDA(cudaMemcpy2DAsync(raw_attn_output_split.data_ptr(),
                                         num_tokens_txt * num_heads * dim_head * raw_attn_output_split.scalar_size(),
                                         raw_attn_output.data_ptr(),
-                                        ((num_tokens_img_pad + num_tokens_cond_pad) + num_tokens_txt_pad) * num_heads * dim_head * raw_attn_output.scalar_size(),
+                                        ((num_tokens_img_pad + num_tokens_cond_pad) + num_tokens_txt_pad) * num_heads *
+                                            dim_head * raw_attn_output.scalar_size(),
                                         num_tokens_txt * num_heads * dim_head * raw_attn_output_split.scalar_size(),
                                         batch_size,
                                         cudaMemcpyDeviceToDevice,
@@ -974,9 +977,9 @@ std::tuple<Tensor, Tensor, Tensor> OminiJointTransformerBlock::forward(Tensor hi
         spdlog::debug("raw_attn_output_split={}", raw_attn_output_split.shape.str());
         debug("context.raw_attn_output_split", raw_attn_output_split);
 
-        Tensor attn_output =
-            omini_forward_fc(out_proj_context,
-                       raw_attn_output_split); // std::get<Tensor>(out_proj_context.forward(raw_attn_output_split));
+        Tensor attn_output = omini_forward_fc(
+            out_proj_context,
+            raw_attn_output_split); // std::get<Tensor>(out_proj_context.forward(raw_attn_output_split));
         debug("context.attn_output", attn_output);
 
 #if 1
@@ -1058,17 +1061,17 @@ OminiFluxModel::OminiFluxModel(bool use_fp4, bool offload, Tensor::ScalarType dt
 // `controlnet_block_samples`, `controlnet_single_block_samples`: Optional ControlNet inputs.
 // `skip_first_layer`: Option to skip the very first joint transformer block.
 Tensor OminiFluxModel::forward(Tensor hidden_states,
-                          Tensor cond_hidden_states,
-                          Tensor encoder_hidden_states,
-                          Tensor temb,
-                          Tensor cond_temb,
-                          Tensor rotary_emb_img,
-                          Tensor rotary_emb_context,
-                          Tensor rotary_emb_single,
-                          Tensor rotary_emb_cond,
-                          Tensor controlnet_block_samples,
-                          Tensor controlnet_single_block_samples,
-                          bool skip_first_layer) {
+                               Tensor cond_hidden_states,
+                               Tensor encoder_hidden_states,
+                               Tensor temb,
+                               Tensor cond_temb,
+                               Tensor rotary_emb_img,
+                               Tensor rotary_emb_context,
+                               Tensor rotary_emb_single,
+                               Tensor rotary_emb_cond,
+                               Tensor controlnet_block_samples,
+                               Tensor controlnet_single_block_samples,
+                               bool skip_first_layer) {
     // Add validation at the start
     assert(hidden_states.shape[0] == cond_hidden_states.shape[0] && "Batch sizes must match");
     assert(hidden_states.shape[2] == cond_hidden_states.shape[2] && "Hidden dimensions must match");
@@ -1079,10 +1082,9 @@ Tensor OminiFluxModel::forward(Tensor hidden_states,
     const Tensor::ScalarType dtype = hidden_states.dtype();
     const Device device            = hidden_states.device();
 
-    const int txt_tokens = encoder_hidden_states.shape[1];
-    const int img_tokens = hidden_states.shape[1];
+    const int txt_tokens      = encoder_hidden_states.shape[1];
+    const int img_tokens      = hidden_states.shape[1];
     const int num_cond_tokens = cond_hidden_states.shape[1];
-
 
     const int numLayers = transformer_blocks.size() + single_transformer_blocks.size();
 
@@ -1092,9 +1094,16 @@ Tensor OminiFluxModel::forward(Tensor hidden_states,
         if (skip_first_layer && size_t(layer) == 0)
             return;
         if (size_t(layer) < transformer_blocks.size()) {
-            auto &block = transformer_blocks.at(layer);
-            std::tie(hidden_states, cond_hidden_states, encoder_hidden_states) =
-                block->forward(hidden_states, cond_hidden_states, encoder_hidden_states, temb,  cond_temb, rotary_emb_img, rotary_emb_context, rotary_emb_cond, 0.0f);
+            auto &block                                                        = transformer_blocks.at(layer);
+            std::tie(hidden_states, cond_hidden_states, encoder_hidden_states) = block->forward(hidden_states,
+                                                                                                cond_hidden_states,
+                                                                                                encoder_hidden_states,
+                                                                                                temb,
+                                                                                                cond_temb,
+                                                                                                rotary_emb_img,
+                                                                                                rotary_emb_context,
+                                                                                                rotary_emb_cond,
+                                                                                                0.0f);
             if (controlnet_block_samples.valid()) {
                 const int num_controlnet_block_samples = controlnet_block_samples.shape[0];
 
@@ -1119,24 +1128,22 @@ Tensor OminiFluxModel::forward(Tensor hidden_states,
                 concat = Tensor::allocate(TensorShape{batch_size, txt_tokens + img_tokens, 3072}, dtype, device);
                 for (int i = 0; i < batch_size; i++) {
                     // Copy text tokens first
-                    concat.slice(0, i, i + 1)
-                        .slice(1, 0, txt_tokens)
-                        .copy_(encoder_hidden_states.slice(0, i, i + 1));
-                    
+                    concat.slice(0, i, i + 1).slice(1, 0, txt_tokens).copy_(encoder_hidden_states.slice(0, i, i + 1));
+
                     // Copy image tokens second
                     concat.slice(0, i, i + 1)
                         .slice(1, txt_tokens, txt_tokens + img_tokens)
                         .copy_(hidden_states.slice(0, i, i + 1));
-                    
                 }
-                hidden_states = concat;
-                cond_hidden_states = cond_hidden_states;
+                hidden_states         = concat;
+                cond_hidden_states    = cond_hidden_states;
                 encoder_hidden_states = {};
                 // concat = {};  // Clear the concat tensor to free memory
             }
 
-            auto &block   = single_transformer_blocks.at(layer - transformer_blocks.size());
-            std::tie(hidden_states, cond_hidden_states) = block->forward(hidden_states, cond_hidden_states, temb, cond_temb, rotary_emb_single, rotary_emb_cond);
+            auto &block = single_transformer_blocks.at(layer - transformer_blocks.size());
+            std::tie(hidden_states, cond_hidden_states) =
+                block->forward(hidden_states, cond_hidden_states, temb, cond_temb, rotary_emb_single, rotary_emb_cond);
             if (controlnet_single_block_samples.valid()) {
                 const int num_controlnet_single_block_samples = controlnet_single_block_samples.shape[0];
 
@@ -1193,55 +1200,61 @@ Tensor OminiFluxModel::forward(Tensor hidden_states,
 // Parameters are similar to the main `forward` method.
 // Returns a tuple of (hidden_states, encoder_hidden_states, cond_hidden_states) after the specified layer.
 std::tuple<Tensor, Tensor, Tensor> OminiFluxModel::forward_layer(size_t layer,
-                                                    Tensor hidden_states,
-                                                    Tensor cond_hidden_states,
-                                                    Tensor encoder_hidden_states,
-                                                    Tensor temb,
-                                                    Tensor cond_temb,
-                                                    Tensor rotary_emb_img,
-                                                    Tensor rotary_emb_context,
-                                                    Tensor rotary_emb_cond,
-                                                    Tensor controlnet_block_samples,
-                                                    Tensor controlnet_single_block_samples) {
+                                                                 Tensor hidden_states,
+                                                                 Tensor cond_hidden_states,
+                                                                 Tensor encoder_hidden_states,
+                                                                 Tensor temb,
+                                                                 Tensor cond_temb,
+                                                                 Tensor rotary_emb_img,
+                                                                 Tensor rotary_emb_context,
+                                                                 Tensor rotary_emb_cond,
+                                                                 Tensor controlnet_block_samples,
+                                                                 Tensor controlnet_single_block_samples) {
 
     if (layer < transformer_blocks.size()) {
-        std::tie(hidden_states, cond_hidden_states, encoder_hidden_states) = transformer_blocks.at(layer)->forward(
-            hidden_states, cond_hidden_states, encoder_hidden_states, temb, cond_temb, rotary_emb_img, rotary_emb_context, rotary_emb_cond, 0.0f);
+        std::tie(hidden_states, cond_hidden_states, encoder_hidden_states) =
+            transformer_blocks.at(layer)->forward(hidden_states,
+                                                  cond_hidden_states,
+                                                  encoder_hidden_states,
+                                                  temb,
+                                                  cond_temb,
+                                                  rotary_emb_img,
+                                                  rotary_emb_context,
+                                                  rotary_emb_cond,
+                                                  0.0f);
     } else {
         // For single blocks, concatenate hidden_states and encoder_hidden_states similar to the forward method
-        const int batch_size = hidden_states.shape[0];
+        const int batch_size           = hidden_states.shape[0];
         const Tensor::ScalarType dtype = hidden_states.dtype();
-        const Device device = hidden_states.device();
-        const int txt_tokens = encoder_hidden_states.shape[1];
-        const int img_tokens = hidden_states.shape[1];
-        
-        Tensor concat = Tensor::allocate(TensorShape{batch_size, txt_tokens + img_tokens, hidden_states.shape[2]}, dtype, device);
+        const Device device            = hidden_states.device();
+        const int txt_tokens           = encoder_hidden_states.shape[1];
+        const int img_tokens           = hidden_states.shape[1];
+
+        Tensor concat =
+            Tensor::allocate(TensorShape{batch_size, txt_tokens + img_tokens, hidden_states.shape[2]}, dtype, device);
         for (int i = 0; i < batch_size; i++) {
             // Copy text tokens first
-            concat.slice(0, i, i + 1)
-                .slice(1, 0, txt_tokens)
-                .copy_(encoder_hidden_states.slice(0, i, i + 1));
-            
+            concat.slice(0, i, i + 1).slice(1, 0, txt_tokens).copy_(encoder_hidden_states.slice(0, i, i + 1));
+
             // Copy image tokens second
             concat.slice(0, i, i + 1)
                 .slice(1, txt_tokens, txt_tokens + img_tokens)
                 .copy_(hidden_states.slice(0, i, i + 1));
-            
         }
         hidden_states = concat;
-        
+
         Tensor single_hidden_states;
-        std::tie(hidden_states, cond_hidden_states) = 
-            single_transformer_blocks.at(layer - transformer_blocks.size())->forward(
-                hidden_states, cond_hidden_states, temb, cond_temb, rotary_emb_img, rotary_emb_cond);
-        
+        std::tie(hidden_states, cond_hidden_states) =
+            single_transformer_blocks.at(layer - transformer_blocks.size())
+                ->forward(hidden_states, cond_hidden_states, temb, cond_temb, rotary_emb_img, rotary_emb_cond);
+
         // Extract encoder_hidden_states back from the concatenated tensor
         encoder_hidden_states = hidden_states.slice(1, 0, txt_tokens);
-        hidden_states = hidden_states.slice(1, txt_tokens, txt_tokens + img_tokens);
+        hidden_states         = hidden_states.slice(1, txt_tokens, txt_tokens + img_tokens);
     }
 
-    const int txt_tokens = encoder_hidden_states.shape[1];
-    const int img_tokens = hidden_states.shape[1];
+    const int txt_tokens  = encoder_hidden_states.shape[1];
+    const int img_tokens  = hidden_states.shape[1];
     const int cond_tokens = cond_hidden_states.shape[1];
 
     if (layer < transformer_blocks.size() && controlnet_block_samples.valid()) {

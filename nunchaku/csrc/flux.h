@@ -58,7 +58,7 @@ public:
             net->set_residual_callback([cb](const Tensor &x) -> Tensor {
                 pybind11::gil_scoped_acquire gil;
                 torch::Tensor torch_x   = to_torch(x); // Convert Nunchaku Tensor to PyTorch Tensor
-                pybind11::object result = cb(torch_x);  // Call Python function
+                pybind11::object result = cb(torch_x); // Call Python function
                 torch::Tensor torch_y   = result.cast<torch::Tensor>();
                 Tensor y                = from_torch(torch_y); // Convert result back to Nunchaku Tensor
                 return y;
@@ -78,7 +78,7 @@ public:
                           std::optional<torch::Tensor> controlnet_block_samples        = std::nullopt,
                           std::optional<torch::Tensor> controlnet_single_block_samples = std::nullopt,
                           bool skip_first_layer                                        = false) {
-        checkModel(); // Ensure the underlying C++ model is initialized
+        checkModel();                    // Ensure the underlying C++ model is initialized
         CUDADeviceContext ctx(deviceId); // Set the CUDA device context
 
         spdlog::debug("QuantizedFluxModel forward");
@@ -281,7 +281,7 @@ public:
             net->set_residual_callback([cb](const Tensor &x) -> Tensor {
                 pybind11::gil_scoped_acquire gil;
                 torch::Tensor torch_x   = to_torch(x); // Nunchaku Tensor to PyTorch Tensor
-                pybind11::object result = cb(torch_x);  // Call Python function
+                pybind11::object result = cb(torch_x); // Call Python function
                 torch::Tensor torch_y   = result.cast<torch::Tensor>();
                 Tensor y                = from_torch(torch_y); // PyTorch Tensor back to Nunchaku Tensor
                 return y;
@@ -301,11 +301,13 @@ public:
                           torch::Tensor rotary_emb_context,    // Rotary embeddings for context/text features
                           torch::Tensor rotary_emb_single,     // Rotary embeddings for single (concatenated) features
                           torch::Tensor rotary_emb_cond,       // Rotary embeddings for conditional features
-                          std::optional<torch::Tensor> controlnet_block_samples        = std::nullopt, // Optional ControlNet features for joint blocks
-                          std::optional<torch::Tensor> controlnet_single_block_samples = std::nullopt, // Optional ControlNet features for single blocks
-                          bool skip_first_layer                                        = false) { // Option to skip the first transformer layer
-        checkModel(); // Ensure C++ model is initialized
-        CUDADeviceContext ctx(deviceId); // Set CUDA device context
+                          std::optional<torch::Tensor> controlnet_block_samples =
+                              std::nullopt, // Optional ControlNet features for joint blocks
+                          std::optional<torch::Tensor> controlnet_single_block_samples =
+                              std::nullopt,                // Optional ControlNet features for single blocks
+                          bool skip_first_layer = false) { // Option to skip the first transformer layer
+        checkModel();                                      // Ensure C++ model is initialized
+        CUDADeviceContext ctx(deviceId);                   // Set CUDA device context
 
         spdlog::debug("QuantizedOminiFluxModel forward");
 
@@ -361,14 +363,14 @@ public:
 
         spdlog::debug("QuantizedOminiFluxModel forward_layer {}", idx);
 
-        hidden_states         = hidden_states.contiguous();
-        cond_hidden_states    = cond_hidden_states.contiguous();
-        encoder_hidden_states = encoder_hidden_states.contiguous();
-        temb                  = temb.contiguous();
-        cond_temb             = cond_temb.contiguous();
-        rotary_emb_img        = rotary_emb_img.contiguous();
-        rotary_emb_context    = rotary_emb_context.contiguous();
-        rotary_emb_cond       = rotary_emb_cond.contiguous();
+        hidden_states                                                        = hidden_states.contiguous();
+        cond_hidden_states                                                   = cond_hidden_states.contiguous();
+        encoder_hidden_states                                                = encoder_hidden_states.contiguous();
+        temb                                                                 = temb.contiguous();
+        cond_temb                                                            = cond_temb.contiguous();
+        rotary_emb_img                                                       = rotary_emb_img.contiguous();
+        rotary_emb_context                                                   = rotary_emb_context.contiguous();
+        rotary_emb_cond                                                      = rotary_emb_cond.contiguous();
         auto &&[hidden_states_, cond_hidden_states_, encoder_hidden_states_] = net->forward_layer(
             idx,
             from_torch(hidden_states),

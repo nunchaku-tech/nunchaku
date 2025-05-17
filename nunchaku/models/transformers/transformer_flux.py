@@ -590,7 +590,6 @@ class NunchakuFluxTransformer2dModel(FluxTransformer2DModel, NunchakuModelLoader
             `tuple` where the first element is the sample tensor.
         """
         hidden_states = self.x_embedder(hidden_states)
-        
 
         timestep = timestep.to(hidden_states.dtype) * 1000
         if guidance is not None:
@@ -604,7 +603,6 @@ class NunchakuFluxTransformer2dModel(FluxTransformer2DModel, NunchakuModelLoader
             else self.time_text_embed(timestep, guidance, pooled_projections)
         )
 
-    
         encoder_hidden_states = self.context_embedder(encoder_hidden_states)
 
         if txt_ids.ndim == 3:

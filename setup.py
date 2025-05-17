@@ -32,7 +32,7 @@ def get_cuda_home() -> str:
         "/usr/cuda",
         "/opt/cuda",
     ]
-    
+
     # First try environment variables
     for env_var in ["CUDA_HOME", "CUDA_PATH"]:
         cuda_home = os.getenv(env_var)
@@ -73,12 +73,12 @@ def get_sm_targets() -> list[str]:
     """Get list of target SM architectures."""
     cuda_home = get_cuda_home()
     nvcc_path = os.path.join(cuda_home, "bin/nvcc")
-    
+
     try:
         nvcc_output = subprocess.check_output([nvcc_path, "--version"]).decode()
         print(f"nvcc found at: {nvcc_path}")
         print(f"nvcc output:\n{nvcc_output}")
-        
+
         match = re.search(r"release (\d+\.\d+), V(\d+\.\d+\.\d+)", nvcc_output)
         if match:
             nvcc_version = match.group(2)

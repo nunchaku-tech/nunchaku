@@ -1,5 +1,6 @@
-import logging
+import sys
 import os
+import logging
 from typing import Any, Dict, Optional, Union
 
 import diffusers
@@ -35,14 +36,13 @@ print(f"Setting C++ log level to {log_level}")
 cutils.set_log_level(log_level.lower())  # spdlog uses lowercase level names
 
 # Force stderr to flush immediately to ensure logs appear
-import sys
 sys.stderr.flush()
 
 # Explicitly print with syscalls to ensure visibility
-import os
 os.write(2, f"C++ logging initialized with level {log_level}\n".encode())
 
 cutils.set_log_level(log_level)
+
 
 class NunchakuOminiFluxTransformerBlocks(nn.Module):
     """A PyTorch nn.Module wrapper for the Nunchaku C++ OminiFluxModel.
@@ -51,6 +51,7 @@ class NunchakuOminiFluxTransformerBlocks(nn.Module):
     and the underlying C++ implementation of the OminiFlux transformer blocks.
     It prepares inputs, calls the C++ forward pass, and processes outputs.
     """
+
     def __init__(self, m: QuantizedOminiFluxModel, device: str | torch.device):
         super(NunchakuOminiFluxTransformerBlocks, self).__init__()
         self.m = m  # The C++ QuantizedOminiFluxModel instance
@@ -81,20 +82,20 @@ class NunchakuOminiFluxTransformerBlocks(nn.Module):
         assert rotemb.shape == (B, M, D // 2, 1, 2)
         assert M % 16 == 0, f"M ({M}) must be divisible by 16"
         assert D % 8 == 0, f"D ({D}) must be divisible by 8"
-        
+
         # Log intermediate shapes
         rotemb = rotemb.reshape(B, M // 16, 16, D // 8, 8)
         logger.debug(f"After first reshape: {rotemb.shape}")
-        
+
         rotemb = rotemb.permute(0, 1, 3, 2, 4)
         logger.debug(f"After permute: {rotemb.shape}")
-        
+
         rotemb = rotemb.reshape(*rotemb.shape[0:3], 2, 8, 4, 2)
         logger.debug(f"After second reshape: {rotemb.shape}")
-        
+
         rotemb = rotemb.permute(0, 1, 2, 4, 5, 3, 6)
         logger.debug(f"After second permute: {rotemb.shape}")
-        
+
         rotemb = rotemb.contiguous()
         rotemb = rotemb.view(B, M, D)
         logger.debug(f"Final output shape: {rotemb.shape}")
@@ -146,7 +147,6 @@ class NunchakuOminiFluxTransformerBlocks(nn.Module):
         img_tokens = hidden_states.shape[1]
         cond_tokens = cond_hidden_states.shape[1]
 
-
         self.id_embeddings = id_embeddings
         self.id_weight = id_weight
         self.pulid_ca_idx = 0
@@ -187,13 +187,11 @@ class NunchakuOminiFluxTransformerBlocks(nn.Module):
         rotary_emb_single = image_rotary_emb  # .to(self.dtype)
         cond_rotary_emb = cond_rotary_emb.reshape([1, cond_tokens, *cond_rotary_emb.shape[3:]])
 
-
         rotary_emb_txt = self.pack_rotemb(pad_tensor(rotary_emb_txt, 256, 1))
         rotary_emb_img = self.pack_rotemb(pad_tensor(rotary_emb_img, 256, 1))
         rotary_emb_single = self.pack_rotemb(pad_tensor(rotary_emb_single, 256, 1))
         rotary_emb_cond = self.pack_rotemb(pad_tensor(cond_rotary_emb, 256, 1))
 
-    
         hidden_states = self.m.forward(
             hidden_states,
             cond_hidden_states,
@@ -215,7 +213,7 @@ class NunchakuOminiFluxTransformerBlocks(nn.Module):
         hidden_states = hidden_states.to(original_dtype).to(original_device)
         encoder_hidden_states = hidden_states[:, :txt_tokens, ...]
         hidden_states = hidden_states[:, txt_tokens:, ...]
-        #cond_hidden_states = cond_hidden_states[:, txt_tokens:txt_tokens+img_tokens, ...]
+        # cond_hidden_states = cond_hidden_states[:, txt_tokens:txt_tokens+img_tokens, ...]
 
         return encoder_hidden_states, hidden_states
 
@@ -272,7 +270,7 @@ class NunchakuOminiFluxTransformerBlocks(nn.Module):
         temb = temb.to(self.dtype).to(self.device)
         cond_temb = cond_temb.to(self.dtype).to(self.device)
         image_rotary_emb = image_rotary_emb.to(self.device)
-        cond_rotary_emb= cond_rotary_emb.to(self.device)
+        cond_rotary_emb = cond_rotary_emb.to(self.device)
 
         if controlnet_block_samples is not None:
             if isinstance(controlnet_block_samples, list) and len(controlnet_block_samples) > 0:
@@ -295,13 +293,11 @@ class NunchakuOminiFluxTransformerBlocks(nn.Module):
         rotary_emb_img = image_rotary_emb[:, txt_tokens:, ...]  # .to(self.dtype)
 
         cond_rotary_emb = cond_rotary_emb.reshape([1, cond_tokens, *cond_rotary_emb.shape[3:]])
-        
 
         rotary_emb_txt = self.pack_rotemb(pad_tensor(rotary_emb_txt, 256, 1))
         rotary_emb_img = self.pack_rotemb(pad_tensor(rotary_emb_img, 256, 1))
-        rotary_emb_cond = self.pack_rotemb(pad_tensor(rotary_emb_cond, 256, 1))
-        
-            
+        rotary_emb_cond = self.pack_rotemb(pad_tensor(cond_rotary_emb, 256, 1))
+
         hidden_states, encoder_hidden_states, cond_hidden_states = self.m.forward_layer(
             idx,
             hidden_states,
@@ -357,7 +353,7 @@ class NunchakuOminiFluxTransformerBlocks(nn.Module):
         self,
         hidden_states: torch.Tensor,
         emb: torch.Tensor,
-        idx: int = 0, # Index of the transformer block
+        idx: int = 0,  # Index of the transformer block
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """Calls the `norm_one_forward` method of the C++ model for a specific block.
 
@@ -402,9 +398,9 @@ def rope(pos: torch.Tensor, dim: int, theta: int) -> torch.Tensor:
 class EmbedND(nn.Module):
     def __init__(self, dim: int, theta: int, axes_dim: list[int]):
         super(EmbedND, self).__init__()
-        self.dim = dim          # Dimensionality of the embedding for each axis
-        self.theta = theta      # Base for the sinusoidal frequency calculation
-        self.axes_dim = axes_dim # List of embedding dimensions for each axis in `ids`
+        self.dim = dim  # Dimensionality of the embedding for each axis
+        self.theta = theta  # Base for the sinusoidal frequency calculation
+        self.axes_dim = axes_dim  # List of embedding dimensions for each axis in `ids`
 
     def forward(self, ids: torch.Tensor) -> torch.Tensor:
         """Computes N-dimensional rotary positional embeddings.
@@ -451,17 +447,17 @@ class NunchakuOminiFluxTransformer2dModel(FluxTransformer2DModel, NunchakuModelL
     @register_to_config
     def __init__(
         self,
-        patch_size: int = 1,            # Patch size for image tokenization (relevant for original DiT, less so here)
-        in_channels: int = 64,          # Number of input channels to the first layer (x_embedder)
+        patch_size: int = 1,  # Patch size for image tokenization (relevant for original DiT, less so here)
+        in_channels: int = 64,  # Number of input channels to the first layer (x_embedder)
         out_channels: int | None = None,  # Number of output channels from the last layer (proj_out)
-        num_layers: int = 19,           # Number of joint transformer blocks
-        num_single_layers: int = 38,    # Number of single transformer blocks
+        num_layers: int = 19,  # Number of joint transformer blocks
+        num_single_layers: int = 38,  # Number of single transformer blocks
         attention_head_dim: int = 128,  # Dimension of each attention head
         num_attention_heads: int = 24,  # Number of attention heads
-        joint_attention_dim: int = 4096, # Not directly used by OminiFlux, legacy from DiT
-        pooled_projection_dim: int = 768,# Dimension of pooled text projections
+        joint_attention_dim: int = 4096,  # Not directly used by OminiFlux, legacy from DiT
+        pooled_projection_dim: int = 768,  # Dimension of pooled text projections
         guidance_embeds: bool = False,  # Whether the model uses explicit guidance embeddings
-        axes_dims_rope: tuple[int] = (16, 56, 56), # Dimensions for N-D RoPE (e.g., text, height, width)
+        axes_dims_rope: tuple[int] = (16, 56, 56),  # Dimensions for N-D RoPE (e.g., text, height, width)
     ):
         super(NunchakuOminiFluxTransformer2dModel, self).__init__(
             patch_size=patch_size,
@@ -912,10 +908,10 @@ class NunchakuOminiFluxTransformer2dModel(FluxTransformer2DModel, NunchakuModelL
             controlnet_block_samples=controlnet_block_samples,
             controlnet_single_block_samples=controlnet_single_block_samples,
         )
-        #hidden_states = torch.cat([encoder_hidden_states, hidden_states], dim=1)
-        #hidden_states = hidden_states[:, encoder_hidden_states.shape[1] :, ...]
+        # hidden_states = torch.cat([encoder_hidden_states, hidden_states], dim=1)
+        # hidden_states = hidden_states[:, encoder_hidden_states.shape[1] :, ...]
         hidden_states = self.norm_out(hidden_states, temb)
-    
+
         output = self.proj_out(hidden_states)
 
         if not return_dict:
