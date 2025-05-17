@@ -65,7 +65,11 @@ def save_image(img):
 
 def run(image, prompt: str, prompt_template: str, sketch_guidance: float, seed: int) -> tuple[Image, str]:
     print(f"Prompt: {prompt}")
-    image_numpy = np.array(image["composite"].convert("RGB"))
+
+    if image["composite"] is None:
+        image_numpy = np.array(blank_image.convert("RGB"))
+    else:
+        image_numpy = np.array(image["composite"].convert("RGB"))
 
     if prompt.strip() == "" and (np.sum(image_numpy == 255) >= 3145628 or np.sum(image_numpy == 0) >= 3145628):
         return blank_image, "Please input the prompt or draw something."
