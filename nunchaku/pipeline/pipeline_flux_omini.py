@@ -39,12 +39,12 @@ def randn_tensor(
         gen_device_type = generator.device.type if not isinstance(generator, list) else generator[0].device.type
         if gen_device_type != device.type and gen_device_type == "cpu":
             rand_device = "cpu"
-            if device != "mps":
-                logger.info(
-                    f"The passed generator was created on 'cpu' even though a tensor on {device} was expected."
-                    f" Tensors will be created on 'cpu' and then moved to {device}. Note that one can probably"
-                    f" slighly speed up this function by passing a generator that was created on the {device} device."
-                )
+            # if device != "mps":
+            #     logger.info(
+            #         f"The passed generator was created on 'cpu' even though a tensor on {device} was expected."
+            #         f" Tensors will be created on 'cpu' and then moved to {device}. Note that one can probably"
+            #         f" slighly speed up this function by passing a generator that was created on the {device} device."
+            #     )
         elif gen_device_type != device.type and gen_device_type == "cuda":
             raise ValueError(f"Cannot generate a {device} tensor from a generator of type {gen_device_type}.")
 
