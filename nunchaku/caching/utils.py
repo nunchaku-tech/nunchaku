@@ -399,7 +399,7 @@ class FluxCachedTransformerBlocks(nn.Module):
             controlnet_block_samples = (
                 torch.stack(controlnet_block_samples).to(original_device) if len(controlnet_block_samples) > 0 else None
             )
-        if controlnet_single_block_samples is not None and len(controlnet_single_block_samples) > 0:
+        if controlnet_single_block_samples is not None:
             controlnet_single_block_samples = (
                 torch.stack(controlnet_single_block_samples).to(original_device)
                 if len(controlnet_single_block_samples) > 0
