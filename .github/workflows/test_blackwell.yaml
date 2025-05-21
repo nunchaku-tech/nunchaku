@@ -36,7 +36,6 @@ on:
 #  issue_comment:
 #    types: [ created ]
 
-
 concurrency:
   group: ${{ github.repository }}-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -58,7 +57,7 @@ jobs:
             echo "should_run=false" >> $GITHUB_OUTPUT
           fi
 
-  set-up-build-env:
+  run-tests:
     runs-on: [ self-hosted, blackwell ]
     needs: [ check-comment ]
     if: ${{ github.event_name != 'issue_comment' || needs.check-comment.outputs.should_run == 'true' }}
@@ -75,7 +74,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          #          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           ref: ${{ steps.set-ref.outputs.ref }}
           submodules: true
 
@@ -95,18 +93,10 @@ jobs:
           which python
           conda install -c conda-forge gxx=11 gcc=11
           echo "Installing dependencies"
-          pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
-          pip install ninja wheel diffusers transformers accelerate sentencepiece protobuf huggingface_hub
+          pip install torch==2.7 torchvision==0.22 torchaudio==2.7 --index-url https://download.pytorch.org/whl/cu128
+          pip install ninja wheel diffusers==0.33.1 transformers==4.51 accelerate==1.7 sentencepiece==0.2 protobuf==6.31 huggingface_hub==0.31
 
-
-  build:
-    needs: set-up-build-env
-    runs-on: [ self-hosted, blackwell ]
-    timeout-minutes: 30
-    if: ${{ github.event_name != 'issue_comment' || needs.check-comment.outputs.should_run == 'true' }}
-
-    steps:
-      - name: Run build tests
+      - name: Build
         run: |
           source $(conda info --base)/etc/profile.d/conda.sh
           conda activate test_env || { echo "Failed to activate conda env"; exit 1; }
@@ -114,59 +104,73 @@ jobs:
           NUNCHAKU_INSTALL_MODE=ALL python setup.py develop
           pip install -r tests/requirements.txt
 
-
-  test-flux-memory:
-    needs: build
-    runs-on: [ self-hosted, blackwell ]
-    timeout-minutes: 30
-    if: ${{ github.event_name != 'issue_comment' || needs.check-comment.outputs.should_run == 'true' }}
-
-    steps:
-      - name: Run FLUX memory test
+      - name: Nunchaku FLUX memory tests
         run: |
-          which python
           source $(conda info --base)/etc/profile.d/conda.sh
           conda activate test_env || { echo "Failed to activate conda env"; exit 1; }
           which python
           NUNCHAKU_TEST_CACHE_ROOT=${{ secrets.NUNCHAKU_TEST_CACHE_ROOT_BLACKWELL }} HF_TOKEN=${{ secrets.HF_TOKEN }} pytest -v tests/flux/test_flux_memory.py
 
-  test-flux-other:
-    needs: build
-    runs-on: [ self-hosted, blackwell ]
-    timeout-minutes: 150
-    if: ${{ github.event_name != 'issue_comment' || needs.check-comment.outputs.should_run == 'true' }}
-
-    steps:
-      - name: Run other FLUX tests
+      - name: Nunchaku FLUX example tests
         run: |
-          which python
           source $(conda info --base)/etc/profile.d/conda.sh
           conda activate test_env || { echo "Failed to activate conda env"; exit 1; }
           which python
-          NUNCHAKU_TEST_CACHE_ROOT=${{ secrets.NUNCHAKU_TEST_CACHE_ROOT_BLACKWELL }} HF_TOKEN=${{ secrets.HF_TOKEN }} pytest -v tests/flux --ignore=tests/flux/test_flux_memory.py
+          NUNCHAKU_TEST_CACHE_ROOT=${{ secrets.NUNCHAKU_TEST_CACHE_ROOT_BLACKWELL }} HF_TOKEN=${{ secrets.HF_TOKEN }} pytest -v tests/flux/test_flux_examples.py
 
-  test-sana:
-    needs: build
-    runs-on: [ self-hosted, blackwell ]
-    timeout-minutes: 60
-    if: ${{ github.event_name != 'issue_comment' || needs.check-comment.outputs.should_run == 'true' }}
-
-    steps:
-      - name: Run SANA tests
+      - name: Nunchaku FLUX other tests
         run: |
+          source $(conda info --base)/etc/profile.d/conda.sh
+          conda activate test_env || { echo "Failed to activate conda env"; exit 1; }
           which python
+          NUNCHAKU_TEST_CACHE_ROOT=${{ secrets.NUNCHAKU_TEST_CACHE_ROOT_BLACKWELL }} HF_TOKEN=${{ secrets.HF_TOKEN }} pytest -v tests/flux --ignore=tests/flux/test_flux_memory.py --ignore=tests/flux/test_flux_examples.py
+
+      - name: Nunchaku SANA tests
+        run: |
           source $(conda info --base)/etc/profile.d/conda.sh
           conda activate test_env || { echo "Failed to activate conda env"; exit 1; }
           which python
           NUNCHAKU_TEST_CACHE_ROOT=${{ secrets.NUNCHAKU_TEST_CACHE_ROOT_BLACKWELL }} HF_TOKEN=${{ secrets.HF_TOKEN }} pytest -v tests/sana
 
+      - name: Setup ComfyUI
+        run: |
+          source $(conda info --base)/etc/profile.d/conda.sh
+          conda activate test_env || { echo "Failed to activate conda env"; exit 1; }
+          which python
+          pwd
+          cd ..
+          pip install comfy-cli
+          yes | comfy --here install --nvidia --skip-torch-or-directml --version 0.3.34
+          cd ComfyUI
+          rm -r models
+          mkdir -p ${{ secrets.COMFYUI_MODELS_ROOT_BLACKWELL }}
+          ln -s ${{ secrets.COMFYUI_MODELS_ROOT_BLACKWELL }} models
+          cd custom_nodes
+          git clone -b dev https://github.com/mit-han-lab/ComfyUI-nunchaku.git
+          cd ..
+          pip install -r custom_nodes/ComfyUI-nunchaku/requirements.txt
+          comfy node install comfyui_controlnet_aux
+          comfy node install comfyui-inpainteasy
+          HF_TOKEN=${{ secrets.HF_TOKEN }} python custom_nodes/ComfyUI-nunchaku/scripts/download_models.py
+          HF_TOKEN=${{ secrets.HF_TOKEN }} python custom_nodes/ComfyUI-nunchaku/scripts/download_test_data.py
+
+      - name: Run ComfyUI tests
+        run: |
+          source $(conda info --base)/etc/profile.d/conda.sh
+          conda activate test_env || { echo "Failed to activate conda env"; exit 1; }
+          pwd
+          cd ../ComfyUI
+          pwd
+          cp -r custom_nodes/ComfyUI-nunchaku/tests nunchaku_tests
+          python nunchaku_tests/scripts/nunchaku_flux1_dev.py
+          pytest -v nunchaku_tests/
+
   clean-up:
     if: always() && (github.event_name != 'issue_comment' || needs.check-comment.outputs.should_run == 'true')
-    needs: [ set-up-build-env, test-flux-memory, test-flux-other, test-sana ]
+    needs: [ run-tests ]
     runs-on: [ self-hosted, blackwell ]
-
     steps:
       - name: Clean up
         run: |
           cd ..
-          rm -rf *nunchaku*
+          rm -rf *nunchaku* *ComfyUI*
