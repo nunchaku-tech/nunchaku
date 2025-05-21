@@ -36,7 +36,6 @@ on:
 #  issue_comment:
 #    types: [ created ]
 
-
 concurrency:
   group: ${{ github.repository }}-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -75,7 +74,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          #          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           ref: ${{ steps.set-ref.outputs.ref }}
           submodules: true
 
@@ -166,7 +164,6 @@ jobs:
           cp -r custom_nodes/ComfyUI-nunchaku/tests nunchaku_tests
           python nunchaku_tests/scripts/nunchaku_flux1_dev.py
           pytest -v nunchaku_tests/
-  
 
   clean-up:
     if: always() && (github.event_name != 'issue_comment' || needs.check-comment.outputs.should_run == 'true')
