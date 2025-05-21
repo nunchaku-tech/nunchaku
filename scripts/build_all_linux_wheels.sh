@@ -1,6 +1,6 @@
 #!/bin/bash
 # Define the versions for Python, Torch, and CUDA
-python_versions=("3.10" "3.11" "3.12" "3.13")
+python_versions=("3.10" "3.11" "3.12")
 torch_versions=("2.5" "2.6")
 cuda_versions=("12.4")
 
@@ -21,9 +21,7 @@ done
 bash scripts/build_linux_wheel_torch2.7_cu128.sh "3.10" "2.7" "12.8"
 bash scripts/build_linux_wheel_torch2.7_cu128.sh "3.11" "2.7" "12.8"
 bash scripts/build_linux_wheel_torch2.7_cu128.sh "3.12" "2.7" "12.8"
-bash scripts/build_linux_wheel_torch2.7_cu128.sh "3.13" "2.7" "12.8"
 
 bash scripts/build_linux_wheel_cu128.sh "3.10" "2.8" "12.8"
 bash scripts/build_linux_wheel_cu128.sh "3.11" "2.8" "12.8"
 bash scripts/build_linux_wheel_cu128.sh "3.12" "2.8" "12.8"
-bash scripts/build_linux_wheel_cu128.sh "3.13" "2.8" "12.8"
