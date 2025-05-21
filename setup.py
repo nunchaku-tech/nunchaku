@@ -7,7 +7,7 @@ from datetime import date
 import setuptools
 import torch
 from packaging import version as packaging_version
-from torch.utils.cpp_extension import BuildExtension, CUDA_HOME, CUDAExtension
+from torch.utils.cpp_extension import CUDA_HOME, BuildExtension, CUDAExtension
 
 
 class CustomBuildExtension(BuildExtension):
