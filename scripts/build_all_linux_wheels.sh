@@ -18,9 +18,9 @@ for python_version in "${python_versions[@]}"; do
   done
 done
 
-bash scripts/build_linux_wheel_torch2.7_cu128.sh "3.10" "2.7" "12.8"
-bash scripts/build_linux_wheel_torch2.7_cu128.sh "3.11" "2.7" "12.8"
-bash scripts/build_linux_wheel_torch2.7_cu128.sh "3.12" "2.7" "12.8"
+bash scripts/build_linux_wheel.sh "3.10" "2.7" "12.8"
+bash scripts/build_linux_wheel.sh "3.11" "2.7" "12.8"
+bash scripts/build_linux_wheel.sh "3.12" "2.7" "12.8"
 
 bash scripts/build_linux_wheel_cu128.sh "3.10" "2.8" "12.8"
 bash scripts/build_linux_wheel_cu128.sh "3.11" "2.8" "12.8"
