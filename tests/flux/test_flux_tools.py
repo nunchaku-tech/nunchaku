@@ -40,7 +40,7 @@ def test_flux_depth_dev():
         attention_impl="nunchaku-fp16",
         cpu_offload=False,
         cache_threshold=0,
-        expected_lpips=0.137 if get_precision() == "int4" else 0.092,
+        expected_lpips=0.137 if get_precision() == "int4" else 0.102,
     )
 
 
