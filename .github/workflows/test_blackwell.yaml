@@ -104,8 +104,42 @@ jobs:
           NUNCHAKU_INSTALL_MODE=ALL python setup.py develop
           pip install -r tests/requirements.txt
 
+      - name: Setup ComfyUI
+        run: |
+          source $(conda info --base)/etc/profile.d/conda.sh
+          conda activate test_env || { echo "Failed to activate conda env"; exit 1; }
+          which python
+          pwd
+          cd ..
+          pip install comfy-cli
+          yes | comfy --here install --nvidia --skip-torch-or-directml --version 0.3.34
+          cd ComfyUI
+          rm -r models
+          mkdir -p ${{ secrets.COMFYUI_MODELS_ROOT_BLACKWELL }}
+          ln -s ${{ secrets.COMFYUI_MODELS_ROOT_BLACKWELL }} models
+          cd custom_nodes
+          git clone -b dev https://github.com/mit-han-lab/ComfyUI-nunchaku.git
+          cd ..
+          pip install -r custom_nodes/ComfyUI-nunchaku/requirements.txt
+          comfy node install comfyui_controlnet_aux
+          comfy node install comfyui-inpainteasy
+          cp -r custom_nodes/ComfyUI-nunchaku/tests nunchaku_tests
+          pip install -r nunchaku_tests/requirements.txt
+          HF_TOKEN=${{ secrets.HF_TOKEN }} python custom_nodes/ComfyUI-nunchaku/scripts/download_models.py
+          HF_TOKEN=${{ secrets.HF_TOKEN }} python custom_nodes/ComfyUI-nunchaku/scripts/download_test_data.py
+
+      - name: Run ComfyUI tests
+        run: |
+          source $(conda info --base)/etc/profile.d/conda.sh
+          conda activate test_env || { echo "Failed to activate conda env"; exit 1; }
+          pwd
+          cd ../ComfyUI
+          python nunchaku_tests/scripts/nunchaku_flux1_dev.py
+          pytest -v nunchaku_tests/
+
       - name: Nunchaku FLUX memory tests
         run: |
+          pwd
           source $(conda info --base)/etc/profile.d/conda.sh
           conda activate test_env || { echo "Failed to activate conda env"; exit 1; }
           which python
@@ -131,40 +165,6 @@ jobs:
           conda activate test_env || { echo "Failed to activate conda env"; exit 1; }
           which python
           NUNCHAKU_TEST_CACHE_ROOT=${{ secrets.NUNCHAKU_TEST_CACHE_ROOT_BLACKWELL }} HF_TOKEN=${{ secrets.HF_TOKEN }} pytest -v tests/sana
-
-      - name: Setup ComfyUI
-        run: |
-          source $(conda info --base)/etc/profile.d/conda.sh
-          conda activate test_env || { echo "Failed to activate conda env"; exit 1; }
-          which python
-          pwd
-          cd ..
-          pip install comfy-cli
-          yes | comfy --here install --nvidia --skip-torch-or-directml --version 0.3.34
-          cd ComfyUI
-          rm -r models
-          mkdir -p ${{ secrets.COMFYUI_MODELS_ROOT_BLACKWELL }}
-          ln -s ${{ secrets.COMFYUI_MODELS_ROOT_BLACKWELL }} models
-          cd custom_nodes
-          git clone -b dev https://github.com/mit-han-lab/ComfyUI-nunchaku.git
-          cd ..
-          pip install -r custom_nodes/ComfyUI-nunchaku/requirements.txt
-          comfy node install comfyui_controlnet_aux
-          comfy node install comfyui-inpainteasy
-          HF_TOKEN=${{ secrets.HF_TOKEN }} python custom_nodes/ComfyUI-nunchaku/scripts/download_models.py
-          HF_TOKEN=${{ secrets.HF_TOKEN }} python custom_nodes/ComfyUI-nunchaku/scripts/download_test_data.py
-
-      - name: Run ComfyUI tests
-        run: |
-          source $(conda info --base)/etc/profile.d/conda.sh
-          conda activate test_env || { echo "Failed to activate conda env"; exit 1; }
-          pwd
-          cd ../ComfyUI
-          pwd
-          cp -r custom_nodes/ComfyUI-nunchaku/tests nunchaku_tests
-          pip install -r nunchaku_tests/requirements.txt
-          python nunchaku_tests/scripts/nunchaku_flux1_dev.py
-          pytest -v nunchaku_tests/
 
   clean-up:
     if: always() && (github.event_name != 'issue_comment' || needs.check-comment.outputs.should_run == 'true')
