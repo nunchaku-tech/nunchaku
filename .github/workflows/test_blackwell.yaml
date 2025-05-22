@@ -162,6 +162,7 @@ jobs:
           cd ../ComfyUI
           pwd
           cp -r custom_nodes/ComfyUI-nunchaku/tests nunchaku_tests
+          pip install -r nunchaku_tests/requirements.txt
           python nunchaku_tests/scripts/nunchaku_flux1_dev.py
           pytest -v nunchaku_tests/
 
