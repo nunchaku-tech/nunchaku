@@ -2,7 +2,7 @@ name: Nightly Build
 
 on:
   schedule:
-    - cron: '0 8 * * *'
+    - cron: '0 8 * * *'  # UTC time
   workflow_dispatch:
 
 permissions:
@@ -27,7 +27,7 @@ jobs:
         id: version
         run: |
           version=$(grep '__version__' nunchaku/__version__.py | sed -E 's/.*"([^"]+)".*/\1/')
-          echo "version=$version"
+          echo "Extracted version: $version"
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Check if version contains 'dev'
@@ -45,6 +45,7 @@ jobs:
         run: |
           today=$(date -u +"%Y%m%d")
           tag_name="v${{ steps.version.outputs.version }}-$today"
+          echo "tag_name=$tag_name"
           echo "tag_name=$tag_name" >> "$GITHUB_OUTPUT"
 
       - name: Create and push tag
@@ -59,9 +60,9 @@ jobs:
         if: steps.check.outputs.is_dev == 'false'
         run: echo "Version is not a dev version. Skipping tag."
 
-  linux-build:
+  linux-wheels:
     name: Build the linux nightly wheels
-    runs-on: self-hosted, windows-build
+    runs-on: [self-hosted, linux-build]
     needs: tag
     if: needs.tag.outputs.is_dev == 'true'
     steps:
@@ -71,11 +72,14 @@ jobs:
           fetch-depth: 0
           ref: ${{ needs.tag.outputs.tag_name }}
           submodules: true
+
       - name: Show current commit
         run: git log -1 --oneline
-      - name: build-wheels
+
+      - name: Build wheels
         run: |
           bash scripts/build_linux_wheel.sh "3.10" "2.7" "12.8"
+
       - name: Upload wheels to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -85,3 +89,17 @@ jobs:
           prerelease: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Clean up
+        run: bash scripts/linux_cleanup.sh
+
+  linux-clean-up:
+    if: always()
+    needs: [ linux-wheels ]
+    runs-on: [ self-hosted, linux-build ]
+
+    steps:
+      - name: Clean up
+        run: |
+          cd ..
+          rm -rf *nunchaku*
