@@ -26,12 +26,10 @@ fi
 
 docker run --rm \
     -v "$(pwd)":/nunchaku \
-    pytorch/manylinux-builder:cuda${CUDA_VERSION} \
+    pytorch/manylinux2_28-builder:cuda${CUDA_VERSION} \
     bash -c "
     cd /nunchaku && \
     rm -rf build && \
-    yum install -y devtoolset-11 && \
-    source scl_source enable devtoolset-11 && \
     gcc --version && g++ --version && \
     ${PYTHON_ROOT_PATH}/bin/pip install --no-cache-dir torch==${TORCH_VERSION} torchvision==${TORCHVISION_VERSION} torchaudio==${TORCHAUDIO_VERSION} --index-url https://download.pytorch.org/whl/cu${CUDA_VERSION//.} && \
     ${PYTHON_ROOT_PATH}/bin/pip install build ninja wheel setuptools && \
