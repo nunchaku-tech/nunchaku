@@ -44,7 +44,7 @@ jobs:
         if: steps.check.outputs.is_dev == 'true'
         run: |
           today=$(date -u +"%Y%m%d")
-          tag_name="v${{ steps.version.outputs.version }}-$today"
+          tag_name="v${{ steps.version.outputs.version }}$today"
           echo "tag_name=$tag_name"
           echo "tag_name=$tag_name" >> "$GITHUB_OUTPUT"
 
