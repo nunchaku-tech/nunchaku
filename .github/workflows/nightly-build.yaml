@@ -78,7 +78,7 @@ jobs:
 
       - name: Build wheels
         run: |
-          bash scripts/build_linux_wheel.sh "3.10" "2.7" "12.8"
+          bash scripts/build_all_linux_wheels.sh
 
       - name: Upload wheels to GitHub Release
         uses: softprops/action-gh-release@v2
