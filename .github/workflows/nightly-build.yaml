@@ -1,83 +1,87 @@
-#name: Nightly Build
-#
-#on:
-#  schedule:
-#    - cron: '0 8 * * *'
-#  workflow_dispatch:
-#
-#jobs:
-#  tag:
-#    name: Tag Dev Branch if dev version
-#    runs-on: ubuntu-latest
-#    outputs:
-#      is_dev: ${{ steps.check.outputs.is_dev }}
-#      tag_name: ${{ steps.tag.outputs.tag_name }}
-#    steps:
-#      - name: Checkout dev branch
-#        uses: actions/checkout@v4
-#        with:
-#          fetch-depth: 0
-#          ref: dev
-#
-#      - name: Extract version from __version__.py
-#        id: version
-#        run: |
-#          version=$(grep '__version__' nunchaku/__version__.py | sed -E 's/.*"([^"]+)".*/\1/')
-#          echo "version=$version" >> "$GITHUB_OUTPUT"
-#          echo "Extracted version: $version"
-#
-#      - name: Check if version contains 'dev'
-#        id: check
-#        run: |
-#          if [[ "${{ steps.version.outputs.version }}" == *dev* ]]; then
-#            echo "is_dev=true" >> "$GITHUB_OUTPUT"
-#          else
-#            echo "is_dev=false" >> "$GITHUB_OUTPUT"
-#          fi
-#
-#      - name: Set tag name
-#        id: tag
-#        if: steps.check.outputs.is_dev == 'true'
-#        run: |
-#          today=$(date -u +"%Y%m%d")
-#          tag_name="v${{ steps.version.outputs.version }}-$today"
-#          echo "tag_name=$tag_name" >> "$GITHUB_OUTPUT"
-#
-#      - name: Create and push tag
-#        if: steps.check.outputs.is_dev == 'true'
-#        run: |
-#          git config user.name "github-actions"
-#          git config user.email "github-actions@users.noreply.github.com"
-#          git tag ${{ steps.tag.outputs.tag_name }}
-#          git push origin ${{ steps.tag.outputs.tag_name }}
-#
-#      - name: Skip tagging (version is not dev)
-#        if: steps.check.outputs.is_dev == 'false'
-#        run: echo "Version is not a dev version. Skipping tag."
-#
-#  windows-build:
-#    name: Build the windows nightly wheels
-#    runs-on: self-hosted, windows-build
-#    needs: tag
-#    if: needs.tag.outputs.is_dev == 'true'
-#    steps:
-#      - name: Checkout to the tag
-#        uses: actions/checkout@v4
-#        with:
-#          fetch-depth: 0
-#          ref: ${{ needs.tag.outputs.tag_name }}
-#          submodules: true
-#      - name: Show current commit
-#        run: git log -1 --oneline
-#      - name: setup Conda
-#        run: |
-#          pwd
-#      - name: Build all wheels
-#        run: .\scripts\build_all_windows_wheels.cmd
-#      - name: Upload wheels
-#        run: |
-#          echo "Uploading wheels"
-#          mkdir -p wheels
-#          cp dist/*.whl wheels/
-#
-#
+name: Nightly Build
+
+on:
+  schedule:
+    - cron: '0 8 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    name: Tag Dev Branch if dev version
+    runs-on: ubuntu-latest
+    if: github.repository == 'mit-han-lab/nunchaku'
+    outputs:
+      is_dev: ${{ steps.check.outputs.is_dev }}
+      tag_name: ${{ steps.tag.outputs.tag_name }}
+    steps:
+      - name: Checkout dev branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: dev
+
+      - name: Extract version from __version__.py
+        id: version
+        run: |
+          version=$(grep '__version__' nunchaku/__version__.py | sed -E 's/.*"([^"]+)".*/\1/')
+          echo "version=$version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Check if version contains 'dev'
+        id: check
+        run: |
+          if [[ "${{ steps.version.outputs.version }}" == *dev* ]]; then
+            echo "is_dev=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_dev=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set tag name
+        id: tag
+        if: steps.check.outputs.is_dev == 'true'
+        run: |
+          today=$(date -u +"%Y%m%d")
+          tag_name="v${{ steps.version.outputs.version }}-$today"
+          echo "tag_name=$tag_name" >> "$GITHUB_OUTPUT"
+
+      - name: Create and push tag
+        if: steps.check.outputs.is_dev == 'true'
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git tag ${{ steps.tag.outputs.tag_name }}
+          git push origin ${{ steps.tag.outputs.tag_name }}
+
+      - name: Skip tagging (version is not dev)
+        if: steps.check.outputs.is_dev == 'false'
+        run: echo "Version is not a dev version. Skipping tag."
+
+  linux-build:
+    name: Build the linux nightly wheels
+    runs-on: self-hosted, windows-build
+    needs: tag
+    if: needs.tag.outputs.is_dev == 'true'
+    steps:
+      - name: Checkout to the tag
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.tag.outputs.tag_name }}
+          submodules: true
+      - name: Show current commit
+        run: git log -1 --oneline
+      - name: build-wheels
+        run: |
+          bash scripts/build_linux_wheel.sh "3.10" "2.7" "12.8"
+      - name: Upload wheels to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.whl
+          name: Nunchaku Nightly ${{ needs.tag.outputs.tag_name }}
+          tag_name: ${{ needs.tag.outputs.tag_name }}
+          prerelease: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
