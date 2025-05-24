@@ -3,10 +3,9 @@ import json
 import os
 
 from huggingface_hub import constants, hf_hub_download
+from safetensors.torch import save_file
 
 from .utils import load_state_dict_in_safetensors
-import argparse
-from safetensors.torch import save_file
 
 
 def merge_models_into_a_single_file(pretrained_model_name_or_path: str, **kwargs) -> dict:

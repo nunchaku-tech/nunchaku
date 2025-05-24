@@ -143,16 +143,32 @@ class NunchakuSanaTransformer2DModel(SanaTransformer2DModel, NunchakuModelLoader
         device = kwargs.get("device", "cuda")
         pag_layers = kwargs.get("pag_layers", [])
         precision = get_precision(kwargs.get("precision", "auto"), device, pretrained_model_name_or_path)
-        transformer, unquantized_part_path, transformer_block_path = cls._build_model(
-            pretrained_model_name_or_path, **kwargs
-        )
-        m = load_quantized_module(
-            transformer, transformer_block_path, device=device, pag_layers=pag_layers, use_fp4=precision == "fp4"
-        )
-        transformer.inject_quantized_module(m, device)
-        transformer.to_empty(device=device)
-        unquantized_state_dict = load_file(unquantized_part_path)
-        transformer.load_state_dict(unquantized_state_dict, strict=False)
+        if pretrained_model_name_or_path.endswith((".safetensors", ".sft")):
+            transformer, model_state_dict = cls._build_model_legacy(pretrained_model_name_or_path, **kwargs)
+            quantized_part_sd = {}
+            unquantized_layer_sd = {}
+            for k, v in model_state_dict.items():
+                if k.startswith("transformer_blocks."):
+                    quantized_part_sd[k] = v
+                else:
+                    unquantized_layer_sd[k] = v
+            m = load_quantized_module(
+                transformer, quantized_part_sd, device=device, pag_layers=pag_layers, use_fp4=precision == "fp4"
+            )
+            transformer.inject_quantized_module(m, device)
+            transformer.to_empty(device=device)
+            transformer.load_state_dict(unquantized_layer_sd, strict=False)
+        else:
+            transformer, unquantized_part_path, transformer_block_path = cls._build_model_legacy(
+                pretrained_model_name_or_path, **kwargs
+            )
+            m = load_quantized_module(
+                transformer, transformer_block_path, device=device, pag_layers=pag_layers, use_fp4=precision == "fp4"
+            )
+            transformer.inject_quantized_module(m, device)
+            transformer.to_empty(device=device)
+            unquantized_state_dict = load_file(unquantized_part_path)
+            transformer.load_state_dict(unquantized_state_dict, strict=False)
         return transformer
 
     def inject_quantized_module(self, m: QuantizedSanaModel, device: str | torch.device = "cuda"):
