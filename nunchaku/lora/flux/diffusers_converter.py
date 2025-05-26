@@ -4,11 +4,10 @@ import warnings
 
 import torch
 from diffusers.loaders import FluxLoraLoaderMixin
+from diffusers.utils.state_dict_utils import convert_unet_state_dict_to_peft
 from safetensors.torch import save_file
 
 from .utils import load_state_dict_in_safetensors
-
-from diffusers.utils.state_dict_utils import convert_unet_state_dict_to_peft
 
 
 def to_diffusers(input_lora: str | dict[str, torch.Tensor], output_path: str | None = None) -> dict[str, torch.Tensor]:
