@@ -10,10 +10,13 @@ mask = load_image("./removal_mask.png")
 
 precision = get_precision()  # auto-detect your precision is 'int4' or 'fp4' based on your GPU
 pipe = FluxFillPipeline.from_pretrained("black-forest-labs/FLUX.1-Fill-dev", torch_dtype=torch.bfloat16)
+# import ipdb
+
+# ipdb.set_trace()
 pipe.load_lora_weights(
     "./loras/removalV2.safetensors"
 )  # Path to your LoRA safetensors, can also be a remote HuggingFace path
-pipe.fuse_lora(lora_scale=5)
+pipe.fuse_lora(lora_scale=1)
 pipe.enable_model_cpu_offload()
 
 image = pipe(

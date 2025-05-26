@@ -14,7 +14,7 @@ transformer = NunchakuFluxTransformer2dModel.from_pretrained(f"mit-han-lab/svdq-
 transformer.update_lora_params(
     "loras/removalV2.safetensors"
 )  # Path to your LoRA safetensors, can also be a remote HuggingFace path
-transformer.set_lora_strength(5)  # Your LoRA strength here
+transformer.set_lora_strength(1)  # Your LoRA strength here
 ### End of LoRA Related Code ###
 
 pipe = FluxFillPipeline.from_pretrained(
