@@ -434,8 +434,8 @@ public:
 
         std::optional<CUDADeviceContext> operation_ctx_guard;
 
-        if (this->device().type == Device::CUDA) { 
-        } else if (other.device().type == Device::CUDA) { 
+        if (this->device().type == Device::CUDA) {
+        } else if (other.device().type == Device::CUDA) {
             operation_ctx_guard.emplace(other.device().idx);
         }
 
