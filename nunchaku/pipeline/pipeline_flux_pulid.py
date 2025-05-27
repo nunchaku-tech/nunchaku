@@ -1,5 +1,6 @@
 # Adapted from https://github.com/ToTheBeginning/PuLID/blob/main/pulid/pipeline.py
 import gc
+import os
 from typing import Any, Callable, Dict, List, Optional, Union
 
 import cv2
@@ -27,10 +28,13 @@ from ..models.pulid.utils import img2tensor, resize_numpy_image_long, tensor2img
 
 
 class PuLIDPipeline(nn.Module):
-    def __init__(self, dit, device, weight_dtype=torch.bfloat16, onnx_provider="gpu", *args, **kwargs):
+    def __init__(
+        self, dit, device, weight_dtype=torch.bfloat16, onnx_provider="gpu", folder_path="models", *args, **kwargs
+    ):
         super().__init__()
         self.device = device
         self.weight_dtype = weight_dtype
+        self.folder_path = folder_path
         double_interval = 2
         single_interval = 4
 
@@ -73,13 +77,16 @@ class PuLIDPipeline(nn.Module):
         self.eva_transform_mean = eva_transform_mean
         self.eva_transform_std = eva_transform_std
         # antelopev2
-        snapshot_download("DIAMONIK7777/antelopev2", local_dir="models/antelopev2")
+        antelopev2_path = os.path.join(folder_path, "insightface", "models", "antelopev2")
+        snapshot_download("DIAMONIK7777/antelopev2", local_dir=antelopev2_path)
         providers = (
             ["CPUExecutionProvider"] if onnx_provider == "cpu" else ["CUDAExecutionProvider", "CPUExecutionProvider"]
         )
-        self.app = FaceAnalysis(name="antelopev2", root=".", providers=providers)
+        self.app = FaceAnalysis(name="antelopev2", root=os.path.join(folder_path, "insightface"), providers=providers)
         self.app.prepare(ctx_id=0, det_size=(640, 640))
-        self.handler_ante = insightface.model_zoo.get_model("models/antelopev2/glintr100.onnx", providers=providers)
+        self.handler_ante = insightface.model_zoo.get_model(
+            os.path.join(antelopev2_path, "glintr100.onnx"), providers=providers
+        )
         self.handler_ante.prepare(ctx_id=0)
 
         gc.collect()
@@ -88,9 +95,11 @@ class PuLIDPipeline(nn.Module):
         # other configs
         self.debug_img_list = []
 
-    def load_pretrain(self, pretrain_path=None, version="v0.9.0"):
-        hf_hub_download("guozinan/PuLID", f"pulid_flux_{version}.safetensors", local_dir="models")
-        ckpt_path = f"models/pulid_flux_{version}.safetensors"
+    def load_pretrain(self, pretrain_path=None, version="v0.9.1"):
+        hf_hub_download(
+            "guozinan/PuLID", f"pulid_flux_{version}.safetensors", local_dir=os.path.join(self.folder_path, "pulid")
+        )
+        ckpt_path = os.path.join(self.folder_path, "pulid", f"pulid_flux_{version}.safetensors")
         if pretrain_path is not None:
             ckpt_path = pretrain_path
         state_dict = load_file(ckpt_path)
@@ -207,6 +216,7 @@ class PuLIDFluxPipeline(FluxPipeline):
         weight_dtype=torch.bfloat16,
         onnx_provider="gpu",
         pretrained_model=None,
+        folder_path="models",
     ):
         super().__init__(
             scheduler=scheduler,
@@ -231,6 +241,7 @@ class PuLIDFluxPipeline(FluxPipeline):
             device=self.pulid_device,
             weight_dtype=self.weight_dtype,
             onnx_provider=self.onnx_provider,
+            folder_path=folder_path,
         )
         self.pulid_model.load_pretrain(pretrained_model)
 

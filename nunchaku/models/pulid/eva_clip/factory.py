@@ -239,8 +239,35 @@ def create_model(
         if model_cfg is not None:
             logging.info(f"Loaded {model_name} model config.")
         else:
-            logging.error(f"Model config for {model_name} not found; available models {list_models()}.")
-            raise RuntimeError(f"Model config for {model_name} not found.")
+            model_cfg = {
+                "embed_dim": 768,
+                "vision_cfg": {
+                    "image_size": 336,
+                    "layers": 24,
+                    "width": 1024,
+                    "drop_path_rate": 0,
+                    "head_width": 64,
+                    "mlp_ratio": 2.6667,
+                    "patch_size": 14,
+                    "eva_model_name": "eva-clip-l-14-336",
+                    "xattn": True,
+                    "fusedLN": True,
+                    "rope": True,
+                    "pt_hw_seq_len": 16,
+                    "intp_freq": True,
+                    "naiveswiglu": True,
+                    "subln": True,
+                },
+                "text_cfg": {
+                    "context_length": 77,
+                    "vocab_size": 49408,
+                    "width": 768,
+                    "heads": 12,
+                    "layers": 12,
+                    "xattn": False,
+                    "fusedLN": True,
+                },
+            }
 
         if "rope" in model_cfg.get("vision_cfg", {}):
             if model_cfg["vision_cfg"]["rope"]:
