@@ -1,16 +1,17 @@
 import argparse
-import json
-import os
 from os import PathLike
+from pathlib import Path
 
+import torch
 from huggingface_hub import constants, hf_hub_download
 from safetensors.torch import save_file
 
 from .utils import load_state_dict_in_safetensors
-from pathlib import Path
 
 
-def merge_config_into_model(pretrained_model_name_or_path: str | PathLike[str], **kwargs) -> dict:
+def merge_config_into_model(
+    pretrained_model_name_or_path: str | PathLike[str], **kwargs
+) -> tuple[dict[str, torch.Tensor], dict[str, str]]:
     subfolder = kwargs.get("subfolder", None)
 
     if isinstance(pretrained_model_name_or_path, str):
@@ -41,17 +42,15 @@ def merge_config_into_model(pretrained_model_name_or_path: str | PathLike[str], 
         model_path = hf_hub_download(
             repo_id=str(pretrained_model_name_or_path), filename="awq-int4-flux.1-t5xxl.safetensors", **download_kwargs
         )
-        config_path = hf_hub_download(repo_id=pretrained_model_name_or_path, filename="config.json", **download_kwargs)
+        config_path = hf_hub_download(
+            repo_id=str(pretrained_model_name_or_path), filename="config.json", **download_kwargs
+        )
         model_path = Path(model_path)
         config_path = Path(config_path)
 
-    model_sd = load_state_dict_in_safetensors(model_path)
-    with open(config_path, "r") as f:
-        config = json.load(f)
-    state_dict = {}
-    state_dict["model"] = model_sd
-    state_dict["config"] = config
-    return state_dict
+    state_dict = load_state_dict_in_safetensors(model_path)
+    metadata = {"config": config_path.read_text()}
+    return state_dict, metadata
 
 
 if __name__ == "__main__":
@@ -65,8 +64,8 @@ if __name__ == "__main__":
     )
     parser.add_argument("-o", "--output-path", type=Path, required=True, help="Path to output path")
     args = parser.parse_args()
-    state_dict = merge_config_into_model(args.input_path)
+    state_dict, metadata = merge_config_into_model(args.input_path)
     output_path = Path(args.output_path)
     dirpath = output_path.parent
     dirpath.mkdir(parents=True, exist_ok=True)
-    save_file(state_dict, output_path)
+    save_file(state_dict, output_path, metadata=metadata)
