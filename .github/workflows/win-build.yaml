@@ -1,0 +1,52 @@
+name: Window Build Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_target:
+        description: 'What to test: "pr" or "branch"'
+        required: true
+        type: choice
+        options:
+          - pr
+          - branch
+
+      pr_number:
+        description: 'Pull Request Number (only if test_target == "pr")'
+        required: false
+
+      branch_name:
+        description: 'Branch name (only if test_target == "branch")'
+        default: 'main'
+        required: false
+
+jobs:
+  windows-wheels:
+    name: Build the windows nightly wheels
+    runs-on: [self-hosted, windows-build]
+    steps:
+      - name: Checkout to the tag
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: dev
+          submodules: true
+
+      - name: Show current commit
+        run: git log -1 --oneline
+
+      - name: Build wheels
+        run: |
+          C:\Users\muyang\miniconda3\condabin\activate.bat activate
+          scripts\build_windows_wheel.cmd 3.10 2.7 12.8
+
+#  window-clean-up:
+#    if: always()
+#    needs: [ windows-wheels ]
+#    runs-on: [ self-hosted, windows-build ]
+#
+#    steps:
+#      - name: Clean up
+#        run: |
+#          cd ..
+#          rm -rf *nunchaku*

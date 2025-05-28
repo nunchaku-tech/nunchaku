@@ -126,10 +126,10 @@ pip install https://huggingface.co/mit-han-lab/nunchaku/resolve/main/nunchaku-0.
    pip install peft opencv-python gradio spaces GPUtil
    ```
 
-   Blackwell用户需安装PyTorch nightly（CUDA 12.8）：
+   Blackwell用户需安装PyTorch>=2.7, CUDA>=12.8：
 
    ```shell
-   pip install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu128
+   pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
    ```
 
 2. 编译安装：

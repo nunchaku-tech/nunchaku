@@ -130,10 +130,10 @@ If you're using a Blackwell GPU (e.g., 50-series GPUs), install a wheel with PyT
    pip install peft opencv-python gradio spaces GPUtil
    ```
 
-   To enable NVFP4 on Blackwell GPUs (e.g., 50-series GPUs), please install nightly PyTorch with CUDA 12.8. The installation command can be:
+   To enable NVFP4 on Blackwell GPUs (e.g., 50-series GPUs), please install nightly PyTorch>=2.7 with CUDA>=12.8. The installation command can be:
 
    ```shell
-   pip install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu128
+   pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
    ```
 
 2. Install `nunchaku` package:
