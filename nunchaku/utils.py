@@ -1,5 +1,6 @@
 import os
 import warnings
+from os import PathLike
 
 import safetensors
 import torch
@@ -31,7 +32,7 @@ def ceil_divide(x: int, divisor: int) -> int:
 
 
 def load_state_dict_in_safetensors(
-    path: str, device: str | torch.device = "cpu", filter_prefix: str = ""
+    path: str | PathLike[str], device: str | torch.device = "cpu", filter_prefix: str = ""
 ) -> dict[str, torch.Tensor]:
     """Load state dict in SafeTensors.
 
