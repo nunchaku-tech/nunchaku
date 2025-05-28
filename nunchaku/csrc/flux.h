@@ -42,7 +42,6 @@ public:
         if (net) {
             pybind11::object cb = residual_callback;
             net->set_residual_callback([cb](const Tensor &x) -> Tensor {
-                pybind11::gil_scoped_acquire gil;
                 torch::Tensor torch_x   = to_torch(x);
                 pybind11::object result = cb(torch_x);
                 torch::Tensor torch_y   = result.cast<torch::Tensor>();

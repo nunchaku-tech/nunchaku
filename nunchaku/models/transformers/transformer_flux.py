@@ -199,7 +199,7 @@ class NunchakuFluxTransformerBlocks(nn.Module):
         id_weight = self.id_weight
 
         def callback(hidden_states):
-            ip = id_weight * pulid_ca[pulid_ca_idx[0]](id_embeddings, hidden_states.to("cuda"))
+            ip = id_weight * pulid_ca[pulid_ca_idx[0]](id_embeddings, hidden_states)
             pulid_ca_idx[0] += 1
             return ip
 

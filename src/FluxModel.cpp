@@ -837,11 +837,8 @@ Tensor FluxModel::forward(Tensor hidden_states,
                 hidden_states = kernels::add(hidden_states, controlnet_block_samples[block_index]);
             }
             if (residual_callback && layer % 2 == 0) {
-                Tensor cpu_input = hidden_states.copy(Device::cpu());
-                pybind11::gil_scoped_acquire gil;
-                Tensor cpu_output = residual_callback(cpu_input);
-                Tensor residual   = cpu_output.copy(Device::cuda());
-                hidden_states     = kernels::add(hidden_states, residual);
+                Tensor residual = residual_callback(hidden_states);
+                hidden_states   = kernels::add(hidden_states, residual);
             }
         } else {
             if (size_t(layer) == transformer_blocks.size()) {
@@ -875,12 +872,9 @@ Tensor FluxModel::forward(Tensor hidden_states,
             size_t local_layer_idx = layer - transformer_blocks.size();
             if (residual_callback && local_layer_idx % 4 == 0) {
                 Tensor callback_input = hidden_states.slice(1, txt_tokens, txt_tokens + img_tokens);
-                Tensor cpu_input      = callback_input.copy(Device::cpu());
-                pybind11::gil_scoped_acquire gil;
-                Tensor cpu_output = residual_callback(cpu_input);
-                Tensor residual   = cpu_output.copy(Device::cuda());
-                auto slice        = hidden_states.slice(1, txt_tokens, txt_tokens + img_tokens);
-                slice             = kernels::add(slice, residual);
+                Tensor residual       = residual_callback(callback_input);
+                auto slice            = hidden_states.slice(1, txt_tokens, txt_tokens + img_tokens);
+                slice                 = kernels::add(slice, residual);
                 hidden_states.slice(1, txt_tokens, txt_tokens + img_tokens).copy_(slice);
             }
         }
