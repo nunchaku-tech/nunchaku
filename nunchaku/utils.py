@@ -8,14 +8,23 @@ from huggingface_hub import hf_hub_download
 from pathlib import Path
 
 
-def fetch_or_download(path: str | os.PathLike[str], repo_type: str = "model") -> Path:
-    if isinstance(path, str):
-        path = Path(path)
-    if not path.exists():
-        hf_repo_id = os.path.dirname(path)
-        filename = os.path.basename(path)
-        path = hf_hub_download(repo_id=hf_repo_id, filename=filename, repo_type=repo_type)
-    return path
+def fetch_or_download(path: str | Path, repo_type: str = "model") -> Path:
+    path = Path(path)
+
+    if path.exists():
+        return path
+
+    parts = path.parts
+    if len(parts) < 3:
+        raise ValueError(f"Path '{path}' is too short to extract repo_id and subfolder")
+
+    repo_id = "/".join(parts[:2])
+    sub_path = Path(*parts[2:])
+    filename = sub_path.name
+    subfolder = sub_path.parent if sub_path.parent != Path(".") else None
+
+    path = hf_hub_download(repo_id=repo_id, filename=filename, subfolder=subfolder, repo_type=repo_type)
+    return Path(path)
 
 
 def ceil_divide(x: int, divisor: int) -> int:
