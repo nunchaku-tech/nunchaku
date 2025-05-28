@@ -1,14 +1,17 @@
 import json
+import logging
 import os
 from pathlib import Path
 
 import torch
 from accelerate import init_empty_weights
 from torch import nn
-from transformers import PretrainedConfig, T5Config, T5EncoderModel
+from transformers import T5Config, T5EncoderModel
 
 from .linear import W4Linear
 from ...utils import load_state_dict_in_safetensors
+
+logger = logging.getLogger(__name__)
 
 
 class NunchakuT5EncoderModel(T5EncoderModel):
@@ -19,7 +22,7 @@ class NunchakuT5EncoderModel(T5EncoderModel):
 
         # Load the config file
         metadata = state_dict.pop("__metadata__", {})
-        config = json.load(metadata["config"])
+        config = json.loads(metadata["config"])
         config = T5Config(**config)
 
         # Initialize model on 'meta' device (no memory allocation for weights)
@@ -34,7 +37,7 @@ class NunchakuT5EncoderModel(T5EncoderModel):
             assert isinstance(name, str)
             if isinstance(module, nn.Linear):
                 if f"{name}.qweight" in state_dict:
-                    print(f"Switching {name} to W4Linear")
+                    logger.debug(f"Switching {name} to W4Linear")
                     qmodule = W4Linear.from_linear(module, group_size=128, init_only=True)
                     # modeling_t5.py: T5DenseGatedActDense needs dtype of weight
                     qmodule.weight = torch.empty([1], dtype=module.weight.dtype, device=module.weight.device)
