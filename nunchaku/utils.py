@@ -5,10 +5,13 @@ from os import PathLike
 import safetensors
 import torch
 from huggingface_hub import hf_hub_download
+from pathlib import Path
 
 
-def fetch_or_download(path: str, repo_type: str = "model") -> str:
-    if not os.path.exists(path):
+def fetch_or_download(path: str | os.PathLike[str], repo_type: str = "model") -> Path:
+    if isinstance(path, str):
+        path = Path(path)
+    if not path.exists():
         hf_repo_id = os.path.dirname(path)
         filename = os.path.basename(path)
         path = hf_hub_download(repo_id=hf_repo_id, filename=filename, repo_type=repo_type)
@@ -50,6 +53,9 @@ def load_state_dict_in_safetensors(
     """
     state_dict = {}
     with safetensors.safe_open(fetch_or_download(path), framework="pt", device=device) as f:
+        metadata = f.metadata()
+        if len(metadata) > 0:
+            state_dict["__metadata__"] = metadata
         for k in f.keys():
             if filter_prefix and not k.startswith(filter_prefix):
                 continue

@@ -1,5 +1,5 @@
 import argparse
-from os import PathLike
+import os
 from pathlib import Path
 
 import torch
@@ -10,7 +10,7 @@ from .utils import load_state_dict_in_safetensors
 
 
 def merge_config_into_model(
-    pretrained_model_name_or_path: str | PathLike[str], **kwargs
+    pretrained_model_name_or_path: str | os.PathLike[str], **kwargs
 ) -> tuple[dict[str, torch.Tensor], dict[str, str]]:
     subfolder = kwargs.get("subfolder", None)
 

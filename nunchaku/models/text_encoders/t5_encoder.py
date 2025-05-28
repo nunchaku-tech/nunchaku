@@ -1,72 +1,34 @@
+import json
 import os
+from pathlib import Path
 
 import torch
 from accelerate import init_empty_weights
-from huggingface_hub import constants, hf_hub_download
-from safetensors.torch import load_file
 from torch import nn
 from transformers import PretrainedConfig, T5Config, T5EncoderModel
 
 from .linear import W4Linear
+from ...utils import load_state_dict_in_safetensors
 
 
 class NunchakuT5EncoderModel(T5EncoderModel):
     @classmethod
-    def from_pretrained(
-        cls,
-        pretrained_model_name_or_path: str | os.PathLike,
-        config: PretrainedConfig | str | os.PathLike | None = None,
-        cache_dir: str | os.PathLike | None = None,
-        force_download: bool = False,
-        local_files_only: bool = False,
-        token: str | bool | None = None,
-        revision: str = "main",
-        **kwargs,
-    ):
-        subfolder = kwargs.get("subfolder", None)
-        if os.path.exists(pretrained_model_name_or_path):
-            dirname = (
-                pretrained_model_name_or_path
-                if subfolder is None
-                else os.path.join(pretrained_model_name_or_path, subfolder)
-            )
-            qmodel_path = os.path.join(dirname, "svdq-t5.safetensors")
-            config_path = os.path.join(dirname, "config.json")
-        else:
-            shared_kwargs = {
-                "repo_id": pretrained_model_name_or_path,
-                "subfolder": subfolder,
-                "repo_type": "model",
-                "revision": revision,
-                "library_name": kwargs.get("library_name"),
-                "library_version": kwargs.get("library_version"),
-                "cache_dir": cache_dir,
-                "local_dir": kwargs.get("local_dir"),
-                "user_agent": kwargs.get("user_agent"),
-                "force_download": force_download,
-                "proxies": kwargs.get("proxies"),
-                "etag_timeout": kwargs.get("etag_timeout", constants.DEFAULT_ETAG_TIMEOUT),
-                "token": token,
-                "local_files_only": local_files_only,
-                "headers": kwargs.get("headers"),
-                "endpoint": kwargs.get("endpoint"),
-                "resume_download": kwargs.get("resume_download"),
-                "force_filename": kwargs.get("force_filename"),
-                "local_dir_use_symlinks": kwargs.get("local_dir_use_symlinks", "auto"),
-            }
-            qmodel_path = hf_hub_download(filename="svdq-t5.safetensors", **shared_kwargs)
-            config_path = hf_hub_download(filename="config.json", **shared_kwargs)
+    def from_pretrained(cls, pretrained_model_name_or_path: str | os.PathLike[str], **kwargs):
+        pretrained_model_name_or_path = Path(pretrained_model_name_or_path)
+        state_dict = load_state_dict_in_safetensors(pretrained_model_name_or_path)
 
         # Load the config file
-        config = T5Config.from_json_file(config_path)
+        metadata = state_dict.pop("__metadata__", {})
+        config = json.load(metadata["config"])
+        config = T5Config(**config)
+
         # Initialize model on 'meta' device (no memory allocation for weights)
         with init_empty_weights():
             t5_encoder = T5EncoderModel(config).to(kwargs.get("torch_dtype", torch.bfloat16))
 
         t5_encoder.eval()
-        # Load the model weights from the safetensors file
-        state_dict = load_file(qmodel_path)
 
+        # Load the model weights from the safetensors file
         named_modules = {}
         for name, module in t5_encoder.named_modules():
             assert isinstance(name, str)
