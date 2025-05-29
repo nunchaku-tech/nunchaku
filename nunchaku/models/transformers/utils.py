@@ -72,10 +72,10 @@ class NunchakuModelLoaderMixin:
                 "local_dir_use_symlinks": kwargs.get("local_dir_use_symlinks", "auto"),
             }
             unquantized_part_path = hf_hub_download(
-                repo_id=pretrained_model_name_or_path, filename="unquantized_layers.safetensors", **download_kwargs
+                repo_id=str(pretrained_model_name_or_path), filename="unquantized_layers.safetensors", **download_kwargs
             )
             transformer_block_path = hf_hub_download(
-                repo_id=pretrained_model_name_or_path, filename="transformer_blocks.safetensors", **download_kwargs
+                repo_id=str(pretrained_model_name_or_path), filename="transformer_blocks.safetensors", **download_kwargs
             )
 
         cache_dir = kwargs.pop("cache_dir", None)
@@ -101,7 +101,6 @@ class NunchakuModelLoaderMixin:
 
         with torch.device("meta"):
             transformer = cls.from_config(config).to(kwargs.get("torch_dtype", torch.bfloat16))
-
         return transformer, unquantized_part_path, transformer_block_path
 
 

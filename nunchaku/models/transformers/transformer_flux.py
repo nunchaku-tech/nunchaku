@@ -335,12 +335,12 @@ class NunchakuFluxTransformer2dModel(FluxTransformer2DModel, NunchakuModelLoader
         ):
             transformer, model_state_dict = cls._build_model(pretrained_model_name_or_path)
             quantized_part_sd = {}
-            unquantized_layer_sd = {}
+            unquantized_part_sd = {}
             for k, v in model_state_dict.items():
                 if k.startswith("transformer_blocks."):
                     quantized_part_sd[k] = v
                 else:
-                    unquantized_layer_sd[k] = v
+                    unquantized_part_sd[k] = v
         else:
             transformer, unquantized_part_path, transformer_block_path = cls._build_model_legacy(
                 pretrained_model_name_or_path, **kwargs

@@ -1,5 +1,4 @@
 import argparse
-import json
 import os
 from pathlib import Path
 
@@ -61,7 +60,7 @@ def merge_models_into_a_single_file(
     state_dict.update(transformer_block_sd)
 
     return state_dict, {
-        "config": json.dumps(Path(config_path).read_text()),
+        "config": Path(config_path).read_text(),
         "comfy_config": Path(comfy_config_path).read_text(),
     }
 
