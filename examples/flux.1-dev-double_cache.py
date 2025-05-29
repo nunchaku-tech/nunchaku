@@ -7,7 +7,9 @@ from nunchaku.utils import get_precision
 
 precision = get_precision()
 
-transformer = NunchakuFluxTransformer2dModel.from_pretrained(f"mit-han-lab/svdq-{precision}-flux.1-dev")
+transformer = NunchakuFluxTransformer2dModel.from_pretrained(
+    f"mit-han-lab/nunchaku-flux.1-dev/svdq-{precision}_r32-flux.1-dev.safetensors"
+)
 
 pipeline = FluxPipeline.from_pretrained(
     "black-forest-labs/FLUX.1-dev", transformer=transformer, torch_dtype=torch.bfloat16

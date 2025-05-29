@@ -9,7 +9,9 @@ image = load_image("https://huggingface.co/mit-han-lab/svdq-int4-flux.1-fill-dev
 mask = load_image("https://huggingface.co/mit-han-lab/svdq-int4-flux.1-fill-dev/resolve/main/mask.png")
 
 precision = get_precision()  # auto-detect your precision is 'int4' or 'fp4' based on your GPU
-transformer = NunchakuFluxTransformer2dModel.from_pretrained(f"mit-han-lab/svdq-{precision}-flux.1-fill-dev")
+transformer = NunchakuFluxTransformer2dModel.from_pretrained(
+    f"mit-han-lab/nunchaku-flux.1-fill-dev/svdq-{precision}_r32-flux.1-fill-dev.safetensors"
+)
 pipe = FluxFillPipeline.from_pretrained(
     "black-forest-labs/FLUX.1-Fill-dev", transformer=transformer, torch_dtype=torch.bfloat16
 ).to("cuda")
