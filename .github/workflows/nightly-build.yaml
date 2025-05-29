@@ -94,6 +94,11 @@ jobs:
     runs-on: [self-hosted, linux-build]
     needs: tag
     if: needs.tag.outputs.need_build == 'true' && github.repository == 'mit-han-lab/nunchaku'
+    strategy:
+      matrix:
+        python: ["3.10", "3.11", "3.12"]
+        torch: ["2.5", "2.6", "2.7"]
+
     steps:
       - name: Checkout to the tag
         uses: actions/checkout@v4
@@ -107,7 +112,12 @@ jobs:
 
       - name: Build wheels
         run: |
-          bash scripts/build_all_linux_wheels.sh
+          if [[ "${{ matrix.torch }}" == "2.7" ]]; then
+            cuda_version="12.8"
+          else
+            cuda_version="12.4"
+          fi
+          bash scripts/build_linux_wheel.sh ${{ matrix.python }} ${{ matrix.torch }} $cuda_version
 
       - name: Upload wheels to GitHub Release
         uses: softprops/action-gh-release@v2
@@ -120,24 +130,22 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Clean up
-        run: bash scripts/linux_cleanup.sh
-
-  linux-clean-up:
-    if: always() && github.repository == 'mit-han-lab/nunchaku'
-    needs: [ linux-wheels ]
-    runs-on: [ self-hosted, linux-build ]
-
-    steps:
-      - name: Clean up
+        if: always() && github.repository == 'mit-han-lab/nunchaku'
         run: |
+          bash scripts/linux_cleanup.sh
           cd ..
           rm -rf *nunchaku*
 
   windows-wheels:
     name: Build the windows nightly wheels
-    runs-on: [self-hosted, windows-build]
+    runs-on: [ self-hosted, windows-build ]
     needs: tag
-    if: needs.tag.outputs.is_dev == 'true' && github.repository == 'mit-han-lab/nunchaku'
+    if: needs.tag.outputs.need_build == 'true' && github.repository == 'mit-han-lab/nunchaku'
+    strategy:
+      matrix:
+        python: [ "3.10", "3.11", "3.12" ]
+        torch: [ "2.5", "2.6", "2.7" ]
+
     steps:
       - name: Checkout to the tag
         uses: actions/checkout@v4
@@ -150,9 +158,15 @@ jobs:
         run: git log -1 --oneline
 
       - name: Build wheels
+        shell: cmd
         run: |
-          C:\Users\muyang\miniconda3\condabin\activate.bat activate
-          scripts\build_all_windows_wheels.cmd
+          IF "%{{ matrix.torch }}"=="2.7" (
+            SET CUDA_VERSION=12.8
+          ) ELSE (
+            SET CUDA_VERSION=12.4
+          )
+          call C:\Users\muyangl\miniconda3\condabin\activate.bat activate
+          call scripts\build_windows_wheel.cmd %{{ matrix.python }} %{{ matrix.torch }} %CUDA_VERSION%
 
       - name: Upload wheels to GitHub Release
         uses: softprops/action-gh-release@v2
@@ -164,13 +178,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  windows-clean-up:
-    if: always() && github.repository == 'mit-han-lab/nunchaku'
-    needs: [ windows-wheels ]
-    runs-on: [ self-hosted, windows-build ]
-
-    steps:
       - name: Clean up
+        if: always() && github.repository == 'mit-han-lab/nunchaku'
         run: |
           cd ..
           powershell -Command "Remove-Item -Recurse -Force *nunchaku*"

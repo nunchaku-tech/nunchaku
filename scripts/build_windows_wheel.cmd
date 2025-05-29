@@ -47,7 +47,6 @@ if exist build rd /s /q build
 :: set up Visual Studio compilation environment
 call "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\Common7\Tools\VsDevCmd.bat" -startdir=none -arch=x64 -host_arch=x64
 set DISTUTILS_USE_SDK=1
-set MAX_JOBS=4
 
 :: build wheels
 python -m build --wheel --no-isolation
