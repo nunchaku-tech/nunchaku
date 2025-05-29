@@ -8,8 +8,8 @@ from accelerate import init_empty_weights
 from torch import nn
 from transformers import T5Config, T5EncoderModel
 
-from .linear import W4Linear
 from ...utils import load_state_dict_in_safetensors
+from .linear import W4Linear
 
 logger = logging.getLogger(__name__)
 

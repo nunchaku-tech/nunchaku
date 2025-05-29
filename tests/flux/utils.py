@@ -285,7 +285,9 @@ def run_test(
         if task == "redux":
             pipeline_init_kwargs.update({"text_encoder": None, "text_encoder_2": None})
         elif use_qencoder:
-            text_encoder_2 = NunchakuT5EncoderModel.from_pretrained("mit-han-lab/svdq-flux.1-t5")
+            text_encoder_2 = NunchakuT5EncoderModel.from_pretrained(
+                "mit-han-lab/nunchaku-t5/awq-int4-flux.1-t5xxl.safetensors"
+            )
             pipeline_init_kwargs["text_encoder_2"] = text_encoder_2
         pipeline = pipeline_cls.from_pretrained(model_id_16bit, torch_dtype=dtype, **pipeline_init_kwargs)
         if cpu_offload:

@@ -1,11 +1,10 @@
-import os
 import warnings
 from os import PathLike
+from pathlib import Path
 
 import safetensors
 import torch
 from huggingface_hub import hf_hub_download
-from pathlib import Path
 
 
 def fetch_or_download(path: str | Path, repo_type: str = "model") -> Path:
