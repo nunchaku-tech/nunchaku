@@ -43,7 +43,10 @@ def ceil_divide(x: int, divisor: int) -> int:
 
 
 def load_state_dict_in_safetensors(
-    path: str | PathLike[str], device: str | torch.device = "cpu", filter_prefix: str = ""
+    path: str | PathLike[str],
+    device: str | torch.device = "cpu",
+    filter_prefix: str = "",
+    return_metadata: bool = False,
 ) -> dict[str, torch.Tensor]:
     """Load state dict in SafeTensors.
 
@@ -62,7 +65,7 @@ def load_state_dict_in_safetensors(
     state_dict = {}
     with safetensors.safe_open(fetch_or_download(path), framework="pt", device=device) as f:
         metadata = f.metadata()
-        if len(metadata) > 0:
+        if return_metadata:
             state_dict["__metadata__"] = metadata
         for k in f.keys():
             if filter_prefix and not k.startswith(filter_prefix):

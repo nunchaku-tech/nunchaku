@@ -18,7 +18,7 @@ class NunchakuT5EncoderModel(T5EncoderModel):
     @classmethod
     def from_pretrained(cls, pretrained_model_name_or_path: str | os.PathLike[str], **kwargs):
         pretrained_model_name_or_path = Path(pretrained_model_name_or_path)
-        state_dict = load_state_dict_in_safetensors(pretrained_model_name_or_path)
+        state_dict = load_state_dict_in_safetensors(pretrained_model_name_or_path, return_metadata=True)
 
         # Load the config file
         metadata = state_dict.pop("__metadata__", {})
