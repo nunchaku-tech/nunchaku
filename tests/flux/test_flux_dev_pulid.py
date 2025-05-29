@@ -16,7 +16,9 @@ from nunchaku.utils import get_precision, is_turing
 @pytest.mark.skipif(is_turing(), reason="Skip tests due to using Turing GPUs")
 def test_flux_dev_pulid():
     precision = get_precision()  # auto-detect your precision is 'int4' or 'fp4' based on your GPU
-    transformer = NunchakuFluxTransformer2dModel.from_pretrained(f"mit-han-lab/svdq-{precision}-flux.1-dev")
+    transformer = NunchakuFluxTransformer2dModel.from_pretrained(
+        f"mit-han-lab/nunchaku-flux.1-dev/svdq-{precision}_r32-flux.1-dev.safetensors"
+    )
 
     pipeline = PuLIDFluxPipeline.from_pretrained(
         "black-forest-labs/FLUX.1-dev",

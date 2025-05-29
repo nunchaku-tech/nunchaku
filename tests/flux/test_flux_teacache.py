@@ -112,7 +112,9 @@ def test_flux_teacache(
 
     # Then, generate results with the 4-bit model
     if not already_generate(results_dir_4_bit, 1):
-        transformer = NunchakuFluxTransformer2dModel.from_pretrained(f"mit-han-lab/svdq-{precision}-flux.1-dev")
+        transformer = NunchakuFluxTransformer2dModel.from_pretrained(
+            f"mit-han-lab/nunchaku-flux.1-dev/svdq-{precision}_r32-flux.1-dev.safetensors"
+        )
         pipeline = FluxPipeline.from_pretrained(
             "black-forest-labs/FLUX.1-dev", transformer=transformer, torch_dtype=torch.bfloat16
         ).to("cuda")

@@ -28,12 +28,12 @@ ORIGINAL_REPO_MAP = {
 }
 
 NUNCHAKU_REPO_PATTERN_MAP = {
-    "flux.1-schnell": "mit-han-lab/svdq-{precision}-flux.1-schnell",
-    "flux.1-dev": "mit-han-lab/svdq-{precision}-flux.1-dev",
-    "shuttle-jaguar": "mit-han-lab/svdq-{precision}-shuttle-jaguar",
-    "flux.1-canny-dev": "mit-han-lab/svdq-{precision}-flux.1-canny-dev",
-    "flux.1-depth-dev": "mit-han-lab/svdq-{precision}-flux.1-depth-dev",
-    "flux.1-fill-dev": "mit-han-lab/svdq-{precision}-flux.1-fill-dev",
+    "flux.1-schnell": "mit-han-lab/nunchaku-flux.1-schnell/svdq-{precision}_r32-flux.1-schnell.safetensors",
+    "flux.1-dev": "mit-han-lab/nunchaku-flux.1-dev/svdq-{precision}_r32-flux.1-dev.safetensors",
+    "shuttle-jaguar": "mit-han-lab/nunchaku-shuttle-jaguar/svdq-{precision}_r32-shuttle-jaguar.safetensors",
+    "flux.1-canny-dev": "mit-han-lab/nunchaku-flux.1-canny-dev/svdq-{precision}_r32-flux.1-canny-dev.safetensors",
+    "flux.1-depth-dev": "mit-han-lab/nunchaku-flux.1-depth-dev/svdq-{precision}_r32-flux.1-depth-dev.safetensors",
+    "flux.1-fill-dev": "mit-han-lab/nunchaku-flux.1-fill-dev/svdq-{precision}_r32-flux.1-fill-dev.safetensors",
 }
 
 LORA_PATH_MAP = {

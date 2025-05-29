@@ -333,7 +333,7 @@ class NunchakuFluxTransformer2dModel(FluxTransformer2DModel, NunchakuModelLoader
         if pretrained_model_name_or_path.is_file() or pretrained_model_name_or_path.name.endswith(
             (".safetensors", ".sft")
         ):
-            transformer, model_state_dict = cls._build_model(pretrained_model_name_or_path)
+            transformer, model_state_dict = cls._build_model(pretrained_model_name_or_path, **kwargs)
             quantized_part_sd = {}
             unquantized_part_sd = {}
             for k, v in model_state_dict.items():

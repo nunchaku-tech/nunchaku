@@ -63,27 +63,6 @@ def test_flux_fill_dev():
     )
 
 
-# @pytest.mark.skipif(is_turing(), reason="Skip tests due to using Turing GPUs")
-# def test_flux_dev_canny_lora():
-#     run_test(
-#         precision=get_precision(),
-#         model_name="flux.1-dev",
-#         dataset_name="MJHQ-control",
-#         task="canny",
-#         dtype=torch.bfloat16,
-#         height=1024,
-#         width=1024,
-#         num_inference_steps=30,
-#         guidance_scale=30,
-#         attention_impl="nunchaku-fp16",
-#         cpu_offload=False,
-#         lora_names="canny",
-#         lora_strengths=0.85,
-#         cache_threshold=0,
-#         expected_lpips=0.081,
-#     )
-
-
 @pytest.mark.skipif(is_turing(), reason="Skip tests due to using Turing GPUs")
 def test_flux_dev_depth_lora():
     run_test(

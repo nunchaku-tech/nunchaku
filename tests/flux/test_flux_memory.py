@@ -22,11 +22,13 @@ def test_flux_schnell_memory(use_qencoder: bool, cpu_offload: bool, memory_limit
     precision = get_precision()
     pipeline_init_kwargs = {
         "transformer": NunchakuFluxTransformer2dModel.from_pretrained(
-            f"mit-han-lab/svdq-{precision}-flux.1-schnell", offload=cpu_offload
+            f"mit-han-lab/nunchaku-flux.1-schnell/svdq-{precision}_r32-flux.1-schnell.safetensors", offload=cpu_offload
         )
     }
     if use_qencoder:
-        text_encoder_2 = NunchakuT5EncoderModel.from_pretrained("mit-han-lab/svdq-flux.1-t5")
+        text_encoder_2 = NunchakuT5EncoderModel.from_pretrained(
+            "mit-han-lab/nunchaku-t5/awq-int4-flux.1-t5xxl.safetensors"
+        )
         pipeline_init_kwargs["text_encoder_2"] = text_encoder_2
     pipeline = FluxPipeline.from_pretrained(
         "black-forest-labs/FLUX.1-schnell", torch_dtype=torch.bfloat16, **pipeline_init_kwargs
