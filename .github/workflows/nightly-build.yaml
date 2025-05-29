@@ -16,6 +16,7 @@ jobs:
     outputs:
       is_dev: ${{ steps.check.outputs.is_dev }}
       tag_name: ${{ steps.tag.outputs.tag_name }}
+      has_new_commit: ${{ steps.check_commit_diff.outputs.has_new_commit }}
     steps:
       - name: Checkout dev branch
         uses: actions/checkout@v4
@@ -37,6 +38,32 @@ jobs:
             echo "is_dev=true" >> "$GITHUB_OUTPUT"
           else
             echo "is_dev=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Get latest tag with same version prefix
+        id: last_tag
+        run: |
+          prefix="v${{ steps.version.outputs.version }}"
+          tag=$(git tag --list "${prefix}*" --sort=-creatordate | head -n 1 || echo "")
+          echo "latest_tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Check if current commit is new
+        id: check_commit_diff
+        run: |
+          tag=${{ steps.last_tag.outputs.latest_tag }}
+          if [ -z "$tag" ]; then
+            echo "No previous tag found."
+            echo "has_new_commit=true" >> "$GITHUB_OUTPUT"
+          else
+            base=$(git rev-parse "$tag")
+            head=$(git rev-parse HEAD)
+            if [ "$base" = "$head" ]; then
+              echo "No new commits since $tag"
+              echo "has_new_commit=false" >> "$GITHUB_OUTPUT"
+            else
+              echo "New commits found since $tag"
+              echo "has_new_commit=true" >> "$GITHUB_OUTPUT"
+            fi
           fi
 
       - name: Set tag name
