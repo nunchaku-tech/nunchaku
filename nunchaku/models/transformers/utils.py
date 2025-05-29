@@ -42,7 +42,6 @@ class NunchakuModelLoaderMixin:
     def _build_model_legacy(
         cls, pretrained_model_name_or_path: str | os.PathLike, **kwargs
     ) -> tuple[nn.Module, str, str]:
-        raise NotImplementedError
         logger.warning(
             "Loading models from a folder will be deprecated in v0.4. "
             "Please download the latest safetensors model, or use one of the following tools to "
