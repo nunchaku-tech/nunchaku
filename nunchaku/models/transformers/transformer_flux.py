@@ -260,7 +260,7 @@ class EmbedND(nn.Module):
 
 
 def load_quantized_module(
-    path_or_state_dict: str | dict[str, torch.Tensor],
+    path_or_state_dict: str | os.PathLike[str] | dict[str, torch.Tensor],
     device: str | torch.device = "cuda",
     use_fp4: bool = False,
     offload: bool = False,
@@ -271,10 +271,10 @@ def load_quantized_module(
     m = QuantizedFluxModel()
     cutils.disable_memory_auto_release()
     m.init(use_fp4, offload, bf16, 0 if device.index is None else device.index)
-    if isinstance(path_or_state_dict, str):
-        m.load(path_or_state_dict)
-    else:
+    if isinstance(path_or_state_dict, dict):
         m.loadDict(path_or_state_dict, True)
+    else:
+        m.load(str(path_or_state_dict))
     return m
 
 
@@ -337,7 +337,7 @@ class NunchakuFluxTransformer2dModel(FluxTransformer2DModel, NunchakuModelLoader
             quantized_part_sd = {}
             unquantized_part_sd = {}
             for k, v in model_state_dict.items():
-                if k.startswith("transformer_blocks."):
+                if k.startswith(("transformer_blocks.", "single_transformer_blocks.")):
                     quantized_part_sd[k] = v
                 else:
                     unquantized_part_sd[k] = v

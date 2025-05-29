@@ -12,6 +12,7 @@ from ..._C import QuantizedSanaModel
 from ..._C import utils as cutils
 from ...utils import get_precision
 from .utils import NunchakuModelLoaderMixin
+from pathlib import Path
 
 SVD_RANK = 32
 
@@ -139,25 +140,32 @@ class NunchakuSanaTransformerBlocks(nn.Module):
 class NunchakuSanaTransformer2DModel(SanaTransformer2DModel, NunchakuModelLoaderMixin):
     @classmethod
     @utils.validate_hf_hub_args
-    def from_pretrained(cls, pretrained_model_name_or_path: str | os.PathLike, **kwargs):
+    def from_pretrained(cls, pretrained_model_name_or_path: str | os.PathLike[str], **kwargs):
         device = kwargs.get("device", "cuda")
+        if isinstance(device, str):
+            device = torch.device(device)
         pag_layers = kwargs.get("pag_layers", [])
         precision = get_precision(kwargs.get("precision", "auto"), device, pretrained_model_name_or_path)
-        if pretrained_model_name_or_path.endswith((".safetensors", ".sft")):
-            transformer, model_state_dict = cls._build_model_legacy(pretrained_model_name_or_path, **kwargs)
+
+        if isinstance(pretrained_model_name_or_path, str):
+            pretrained_model_name_or_path = Path(pretrained_model_name_or_path)
+        if pretrained_model_name_or_path.is_file() or pretrained_model_name_or_path.name.endswith(
+            (".safetensors", ".sft")
+        ):
+            transformer, model_state_dict = cls._build_model(pretrained_model_name_or_path)
             quantized_part_sd = {}
-            unquantized_layer_sd = {}
+            unquantized_part_sd = {}
             for k, v in model_state_dict.items():
                 if k.startswith("transformer_blocks."):
                     quantized_part_sd[k] = v
                 else:
-                    unquantized_layer_sd[k] = v
+                    unquantized_part_sd[k] = v
             m = load_quantized_module(
                 transformer, quantized_part_sd, device=device, pag_layers=pag_layers, use_fp4=precision == "fp4"
             )
             transformer.inject_quantized_module(m, device)
             transformer.to_empty(device=device)
-            transformer.load_state_dict(unquantized_layer_sd, strict=False)
+            transformer.load_state_dict(unquantized_part_sd, strict=False)
         else:
             transformer, unquantized_part_path, transformer_block_path = cls._build_model_legacy(
                 pretrained_model_name_or_path, **kwargs
@@ -178,7 +186,7 @@ class NunchakuSanaTransformer2DModel(SanaTransformer2DModel, NunchakuModelLoader
 
 def load_quantized_module(
     net: SanaTransformer2DModel,
-    path: str,
+    path_or_state_dict: str | os.PathLike[str] | dict[str, torch.Tensor],
     device: str | torch.device = "cuda",
     pag_layers: int | list[int] | None = None,
     use_fp4: bool = False,
@@ -193,7 +201,10 @@ def load_quantized_module(
     m = QuantizedSanaModel()
     cutils.disable_memory_auto_release()
     m.init(net.config, pag_layers, use_fp4, net.dtype == torch.bfloat16, 0 if device.index is None else device.index)
-    m.load(path)
+    if isinstance(path_or_state_dict, dict):
+        m.loadDict(path_or_state_dict, True)
+    else:
+        m.load(str(path_or_state_dict))
     return m
 
 

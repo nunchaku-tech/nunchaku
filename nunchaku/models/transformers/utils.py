@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import warnings
 from pathlib import Path
@@ -10,6 +11,13 @@ from huggingface_hub import constants, hf_hub_download
 from torch import nn
 
 from nunchaku.utils import ceil_divide, load_state_dict_in_safetensors
+
+# Get log level from environment variable (default to INFO)
+log_level = os.getenv("LOG_LEVEL", "INFO").upper()
+
+# Configure logging
+logging.basicConfig(level=getattr(logging, log_level, logging.INFO), format="%(asctime)s - %(levelname)s - %(message)s")
+logger = logging.getLogger(__name__)
 
 
 class NunchakuModelLoaderMixin:
@@ -35,13 +43,12 @@ class NunchakuModelLoaderMixin:
     def _build_model_legacy(
         cls, pretrained_model_name_or_path: str | os.PathLike, **kwargs
     ) -> tuple[nn.Module, str, str]:
-        warnings.warn(
+        raise NotImplementedError
+        logger.warning(
             "Loading models from a folder will be deprecated in v0.4. "
             "Please download the latest safetensors model, or use one of the following tools to "
             "merge your model into a single file: the CLI utility `python -m nunchaku.merge_models` "
-            "or the ComfyUI node `MergeFolderIntoSingleFile`.",
-            category=DeprecationWarning,
-            stacklevel=2,
+            "or the ComfyUI node `MergeFolderIntoSingleFile`."
         )
         subfolder = kwargs.get("subfolder", None)
         if os.path.exists(pretrained_model_name_or_path):

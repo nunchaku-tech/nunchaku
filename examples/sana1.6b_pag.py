@@ -3,7 +3,9 @@ from diffusers import SanaPAGPipeline
 
 from nunchaku import NunchakuSanaTransformer2DModel
 
-transformer = NunchakuSanaTransformer2DModel.from_pretrained("mit-han-lab/svdq-int4-sana-1600m", pag_layers=8)
+transformer = NunchakuSanaTransformer2DModel.from_pretrained(
+    "mit-han-lab/nunchaku-sana/svdq-int4_r32-sana1.6b.safetensors", pag_layers=8
+)
 pipe = SanaPAGPipeline.from_pretrained(
     "Efficient-Large-Model/Sana_1600M_1024px_BF16_diffusers",
     transformer=transformer,
@@ -24,4 +26,4 @@ image = pipe(
     pag_scale=2.0,
     num_inference_steps=20,
 ).images[0]
-image.save("sana_1600m_pag-int4.png")
+image.save("sana1.6b_pag-int4.png")
