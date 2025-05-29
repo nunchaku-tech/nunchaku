@@ -1,4 +1,5 @@
 import os
+import warnings
 from typing import Any, Optional
 
 import torch
@@ -53,6 +54,14 @@ class NunchakuModelLoaderMixin:
     def _build_model_legacy(
         cls, pretrained_model_name_or_path: str | os.PathLike, **kwargs
     ) -> tuple[nn.Module, str, str]:
+        warnings.warn(
+            "Loading models from a folder will be deprecated in v0.4. "
+            "Please download the latest safetensors model, or use one of the following tools to "
+            "merge your model into a single file: the CLI utility `python -m nunchaku.merge_models` "
+            "or the ComfyUI node `MergeFolderIntoSingleFile`.",
+            category=DeprecationWarning,
+            stacklevel=2,
+        )
         subfolder = kwargs.get("subfolder", None)
         if os.path.exists(pretrained_model_name_or_path):
             dirname = (

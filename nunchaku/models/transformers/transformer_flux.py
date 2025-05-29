@@ -1,5 +1,6 @@
 import logging
 import os
+from pathlib import Path
 from typing import Any, Dict, Optional, Union
 
 import diffusers
@@ -12,12 +13,11 @@ from packaging.version import Version
 from safetensors.torch import load_file
 from torch import nn
 
-from ..._C import QuantizedFluxModel
-from ..._C import utils as cutils
+from .utils import NunchakuModelLoaderMixin, pad_tensor
+from ..._C import QuantizedFluxModel, utils as cutils
 from ...lora.flux.nunchaku_converter import fuse_vectors, to_nunchaku
 from ...lora.flux.utils import is_nunchaku_format
 from ...utils import get_precision, load_state_dict_in_safetensors
-from .utils import NunchakuModelLoaderMixin, pad_tensor
 
 SVD_RANK = 32
 
@@ -320,14 +320,19 @@ class NunchakuFluxTransformer2dModel(FluxTransformer2DModel, NunchakuModelLoader
 
     @classmethod
     @utils.validate_hf_hub_args
-    def from_pretrained(cls, pretrained_model_name_or_path: str | os.PathLike, **kwargs):
+    def from_pretrained(cls, pretrained_model_name_or_path: str | os.PathLike[str], **kwargs):
         device = kwargs.get("device", "cuda")
         if isinstance(device, str):
             device = torch.device(device)
         offload = kwargs.get("offload", False)
         torch_dtype = kwargs.get("torch_dtype", torch.bfloat16)
         precision = get_precision(kwargs.get("precision", "auto"), device, pretrained_model_name_or_path)
-        if pretrained_model_name_or_path.endswith((".safetensors", ".sft")):
+
+        if isinstance(pretrained_model_name_or_path, str):
+            pretrained_model_name_or_path = Path(pretrained_model_name_or_path)
+        if pretrained_model_name_or_path.is_file() or pretrained_model_name_or_path.name.endswith(
+            (".safetensors", ".sft")
+        ):
             transformer, model_state_dict = cls._build_model(pretrained_model_name_or_path)
             quantized_part_sd = {}
             unquantized_layer_sd = {}

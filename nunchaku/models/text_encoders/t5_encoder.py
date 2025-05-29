@@ -11,6 +11,11 @@ from transformers import T5Config, T5EncoderModel
 from ...utils import load_state_dict_in_safetensors
 from .linear import W4Linear
 
+# Get log level from environment variable (default to INFO)
+log_level = os.getenv("LOG_LEVEL", "INFO").upper()
+
+# Configure logging
+logging.basicConfig(level=getattr(logging, log_level, logging.INFO), format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 
