@@ -14,9 +14,8 @@ jobs:
     runs-on: ubuntu-latest
     if: github.repository == 'mit-han-lab/nunchaku'
     outputs:
-      is_dev: ${{ steps.check.outputs.is_dev }}
+      need_build: ${{ steps.check.outputs.need_build }}
       tag_name: ${{ steps.tag.outputs.tag_name }}
-      has_new_commit: ${{ steps.check_commit_diff.outputs.has_new_commit }}
     steps:
       - name: Checkout dev branch
         uses: actions/checkout@v4
@@ -33,15 +32,17 @@ jobs:
 
       - name: Check if version contains 'dev'
         id: check
+        if: steps.check.outputs.need_build == 'true'
         run: |
           if [[ "${{ steps.version.outputs.version }}" == *dev* ]]; then
-            echo "is_dev=true" >> "$GITHUB_OUTPUT"
+            echo "need_build=true" >> "$GITHUB_OUTPUT"
           else
-            echo "is_dev=false" >> "$GITHUB_OUTPUT"
+            echo "need_build=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Get latest tag with same version prefix
         id: last_tag
+        if: steps.check.outputs.need_build == 'true'
         run: |
           prefix="v${{ steps.version.outputs.version }}"
           tag=$(git tag --list "${prefix}*" --sort=-creatordate | head -n 1 || echo "")
@@ -49,26 +50,27 @@ jobs:
 
       - name: Check if current commit is new
         id: check_commit_diff
+        if: steps.check.outputs.need_build == 'true'
         run: |
           tag=${{ steps.last_tag.outputs.latest_tag }}
           if [ -z "$tag" ]; then
             echo "No previous tag found."
-            echo "has_new_commit=true" >> "$GITHUB_OUTPUT"
+            echo "need_build=true" >> "$GITHUB_OUTPUT"
           else
             base=$(git rev-parse "$tag")
             head=$(git rev-parse HEAD)
             if [ "$base" = "$head" ]; then
               echo "No new commits since $tag"
-              echo "has_new_commit=false" >> "$GITHUB_OUTPUT"
+              echo "need_build=false" >> "$GITHUB_OUTPUT"
             else
               echo "New commits found since $tag"
-              echo "has_new_commit=true" >> "$GITHUB_OUTPUT"
+              echo "need_build=false" >> "$GITHUB_OUTPUT"
             fi
           fi
 
       - name: Set tag name
         id: tag
-        if: steps.check.outputs.is_dev == 'true'
+        if: steps.check.outputs.need_build == 'true'
         run: |
           today=$(date -u +"%Y%m%d")
           tag_name="v${{ steps.version.outputs.version }}$today"
@@ -76,22 +78,22 @@ jobs:
           echo "tag_name=$tag_name" >> "$GITHUB_OUTPUT"
 
       - name: Create and push tag
-        if: steps.check.outputs.is_dev == 'true'
+        if: steps.check.outputs.need_build == 'true'
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@users.noreply.github.com"
           git tag ${{ steps.tag.outputs.tag_name }}
           git push origin ${{ steps.tag.outputs.tag_name }}
 
-      - name: Skip tagging (version is not dev)
-        if: steps.check.outputs.is_dev == 'false'
+      - name: Skip tagging (version is not dev or no new commits)
+        if: steps.check.outputs.need_build == 'true'
         run: echo "Version is not a dev version. Skipping tag."
 
   linux-wheels:
     name: Build the linux nightly wheels
     runs-on: [self-hosted, linux-build]
     needs: tag
-    if: needs.tag.outputs.is_dev == 'true' && github.repository == 'mit-han-lab/nunchaku'
+    if: needs.tag.outputs.need_build == 'true' && github.repository == 'mit-han-lab/nunchaku'
     steps:
       - name: Checkout to the tag
         uses: actions/checkout@v4
