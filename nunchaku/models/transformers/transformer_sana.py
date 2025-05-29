@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from typing import Optional
 
 import torch
@@ -12,7 +13,6 @@ from ..._C import QuantizedSanaModel
 from ..._C import utils as cutils
 from ...utils import get_precision
 from .utils import NunchakuModelLoaderMixin
-from pathlib import Path
 
 SVD_RANK = 32
 
