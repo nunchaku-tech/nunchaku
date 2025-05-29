@@ -1,5 +1,7 @@
+import json
 import os
 import warnings
+from pathlib import Path
 from typing import Any, Optional
 
 import torch
@@ -14,41 +16,20 @@ class NunchakuModelLoaderMixin:
 
     @classmethod
     def _build_model(
-        cls, pretrained_model_name_or_path: str | os.PathLike, **kwargs
+        cls, pretrained_model_name_or_path: str | os.PathLike[str], **kwargs
     ) -> tuple[nn.Module, dict[str, torch.Tensor]]:
-        if os.path.exists(pretrained_model_name_or_path):
-            state_dict = load_state_dict_in_safetensors(pretrained_model_name_or_path)
-        else:
-            download_kwargs = {
-                "repo_type": "model",
-                "revision": kwargs.get("revision", None),
-                "cache_dir": kwargs.get("cache_dir", None),
-                "local_dir": kwargs.get("local_dir", None),
-                "user_agent": kwargs.get("user_agent", None),
-                "force_download": kwargs.get("force_download", False),
-                "proxies": kwargs.get("proxies", None),
-                "etag_timeout": kwargs.get("etag_timeout", constants.DEFAULT_ETAG_TIMEOUT),
-                "token": kwargs.get("token", None),
-                "local_files_only": kwargs.get("local_files_only", None),
-                "headers": kwargs.get("headers", None),
-                "endpoint": kwargs.get("endpoint", None),
-                "resume_download": kwargs.get("resume_download", None),
-                "force_filename": kwargs.get("force_filename", None),
-                "local_dir_use_symlinks": kwargs.get("local_dir_use_symlinks", "auto"),
-            }
-            parts = pretrained_model_name_or_path.split("/")
-            filename = parts[-1]
-            repo_id = os.path.join(parts[0], parts[1])
-            subfolder = os.path.join(*parts[2:-1]) if len(parts) > 3 else None
-            path = hf_hub_download(repo_id=repo_id, subfolder=subfolder, filename=filename, **download_kwargs)
-            state_dict = load_state_dict_in_safetensors(path)
+        if isinstance(pretrained_model_name_or_path, str):
+            pretrained_model_name_or_path = Path(pretrained_model_name_or_path)
+        state_dict = load_state_dict_in_safetensors(pretrained_model_name_or_path, return_metadata=True)
 
-        config = state_dict["config"]
+        # Load the config file
+        metadata = state_dict.pop("__metadata__", {})
+        config = json.loads(metadata["config"])
 
         with torch.device("meta"):
             transformer = cls.from_config(config).to(kwargs.get("torch_dtype", torch.bfloat16))
 
-        return transformer, state_dict["model"]
+        return transformer, state_dict
 
     @classmethod
     def _build_model_legacy(

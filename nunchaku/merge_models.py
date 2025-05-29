@@ -1,25 +1,28 @@
 import argparse
 import json
 import os
+from pathlib import Path
 
+import torch
 from huggingface_hub import constants, hf_hub_download
 from safetensors.torch import save_file
 
 from .utils import load_state_dict_in_safetensors
 
 
-def merge_models_into_a_single_file(pretrained_model_name_or_path: str, **kwargs) -> dict:
+def merge_models_into_a_single_file(
+    pretrained_model_name_or_path: str | os.PathLike[str], **kwargs
+) -> tuple[dict[str, torch.Tensor], dict[str, str]]:
     subfolder = kwargs.get("subfolder", None)
-    if os.path.exists(pretrained_model_name_or_path):
-        dirname = (
-            pretrained_model_name_or_path
-            if subfolder is None
-            else os.path.join(pretrained_model_name_or_path, subfolder)
-        )
-        unquantized_part_path = os.path.join(dirname, "unquantized_layers.safetensors")
-        transformer_block_path = os.path.join(dirname, "transformer_blocks.safetensors")
-        config_path = os.path.join(dirname, "config.json")
-        comfy_config_path = os.path.join(dirname, "comfy_config.json")
+
+    if isinstance(pretrained_model_name_or_path, str):
+        pretrained_model_name_or_path = Path(pretrained_model_name_or_path)
+    if pretrained_model_name_or_path.exists():
+        dirpath = pretrained_model_name_or_path if subfolder is None else pretrained_model_name_or_path / subfolder
+        unquantized_part_path = dirpath / "unquantized_layers.safetensors"
+        transformer_block_path = dirpath / "transformer_blocks.safetensors"
+        config_path = dirpath / "config.json"
+        comfy_config_path = dirpath / "comfy_config.json"
     else:
         download_kwargs = {
             "subfolder": subfolder,
@@ -40,29 +43,27 @@ def merge_models_into_a_single_file(pretrained_model_name_or_path: str, **kwargs
             "local_dir_use_symlinks": kwargs.get("local_dir_use_symlinks", "auto"),
         }
         unquantized_part_path = hf_hub_download(
-            repo_id=pretrained_model_name_or_path, filename="unquantized_layers.safetensors", **download_kwargs
+            repo_id=str(pretrained_model_name_or_path), filename="unquantized_layers.safetensors", **download_kwargs
         )
         transformer_block_path = hf_hub_download(
-            repo_id=pretrained_model_name_or_path, filename="transformer_blocks.safetensors", **download_kwargs
+            repo_id=str(pretrained_model_name_or_path), filename="transformer_blocks.safetensors", **download_kwargs
         )
-        config_path = hf_hub_download(repo_id=pretrained_model_name_or_path, filename="config.json", **download_kwargs)
+        config_path = hf_hub_download(
+            repo_id=str(pretrained_model_name_or_path), filename="config.json", **download_kwargs
+        )
         comfy_config_path = hf_hub_download(
-            repo_id=pretrained_model_name_or_path, filename="comfy_config.json", **download_kwargs
+            repo_id=str(pretrained_model_name_or_path), filename="comfy_config.json", **download_kwargs
         )
 
     unquantized_part_sd = load_state_dict_in_safetensors(unquantized_part_path)
     transformer_block_sd = load_state_dict_in_safetensors(transformer_block_path)
-    with open(config_path, "r") as f:
-        config = json.load(f)
-    with open(comfy_config_path, "r") as f:
-        comfy_config = json.load(f)
-    model_sd = unquantized_part_sd
-    model_sd.update(transformer_block_sd)
-    state_dict = {}
-    state_dict["model"] = model_sd
-    state_dict["config"] = config
-    state_dict["comfy_config"] = comfy_config
-    return state_dict
+    state_dict = unquantized_part_sd
+    state_dict.update(transformer_block_sd)
+
+    return state_dict, {
+        "config": json.dumps(Path(config_path).read_text()),
+        "comfy_config": Path(comfy_config_path).read_text(),
+    }
 
 
 if __name__ == "__main__":
@@ -70,13 +71,14 @@ if __name__ == "__main__":
     parser.add_argument(
         "-i",
         "--input-path",
-        type=str,
+        type=Path,
         required=True,
         help="Path to model directory. It can also be a huggingface repo.",
     )
-    parser.add_argument("-o", "--output-path", type=str, required=True, help="Path to output path")
+    parser.add_argument("-o", "--output-path", type=Path, required=True, help="Path to output path")
     args = parser.parse_args()
-    state_dict = merge_models_into_a_single_file(args.input_path)
-    dirpath = os.path.dirname(os.path.abspath(args.output_path))
-    os.makedirs(dirpath, exist_ok=True)
-    save_file(state_dict, args.output_path)
+    state_dict, metadata = merge_models_into_a_single_file(args.input_path)
+    output_path = Path(args.output_path)
+    dirpath = output_path.parent
+    dirpath.mkdir(parents=True, exist_ok=True)
+    save_file(state_dict, output_path, metadata=metadata)
