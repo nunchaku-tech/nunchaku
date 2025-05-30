@@ -166,12 +166,8 @@ jobs:
           which python
           NUNCHAKU_TEST_CACHE_ROOT=${{ secrets.NUNCHAKU_TEST_CACHE_ROOT_AMPERE }} HF_TOKEN=${{ secrets.HF_TOKEN }} pytest -v tests/sana
 
-  clean-up:
-    if: always() && (github.event_name != 'issue_comment' || needs.check-comment.outputs.should_run == 'true')
-    needs: [ run-tests ]
-    runs-on: [ self-hosted, ampere ]
-    steps:
-      - name: Clean up
+      - name: clean up
+        if: always() && (github.event_name != 'issue_comment' || needs.check-comment.outputs.should_run == 'true')
         run: |
           cd ..
-          rm -rf *nunchaku* *ComfyUI*
+          rm -rf ComfyUI

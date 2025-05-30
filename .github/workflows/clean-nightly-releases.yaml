@@ -1,42 +1,44 @@
-name: Clean Nightly Releases
+name: Clean Old Nightly Releases
 
 on:
-#  schedule:
-#    - cron: '0 3 * * *'  # Runs daily at 03:00 UTC
-  workflow_dispatch:      # Allows manual triggering
+  schedule:
+    - cron: '* 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
-  clean-nightly:
+  cleanup:
+    name: Delete old nightly releases and tags
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      packages: write
 
     steps:
-      - name: Set up GitHub CLI
-        uses: cli/cli-action@v2
-
-      - name: Authenticate GitHub CLI
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
-
-      - name: Get and clean old nightly releases
-        env:
-          GH_REPO: ${{ github.repository }}
+      - name: List all nightly releases
+        id: list
         run: |
-          # Get all release titles that match the nightly pattern
-          mapfile -t releases < <(
-            gh release list --limit 1000 --json tagName,name,createdAt --jq '
-              sort_by(.createdAt) | reverse |
-              map(select(.name | test("^Nunchaku Nightly v[0-9]+\\.[0-9]+\\.[0-9]+dev[0-9]{8}$"))) |
-              map(.tagName)'
-          )
+          gh release list --limit 100 --json tagName,isPrerelease,publishedAt \
+            --jq '.[] | select(.isPrerelease == true) | .tagName' > nightly_tags.txt
+          echo "Found $(wc -l < nightly_tags.txt) nightly releases."
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-          # Keep only the first 5 (latest), delete the rest
-          if (( ${#releases[@]} > 5 )); then
-            for tag in "${releases[@]:5}"; do
-              echo "Deleting old release: $tag"
-              gh release delete "$tag" --yes
-            done
-          else
-            echo "Less than or equal to 5 nightly releases found. No cleanup needed."
-          fi
+      - name: Trim to old tags beyond latest 30
+        id: filter
+        run: |
+          tail -n +31 nightly_tags.txt > to_delete.txt || true
+          echo "Tags to delete:"
+          cat to_delete.txt || echo "(none)"
+
+      - name: Delete releases and tags
+        run: |
+          while read tag; do
+            echo "Deleting release and tag: $tag"
+            gh release delete "$tag" -y || true
+            git push origin --delete "$tag" || true
+          done < to_delete.txt
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Done
+        run: echo "Nightly cleanup completed."

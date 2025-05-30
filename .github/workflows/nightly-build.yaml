@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   tag:
-    name: Tag Dev Branch if dev version
+    name: Tag dev branch if dev version
     runs-on: ubuntu-latest
     if: github.repository == 'mit-han-lab/nunchaku'
     outputs:
@@ -95,10 +95,8 @@ jobs:
     if: needs.tag.outputs.need_build == 'true' && github.repository == 'mit-han-lab/nunchaku'
     strategy:
       matrix:
-#        python: ["3.10", "3.11", "3.12"]
-#        torch: ["2.5", "2.6", "2.7"]
-        python: ["3.12"]
-        torch: ["2.7"]
+        python: ["3.10", "3.11", "3.12"]
+        torch: ["2.5", "2.6", "2.7"]
 
     steps:
       - name: Checkout to the tag
@@ -141,10 +139,8 @@ jobs:
     if: needs.tag.outputs.need_build == 'true' && github.repository == 'mit-han-lab/nunchaku'
     strategy:
       matrix:
-#        python: [ "3.10", "3.11", "3.12" ]
-#        torch: [ "2.5", "2.6", "2.7" ]
-        python: [ "3.10" ]
-        torch: [ "2.7" ]
+        python: [ "3.10", "3.11", "3.12" ]
+        torch: [ "2.5", "2.6", "2.7" ]
 
     steps:
       - name: Checkout to the tag
