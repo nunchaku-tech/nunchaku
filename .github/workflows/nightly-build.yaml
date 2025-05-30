@@ -32,7 +32,6 @@ jobs:
 
       - name: Check if version contains 'dev'
         id: check
-        if: steps.check.outputs.need_build == 'true'
         run: |
           if [[ "${{ steps.version.outputs.version }}" == *dev* ]]; then
             echo "need_build=true" >> "$GITHUB_OUTPUT"
@@ -64,7 +63,7 @@ jobs:
               echo "need_build=false" >> "$GITHUB_OUTPUT"
             else
               echo "New commits found since $tag"
-              echo "need_build=false" >> "$GITHUB_OUTPUT"
+              echo "need_build=true" >> "$GITHUB_OUTPUT"
             fi
           fi
 
@@ -86,7 +85,7 @@ jobs:
           git push origin ${{ steps.tag.outputs.tag_name }}
 
       - name: Skip tagging (version is not dev or no new commits)
-        if: steps.check.outputs.need_build == 'true'
+        if: steps.check.outputs.need_build == 'false'
         run: echo "Version is not a dev version. Skipping tag."
 
   linux-wheels:
@@ -160,13 +159,14 @@ jobs:
       - name: Build wheels
         shell: cmd
         run: |
-          IF "%{{ matrix.torch }}"=="2.7" (
+          SET TORCH_VERSION=${{ matrix.torch }}
+          IF "%TORCH_VERSION%"=="2.7" (
             SET CUDA_VERSION=12.8
           ) ELSE (
             SET CUDA_VERSION=12.4
           )
           call C:\Users\muyangl\miniconda3\condabin\activate.bat activate
-          call scripts\build_windows_wheel.cmd %{{ matrix.python }} %{{ matrix.torch }} %CUDA_VERSION%
+          call scripts\build_windows_wheel.cmd ${{ matrix.python }} %TORCH_VERSION% %CUDA_VERSION%
 
       - name: Upload wheels to GitHub Release
         uses: softprops/action-gh-release@v2
