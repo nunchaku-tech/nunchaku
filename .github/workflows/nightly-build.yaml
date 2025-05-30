@@ -132,10 +132,7 @@ jobs:
 
       - name: Clean up
         if: always() && github.repository == 'mit-han-lab/nunchaku'
-        run: |
-          bash scripts/linux_cleanup.sh
-          cd ..
-          rm -rf *nunchaku*
+        run: bash scripts/linux_cleanup.sh
 
   windows-wheels:
     name: Build the windows nightly wheels
@@ -181,9 +178,3 @@ jobs:
           prerelease: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Clean up
-        if: always() && github.repository == 'mit-han-lab/nunchaku'
-        run: |
-          cd ..
-          powershell -Command "Remove-Item -Recurse -Force *nunchaku*"
