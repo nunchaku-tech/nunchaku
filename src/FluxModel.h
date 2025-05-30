@@ -133,6 +133,12 @@ public:
                                        Tensor rotary_emb,
                                        Tensor rotary_emb_context,
                                        float sparsityRatio);
+    std::tuple<Tensor, Tensor, Tensor> forward_ip_adapter_branch(Tensor hidden_states,
+                                                                 Tensor encoder_hidden_states,
+                                                                 Tensor temb,
+                                                                 Tensor rotary_emb,
+                                                                 Tensor rotary_emb_context,
+                                                                 float sparsityRatio);
 
 public:
     const int dim;
@@ -178,6 +184,18 @@ public:
                                              Tensor rotary_emb_context,
                                              Tensor controlnet_block_samples,
                                              Tensor controlnet_single_block_samples);
+
+    std::tuple<Tensor, Tensor, Tensor> forward_ip_adapter(size_t layer,
+                                                          Tensor hidden_states,
+                                                          Tensor encoder_hidden_states,
+                                                          Tensor temb,
+                                                          Tensor rotary_emb_img,
+                                                          Tensor rotary_emb_context,
+                                                          Tensor k_img,
+                                                          Tensor v_img,
+                                                          Tensor controlnet_block_samples,
+                                                          Tensor controlnet_single_block_samples);
+
     void setAttentionImpl(AttentionImpl impl);
 
     void set_residual_callback(std::function<Tensor(const Tensor &)> cb);

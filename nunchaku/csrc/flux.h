@@ -212,4 +212,56 @@ public:
             throw std::invalid_argument(spdlog::fmt_lib::format("Invalid attention implementation {}", name));
         }
     }
+
+    std::tuple<torch::Tensor, torch::Tensor, torch::Tensor>
+    forward_layer_ip_adapter(int64_t idx,
+                             torch::Tensor hidden_states,
+                             torch::Tensor encoder_hidden_states,
+                             torch::Tensor temb,
+                             torch::Tensor rotary_emb_img,
+                             torch::Tensor rotary_emb_context,
+                             torch::Tensor k_img,
+                             torch::Tensor v_img,
+                             std::optional<torch::Tensor> controlnet_block_samples        = std::nullopt,
+                             std::optional<torch::Tensor> controlnet_single_block_samples = std::nullopt) {
+        CUDADeviceContext ctx(deviceId);
+
+        spdlog::debug("QuantizedFluxModel forward_layer {}", idx);
+
+        hidden_states         = hidden_states.contiguous();
+        encoder_hidden_states = encoder_hidden_states.contiguous();
+        temb                  = temb.contiguous();
+        rotary_emb_img        = rotary_emb_img.contiguous();
+        rotary_emb_context    = rotary_emb_context.contiguous();
+        k_img                 = k_img.contiguous();
+        v_img                 = v_img.contiguous();
+
+        auto &&[hidden_states_, encoder_hidden_states_, ip_query_] = net->forward_ip_adapter(
+            idx,
+            from_torch(hidden_states),
+            from_torch(encoder_hidden_states),
+            from_torch(temb),
+            from_torch(rotary_emb_img),
+            from_torch(rotary_emb_context),
+            from_torch(k_img),
+            from_torch(v_img),
+            controlnet_block_samples.has_value() ? from_torch(controlnet_block_samples.value().contiguous()) : Tensor{},
+            controlnet_single_block_samples.has_value()
+                ? from_torch(controlnet_single_block_samples.value().contiguous())
+                : Tensor{});
+        /*
+        auto ip_attn_output_contig =
+        ip_attn_output_.is_contiguous()
+            ? ip_attn_output_
+            : ip_attn_output_.copy(ip_attn_output_.device());
+        */
+
+        hidden_states         = to_torch(hidden_states_);
+        encoder_hidden_states = to_torch(encoder_hidden_states_);
+        // torch::Tensor ip_attn_output = to_torch(ip_attn_output_contig);
+        torch::Tensor ip_query = to_torch(ip_query_);
+        Tensor::synchronizeDevice();
+
+        return {hidden_states, encoder_hidden_states, ip_query};
+    }
 };
