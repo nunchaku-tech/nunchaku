@@ -1,26 +1,21 @@
 name: Auto-merge main into dev
-
 on:
   workflow_dispatch:
   push:
     branches:
       - main
-
 permissions:
   contents: write
-
 jobs:
   merge-main-into-dev:
     runs-on: ubuntu-latest
     if: github.repository == 'mit-han-lab/nunchaku'
-
     steps:
       - name: Checkout the repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           token: ${{ secrets.GH_TOKEN }}
-
       - name: Check if main and dev are already in sync
         id: check_sync
         run: |
@@ -36,7 +31,6 @@ jobs:
             echo "Branches differ. Proceeding with merge."
             echo "skip_merge=false" >> "$GITHUB_OUTPUT"
           fi
-
       - name: Merge main into dev
         id: last_commit
         if: steps.check_sync.outputs.skip_merge == 'false'

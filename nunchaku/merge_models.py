@@ -13,6 +13,7 @@ def merge_models_into_a_single_file(
     pretrained_model_name_or_path: str | os.PathLike[str], **kwargs
 ) -> tuple[dict[str, torch.Tensor], dict[str, str]]:
     subfolder = kwargs.get("subfolder", None)
+    comfy_config_path = kwargs.get("comfy_config_path", None)
 
     if isinstance(pretrained_model_name_or_path, str):
         pretrained_model_name_or_path = Path(pretrained_model_name_or_path)
@@ -21,7 +22,8 @@ def merge_models_into_a_single_file(
         unquantized_part_path = dirpath / "unquantized_layers.safetensors"
         transformer_block_path = dirpath / "transformer_blocks.safetensors"
         config_path = dirpath / "config.json"
-        comfy_config_path = dirpath / "comfy_config.json"
+        if comfy_config_path is None:
+            comfy_config_path = dirpath / "comfy_config.json"
     else:
         download_kwargs = {
             "subfolder": subfolder,

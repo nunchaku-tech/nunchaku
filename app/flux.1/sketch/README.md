@@ -10,6 +10,6 @@ To launch the application, simply run:
 python run_gradio.py
 ```
 
-* The demo loads the Gemma-2B model as a safety checker by default. To disable this feature, use `--no-safety-checker`.
-* To further reduce GPU memory usage, you can enable the W4A16 text encoder by specifying `--use-qencoder`.
-* By default, we use our INT4 model. Use  `-p bf16` to switch to the BF16 model.
+- The demo loads the Gemma-2B model as a safety checker by default. To disable this feature, use `--no-safety-checker`.
+- To further reduce GPU memory usage, you can enable the W4A16 text encoder by specifying `--use-qencoder`.
+- By default, we use our INT4 model. Use `-p bf16` to switch to the BF16 model.

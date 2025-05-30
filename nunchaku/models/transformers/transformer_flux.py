@@ -328,13 +328,14 @@ class NunchakuFluxTransformer2dModel(FluxTransformer2DModel, NunchakuModelLoader
         offload = kwargs.get("offload", False)
         torch_dtype = kwargs.get("torch_dtype", torch.bfloat16)
         precision = get_precision(kwargs.get("precision", "auto"), device, pretrained_model_name_or_path)
+        metadata = None
 
         if isinstance(pretrained_model_name_or_path, str):
             pretrained_model_name_or_path = Path(pretrained_model_name_or_path)
         if pretrained_model_name_or_path.is_file() or pretrained_model_name_or_path.name.endswith(
             (".safetensors", ".sft")
         ):
-            transformer, model_state_dict = cls._build_model(pretrained_model_name_or_path, **kwargs)
+            transformer, model_state_dict, metadata = cls._build_model(pretrained_model_name_or_path, **kwargs)
             quantized_part_sd = {}
             unquantized_part_sd = {}
             for k, v in model_state_dict.items():
@@ -384,7 +385,10 @@ class NunchakuFluxTransformer2dModel(FluxTransformer2DModel, NunchakuModelLoader
         transformer.load_state_dict(unquantized_part_sd, strict=False)
         transformer._unquantized_part_sd = unquantized_part_sd
 
-        return transformer
+        if kwargs.get("return_metadata", False):
+            return transformer, metadata
+        else:
+            return transformer
 
     def inject_quantized_module(self, m: QuantizedFluxModel, device: str | torch.device = "cuda"):
         print("Injecting quantized module")

@@ -146,13 +146,14 @@ class NunchakuSanaTransformer2DModel(SanaTransformer2DModel, NunchakuModelLoader
             device = torch.device(device)
         pag_layers = kwargs.get("pag_layers", [])
         precision = get_precision(kwargs.get("precision", "auto"), device, pretrained_model_name_or_path)
+        metadata = None
 
         if isinstance(pretrained_model_name_or_path, str):
             pretrained_model_name_or_path = Path(pretrained_model_name_or_path)
         if pretrained_model_name_or_path.is_file() or pretrained_model_name_or_path.name.endswith(
             (".safetensors", ".sft")
         ):
-            transformer, model_state_dict = cls._build_model(pretrained_model_name_or_path)
+            transformer, model_state_dict, metadata = cls._build_model(pretrained_model_name_or_path)
             quantized_part_sd = {}
             unquantized_part_sd = {}
             for k, v in model_state_dict.items():
@@ -177,7 +178,10 @@ class NunchakuSanaTransformer2DModel(SanaTransformer2DModel, NunchakuModelLoader
             transformer.to_empty(device=device)
             unquantized_state_dict = load_file(unquantized_part_path)
             transformer.load_state_dict(unquantized_state_dict, strict=False)
-        return transformer
+        if kwargs.get("return_metadata", False):
+            return transformer, metadata
+        else:
+            return transformer
 
     def inject_quantized_module(self, m: QuantizedSanaModel, device: str | torch.device = "cuda"):
         self.transformer_blocks = torch.nn.ModuleList([NunchakuSanaTransformerBlocks(m, self.dtype, device)])

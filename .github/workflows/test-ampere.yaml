@@ -1,5 +1,4 @@
 name: Ampere Tests
-
 on:
   workflow_dispatch:
     inputs:
@@ -10,11 +9,9 @@ on:
         options:
           - pr
           - branch
-
       pr_number:
         description: 'Pull Request Number (only if test_target == "pr")'
         required: false
-
       branch_name:
         description: 'Branch name (only if test_target == "branch")'
         default: 'main'
@@ -39,11 +36,10 @@ on:
 concurrency:
   group: ${{ github.repository }}-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
-
 jobs:
   check-comment:
     if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'issue_comment' && github.event.issue.pull_request && !github.event.pull_request.draft) }}
-    runs-on: [ self-hosted, ampere ]
+    runs-on: [self-hosted, ampere]
     outputs:
       should_run: ${{ steps.check.outputs.should_run }}
     steps:
@@ -56,12 +52,10 @@ jobs:
           else
             echo "should_run=false" >> $GITHUB_OUTPUT
           fi
-
   run-tests:
-    runs-on: [ self-hosted, ampere ]
-    needs: [ check-comment ]
+    runs-on: [self-hosted, ampere]
+    needs: [check-comment]
     if: ${{ github.event_name != 'issue_comment' || needs.check-comment.outputs.should_run == 'true' }}
-
     steps:
       - name: Determine ref
         id: set-ref
@@ -76,16 +70,13 @@ jobs:
         with:
           ref: ${{ steps.set-ref.outputs.ref }}
           submodules: true
-
       - name: Show current commit
         run: git log -1 --oneline
-
       - name: Set up Python
         run: |
           which python
           echo "Setting up Python with Conda"
           conda create -n test_env python=3.11 -y
-
       - name: Install dependencies
         run: |
           source $(conda info --base)/etc/profile.d/conda.sh
@@ -95,7 +86,6 @@ jobs:
           echo "Installing dependencies"
           pip install torch==2.7 torchvision==0.22 torchaudio==2.7 --index-url https://download.pytorch.org/whl/cu128
           pip install ninja wheel diffusers==0.33.1 transformers==4.51 accelerate==1.7 sentencepiece==0.2 protobuf==6.31 huggingface_hub==0.31
-
       - name: Build
         run: |
           source $(conda info --base)/etc/profile.d/conda.sh
@@ -103,7 +93,6 @@ jobs:
           which python
           NUNCHAKU_INSTALL_MODE=ALL python setup.py develop
           pip install -r tests/requirements.txt
-
       - name: Setup ComfyUI
         run: |
           source $(conda info --base)/etc/profile.d/conda.sh
@@ -127,7 +116,6 @@ jobs:
           pip install -r nunchaku_tests/requirements.txt
           HF_TOKEN=${{ secrets.HF_TOKEN }} python custom_nodes/ComfyUI-nunchaku/scripts/download_models.py
           HF_TOKEN=${{ secrets.HF_TOKEN }} python custom_nodes/ComfyUI-nunchaku/scripts/download_test_data.py
-
       - name: Run ComfyUI tests
         run: |
           source $(conda info --base)/etc/profile.d/conda.sh
@@ -136,7 +124,6 @@ jobs:
           cd ../ComfyUI
           python nunchaku_tests/scripts/nunchaku_flux1_dev.py
           pytest -v nunchaku_tests/
-
       - name: Nunchaku FLUX memory tests
         run: |
           pwd
@@ -144,28 +131,24 @@ jobs:
           conda activate test_env || { echo "Failed to activate conda env"; exit 1; }
           which python
           NUNCHAKU_TEST_CACHE_ROOT=${{ secrets.NUNCHAKU_TEST_CACHE_ROOT_AMPERE }} HF_TOKEN=${{ secrets.HF_TOKEN }} pytest -v tests/flux/test_flux_memory.py
-
       - name: Nunchaku FLUX example tests
         run: |
           source $(conda info --base)/etc/profile.d/conda.sh
           conda activate test_env || { echo "Failed to activate conda env"; exit 1; }
           which python
           NUNCHAKU_TEST_CACHE_ROOT=${{ secrets.NUNCHAKU_TEST_CACHE_ROOT_AMPERE }} HF_TOKEN=${{ secrets.HF_TOKEN }} pytest -v tests/flux/test_flux_examples.py
-
       - name: Nunchaku FLUX other tests
         run: |
           source $(conda info --base)/etc/profile.d/conda.sh
           conda activate test_env || { echo "Failed to activate conda env"; exit 1; }
           which python
           NUNCHAKU_TEST_CACHE_ROOT=${{ secrets.NUNCHAKU_TEST_CACHE_ROOT_AMPERE }} HF_TOKEN=${{ secrets.HF_TOKEN }} pytest -v tests/flux --ignore=tests/flux/test_flux_memory.py --ignore=tests/flux/test_flux_examples.py
-
       - name: Nunchaku SANA tests
         run: |
           source $(conda info --base)/etc/profile.d/conda.sh
           conda activate test_env || { echo "Failed to activate conda env"; exit 1; }
           which python
           NUNCHAKU_TEST_CACHE_ROOT=${{ secrets.NUNCHAKU_TEST_CACHE_ROOT_AMPERE }} HF_TOKEN=${{ secrets.HF_TOKEN }} pytest -v tests/sana
-
       - name: clean up
         if: always() && (github.event_name != 'issue_comment' || needs.check-comment.outputs.should_run == 'true')
         run: |

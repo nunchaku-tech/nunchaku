@@ -1,15 +1,12 @@
 # Borrowed from https://github.com/sgl-project/sglang/blob/main/.github/workflows/close-inactive-issues.yml
 name: Close Inactive Issues
-
 on:
   schedule:
     - cron: '0 0 * * *'
   workflow_dispatch:
-
 permissions:
   issues: write
   contents: read
-
 jobs:
   close-inactive-issues:
     if: github.repository == 'mit-han-lab/nunchaku'

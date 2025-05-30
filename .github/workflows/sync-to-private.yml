@@ -1,30 +1,24 @@
 name: Synchronize to Private Repository
-
 on:
   workflow_dispatch:
   push:
     branches:
       - dev
-
 permissions:
   contents: write
-
 jobs:
   cherry-pick-commits:
     runs-on: ubuntu-latest
     if: github.repository == 'mit-han-lab/nunchaku'
-
     steps:
       - name: Clone private repository
         run: |
           git clone https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/mit-han-lab/nunchaku-dev.git
-
       - name: Add public remote and fetch
         run: |
           cd nunchaku-dev
           git remote add public https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/mit-han-lab/nunchaku.git
           git fetch public dev
-
       - name: Cherry-pick latest commit from public/dev
         run: |
           set -e
@@ -94,7 +88,6 @@ jobs:
           done
 
           git commit --amend --allow-empty -m "$NEW_MSG" --author="$GIT_AUTHOR_NAME <$GIT_AUTHOR_EMAIL>"
-
       - name: Push to the private main branch
         run: |
           cd nunchaku-dev

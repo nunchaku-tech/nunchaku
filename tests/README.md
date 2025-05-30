@@ -1,13 +1,17 @@
 # Nunchaku Tests
+
 Nunchaku uses pytest as its testing framework.
 
 ## Setting Up Test Environments
+
 After installing `nunchaku` as described in the [README](../README.md#installation), you can install the test dependencies with:
+
 ```shell
 pip install -r tests/requirements.txt
 ```
 
 ## Running the Tests
+
 ```shell
 HF_TOKEN=$YOUR_HF_TOKEN pytest -v tests/flux/test_flux_memory.py
 HF_TOKEN=$YOUR_HF_TOKEN pytest -v tests/flux --ignore=tests/flux/test_flux_memory.py
@@ -15,7 +19,7 @@ HF_TOKEN=$YOUR_HF_TOKEN pytest -v tests/sana
 ```
 
 > **Note:** `$YOUR_HF_TOKEN` refers to your Hugging Face access token, required to download models and datasets. You can create one at [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens).
->  If you've already logged in using `huggingface-cli login`, you can skip setting this environment variable.
+> If you've already logged in using `huggingface-cli login`, you can skip setting this environment variable.
 
 Some tests generate images using the original 16-bit models. You can cache these results to speed up future test runs by setting the environment variable `NUNCHAKU_TEST_CACHE_ROOT`. If not set, the images will be saved in `test_results/ref`.
 
@@ -27,9 +31,9 @@ To test visual output correctness, you can:
 
 1. **Generate reference images:** Use the original 16-bit model to produce a small number of reference images (e.g., 4).
 
-2. **Generate comparison images:** Run your method using the **same inputs and seeds** to ensure deterministic outputs. You can control the seed by setting the `generator` parameter in the diffusers pipeline.
+1. **Generate comparison images:** Run your method using the **same inputs and seeds** to ensure deterministic outputs. You can control the seed by setting the `generator` parameter in the diffusers pipeline.
 
-3. **Compute similarity:** Evaluate the similarity between your outputs and the reference images using the [LPIPS](https://arxiv.org/abs/1801.03924) metric. Use the `compute_lpips` function provided in [`tests/flux/utils.py`](flux/utils.py):
+1. **Compute similarity:** Evaluate the similarity between your outputs and the reference images using the [LPIPS](https://arxiv.org/abs/1801.03924) metric. Use the `compute_lpips` function provided in [`tests/flux/utils.py`](flux/utils.py):
 
    ```shell
    lpips = compute_lpips(dir1, dir2)

@@ -1,23 +1,18 @@
 name: Clean Old Nightly Releases
-
 on:
   schedule:
     - cron: '* 6 * * *'
   workflow_dispatch:
-
 permissions:
   contents: write
-
 jobs:
   cleanup:
     name: Delete old nightly releases and tags
     runs-on: ubuntu-latest
     if: github.repository == 'mit-han-lab/nunchaku'
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
       - name: List all nightly releases
         id: list
         run: |
@@ -26,14 +21,12 @@ jobs:
           echo "Found $(wc -l < nightly_tags.txt) nightly releases."
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Trim to old tags beyond latest 30
         id: filter
         run: |
           tail -n +31 nightly_tags.txt > to_delete.txt || true
           echo "Tags to delete:"
           cat to_delete.txt || echo "(none)"
-
       - name: Delete releases and tags
         run: |
           while read tag; do
@@ -43,6 +36,5 @@ jobs:
           done < to_delete.txt
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Done
         run: echo "Nightly cleanup completed."

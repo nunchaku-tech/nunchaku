@@ -1,11 +1,8 @@
 name: Release Build
-
 on:
   workflow_dispatch:
-
 permissions:
   contents: write
-
 jobs:
   release:
     name: Tag Main Branch and Create Release
@@ -19,14 +16,12 @@ jobs:
         with:
           fetch-depth: 0
           ref: main
-
       - name: Extract version from __version__.py
         id: version
         run: |
           version=$(grep '__version__' nunchaku/__version__.py | sed -E 's/.*"([^"]+)".*/\1/')
           echo "Extracted version: $version"
           echo "version=$version" >> "$GITHUB_OUTPUT"
-
       - name: Create and push tag
         id: tag
         run: |
@@ -36,7 +31,6 @@ jobs:
           git tag $tag_name
           git push origin $tag_name
           echo "tag_name=$tag_name" >> "$GITHUB_OUTPUT"
-
   linux-wheels:
     name: Build the linux release wheels
     runs-on: [self-hosted, linux-build]
@@ -45,7 +39,6 @@ jobs:
       matrix:
         python: ["3.10", "3.11", "3.12"]
         torch: ["2.5", "2.6", "2.7"]
-
     steps:
       - name: Checkout to the tag
         uses: actions/checkout@v4
@@ -53,10 +46,8 @@ jobs:
           fetch-depth: 0
           ref: ${{ needs.release.outputs.tag_name }}
           submodules: true
-
       - name: Show current commit
         run: git log -1 --oneline
-
       - name: Build wheels
         run: |
           if [[ "${{ matrix.torch }}" == "2.7" ]]; then
@@ -65,7 +56,6 @@ jobs:
             cuda_version="12.4"
           fi
           bash scripts/build_linux_wheel.sh ${{ matrix.python }} ${{ matrix.torch }} $cuda_version
-
       - name: Upload wheels to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -75,20 +65,17 @@ jobs:
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Clean up
         if: always()
         run: bash scripts/linux_cleanup.sh
-
   windows-wheels:
     name: Build the windows release wheels
-    runs-on: [ self-hosted, windows-build ]
+    runs-on: [self-hosted, windows-build]
     needs: release
     strategy:
       matrix:
-        python: [ "3.10", "3.11", "3.12" ]
-        torch: [ "2.5", "2.6", "2.7" ]
-
+        python: ["3.10", "3.11", "3.12"]
+        torch: ["2.5", "2.6", "2.7"]
     steps:
       - name: Checkout to the tag
         uses: actions/checkout@v4
@@ -96,10 +83,8 @@ jobs:
           fetch-depth: 0
           ref: ${{ needs.release.outputs.tag_name }}
           submodules: true
-
       - name: Show current commit
         run: git log -1 --oneline
-
       - name: Build wheels
         shell: cmd
         run: |
@@ -111,7 +96,6 @@ jobs:
           )
           call C:\Users\muyangl\miniconda3\condabin\activate.bat activate
           call scripts\build_windows_wheel.cmd ${{ matrix.python }} %TORCH_VERSION% %CUDA_VERSION%
-
       - name: Upload wheels to GitHub Release
         uses: softprops/action-gh-release@v2
         with:

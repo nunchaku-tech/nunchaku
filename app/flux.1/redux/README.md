@@ -8,4 +8,4 @@ This interactive Gradio application allows you to interactively generate image v
 python run_gradio.py
 ```
 
-* By default, we use our INT4 model. Use  `-p bf16` to switch to the BF16 model.
+- By default, we use our INT4 model. Use `-p bf16` to switch to the BF16 model.

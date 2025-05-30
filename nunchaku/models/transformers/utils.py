@@ -24,7 +24,7 @@ class NunchakuModelLoaderMixin:
     @classmethod
     def _build_model(
         cls, pretrained_model_name_or_path: str | os.PathLike[str], **kwargs
-    ) -> tuple[nn.Module, dict[str, torch.Tensor]]:
+    ) -> tuple[nn.Module, dict[str, torch.Tensor], dict[str, str]]:
         if isinstance(pretrained_model_name_or_path, str):
             pretrained_model_name_or_path = Path(pretrained_model_name_or_path)
         state_dict = load_state_dict_in_safetensors(pretrained_model_name_or_path, return_metadata=True)
@@ -36,7 +36,7 @@ class NunchakuModelLoaderMixin:
         with torch.device("meta"):
             transformer = cls.from_config(config).to(kwargs.get("torch_dtype", torch.bfloat16))
 
-        return transformer, state_dict
+        return transformer, state_dict, metadata
 
     @classmethod
     def _build_model_legacy(
