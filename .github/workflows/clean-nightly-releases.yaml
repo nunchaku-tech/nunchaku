@@ -12,8 +12,12 @@ jobs:
   cleanup:
     name: Delete old nightly releases and tags
     runs-on: ubuntu-latest
+    if: github.repository == 'mit-han-lab/nunchaku'
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: List all nightly releases
         id: list
         run: |
