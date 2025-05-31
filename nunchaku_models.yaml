@@ -1,0 +1,29 @@
+diffusion_models:
+  - repo_id: "mit-han-lab/nunchaku-t5"
+    filename: "awq-int4-flux.1-t5xxl.safetensors"
+    sub_folder: "text_encoders"
+    new_filename: null
+  - repo_id: "mit-han-lab/nunchaku-flux.1-dev"
+    filename: "svdq-{precision}_r32-flux.1-dev.safetensors"
+    sub_folder: "diffusion_models"
+    new_filename: null
+  - repo_id: "mit-han-lab/nunchaku-flux.1-schnell"
+    filename: "svdq-{precision}_r32-flux.1-schnell.safetensors"
+    sub_folder: "diffusion_models"
+    new_filename: null
+  - repo_id: "mit-han-lab/nunchaku-flux.1-depth-dev"
+    filename: "svdq-{precision}_r32-flux.1-depth-dev.safetensors"
+    sub_folder: "diffusion_models"
+    new_filename: null
+  - repo_id: "mit-han-lab/nunchaku-flux.1-canny-dev"
+    filename: "svdq-{precision}_r32-flux.1-canny-dev.safetensors"
+    sub_folder: "diffusion_models"
+    new_filename: null
+  - repo_id: "mit-han-lab/nunchaku-flux.1-fill-dev"
+    filename: "svdq-{precision}_r32-flux.1-fill-dev.safetensors"
+    sub_folder: "diffusion_models"
+    new_filename: null
+  - repo_id: "mit-han-lab/nunchaku-shuttle-jaguar"
+    filename: "svdq-{precision}_r32-shuttle-jaguar.safetensors"
+    sub_folder: "diffusion_models"
+    new_filename: null

@@ -1,4 +1,5 @@
 import argparse
+import json
 import os
 from pathlib import Path
 
@@ -61,9 +62,35 @@ def merge_safetensors(
     state_dict = unquantized_part_sd
     state_dict.update(transformer_block_sd)
 
+    precision = "int4"
+    for v in state_dict.items():
+        assert isinstance(v, torch.Tensor)
+        if v.dtype in [
+            torch.float8_e4m3fn,
+            torch.float8_e4m3fnuz,
+            torch.float8_e5m2,
+            torch.float8_e5m2fnuz,
+            torch.float8_e8m0fnu,
+        ]:
+            precision = "fp4"
+    quantization_config = {
+        "method": "svdquant",
+        "weight": {
+            "dtype": "fp4_e2m1_all" if precision == "fp4" else "int4",
+            "scale_dtype": [None, "fp8_e4m3_nan"] if precision == "fp4" else None,
+            "group_size": 16 if precision == "fp4" else 64,
+        },
+        "activation": {
+            "dtype": "fp4_e2m1_all" if precision == "fp4" else "int4",
+            "scale_dtype": "fp8_e4m3_nan" if precision == "fp4" else None,
+            "group_size": 16 if precision == "fp4" else 64,
+        },
+    }
     return state_dict, {
         "config": Path(config_path).read_text(),
         "comfy_config": Path(comfy_config_path).read_text(),
+        "model_class": "NunchakuFluxTransformer2dModel",
+        "quantization_config": json.dumps(quantization_config),
     }
 
 
