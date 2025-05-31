@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 from pathlib import Path
@@ -17,7 +18,7 @@ from ..._C import QuantizedFluxModel
 from ..._C import utils as cutils
 from ...lora.flux.nunchaku_converter import fuse_vectors, to_nunchaku
 from ...lora.flux.utils import is_nunchaku_format
-from ...utils import get_precision, load_state_dict_in_safetensors
+from ...utils import check_hardware_compatibility, get_precision, load_state_dict_in_safetensors
 from .utils import NunchakuModelLoaderMixin, pad_tensor
 
 SVD_RANK = 32
@@ -315,7 +316,7 @@ class NunchakuFluxTransformer2dModel(FluxTransformer2DModel, NunchakuModelLoader
         self._quantized_part_vectors: dict[str, torch.Tensor] = {}
         self._original_in_channels = in_channels
 
-        # Comfyui LoRA related
+        # ComfyUI LoRA related
         self.comfy_lora_meta_list = []
         self.comfy_lora_sd_list = []
 
@@ -343,6 +344,9 @@ class NunchakuFluxTransformer2dModel(FluxTransformer2DModel, NunchakuModelLoader
                     quantized_part_sd[k] = v
                 else:
                     unquantized_part_sd[k] = v
+            precision = get_precision(device=device)
+            quantization_config = json.loads(metadata["quantization_config"])
+            check_hardware_compatibility(quantization_config, device)
         else:
             transformer, unquantized_part_path, transformer_block_path = cls._build_model_legacy(
                 pretrained_model_name_or_path, **kwargs

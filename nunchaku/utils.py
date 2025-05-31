@@ -135,3 +135,21 @@ def get_gpu_memory(device: str | torch.device = "cuda", unit: str = "GiB") -> in
         return memory // (1024**2)
     else:
         return memory
+
+
+def check_hardware_compatibility(quantization_config: dict, device: str | torch.device = "cuda"):
+    if isinstance(device, str):
+        device = torch.device(device)
+    capability = torch.cuda.get_device_capability(0 if device.index is None else device.index)
+    sm = f"{capability[0]}{capability[1]}"
+    if sm == "120":  # you can only use the fp4 models
+        if quantization_config["weight"]["dtype"] != "fp4_e2m1_all":
+            raise ValueError('Please use "fp4" quantization for Blackwell GPUs. ')
+    elif sm in ["75", "80", "86", "89"]:
+        if quantization_config["weight"]["dtype"] != "int4":
+            raise ValueError('Please use "int4" quantization for Turing, Ampere and Ada GPUs. ')
+    else:
+        raise ValueError(
+            f"Unsupported GPU architecture {sm} due to the lack of 4-bit tensorcores. "
+            "Please use a Turing, Ampere, Ada or Blackwell GPU for this quantization configuration."
+        )
