@@ -27,10 +27,9 @@ class NunchakuModelLoaderMixin:
     ) -> tuple[nn.Module, dict[str, torch.Tensor], dict[str, str]]:
         if isinstance(pretrained_model_name_or_path, str):
             pretrained_model_name_or_path = Path(pretrained_model_name_or_path)
-        state_dict = load_state_dict_in_safetensors(pretrained_model_name_or_path, return_metadata=True)
+        state_dict, metadata = load_state_dict_in_safetensors(pretrained_model_name_or_path, return_metadata=True)
 
         # Load the config file
-        metadata = state_dict.pop("__metadata__", {})
         config = json.loads(metadata["config"])
 
         with torch.device("meta"):

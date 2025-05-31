@@ -47,31 +47,18 @@ def load_state_dict_in_safetensors(
     device: str | torch.device = "cpu",
     filter_prefix: str = "",
     return_metadata: bool = False,
-) -> dict[str, torch.Tensor]:
-    """Load state dict in SafeTensors.
-
-    Args:
-        path (`str`):
-            file path.
-        device (`str` | `torch.device`, optional, defaults to `"cpu"`):
-            device.
-        filter_prefix (`str`, optional, defaults to `""`):
-            filter prefix.
-
-    Returns:
-        `dict`:
-            loaded SafeTensors.
-    """
+) -> dict[str, torch.Tensor] | tuple[dict[str, torch.Tensor], dict[str, str]]:
     state_dict = {}
     with safetensors.safe_open(fetch_or_download(path), framework="pt", device=device) as f:
         metadata = f.metadata()
-        if return_metadata:
-            state_dict["__metadata__"] = metadata
         for k in f.keys():
             if filter_prefix and not k.startswith(filter_prefix):
                 continue
             state_dict[k.removeprefix(filter_prefix)] = f.get_tensor(k)
-    return state_dict
+    if return_metadata:
+        return state_dict, metadata
+    else:
+        return state_dict
 
 
 def filter_state_dict(state_dict: dict[str, torch.Tensor], filter_prefix: str = "") -> dict[str, torch.Tensor]:
