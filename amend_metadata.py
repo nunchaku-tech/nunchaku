@@ -3,9 +3,9 @@ from pathlib import Path
 
 import yaml
 from safetensors.torch import save_file
+from tqdm import tqdm
 
 from nunchaku.utils import load_state_dict_in_safetensors
-from tqdm import tqdm
 
 
 def load_yaml(path: str | Path) -> dict:
