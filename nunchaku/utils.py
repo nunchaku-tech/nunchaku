@@ -1,6 +1,7 @@
+import os
 import warnings
 from pathlib import Path
-import os
+
 import safetensors
 import torch
 from huggingface_hub import hf_hub_download

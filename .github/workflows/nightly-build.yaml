@@ -25,40 +25,32 @@ jobs:
           version=$(grep '__version__' nunchaku/__version__.py | sed -E 's/.*"([^"]+)".*/\1/')
           echo "Extracted version: $version"
           echo "version=$version" >> "$GITHUB_OUTPUT"
-      - name: Check if version contains 'dev'
+      - name: Determine if build is needed
         id: check
         run: |
-          if [[ "${{ steps.version.outputs.version }}" == *dev* ]]; then
-            echo "need_build=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "need_build=false" >> "$GITHUB_OUTPUT"
-          fi
-      - name: Get latest tag with same version prefix
-        id: last_tag
-        if: steps.check.outputs.need_build == 'true'
-        run: |
-          prefix="v${{ steps.version.outputs.version }}"
-          tag=$(git tag --list "${prefix}*" --sort=-creatordate | head -n 1 || echo "")
-          echo "latest_tag=$tag" >> "$GITHUB_OUTPUT"
-      - name: Check if current commit is new
-        id: check_commit_diff
-        if: steps.check.outputs.need_build == 'true'
-        run: |
-          tag=${{ steps.last_tag.outputs.latest_tag }}
-          if [ -z "$tag" ]; then
-            echo "No previous tag found."
-            echo "need_build=true" >> "$GITHUB_OUTPUT"
-          else
-            base=$(git rev-parse "$tag")
-            head=$(git rev-parse HEAD)
-            if [ "$base" = "$head" ]; then
-              echo "No new commits since $tag"
-              echo "need_build=false" >> "$GITHUB_OUTPUT"
+          version="${{ steps.version.outputs.version }}"
+          need_build=false
+          if [[ "$version" == *dev* ]]; then
+            echo "Version contains 'dev'"
+            prefix="v$version"
+            tag=$(git tag --list "${prefix}*" --sort=-creatordate | head -n 1 || echo "")
+            if [ -z "$tag" ]; then
+              echo "No previous tag found."
+              need_build=true
             else
-              echo "New commits found since $tag"
-              echo "need_build=true" >> "$GITHUB_OUTPUT"
+              base=$(git rev-parse "$tag")
+              head=$(git rev-parse HEAD)
+              if [ "$base" != "$head" ]; then
+                echo "New commits found since $tag"
+                need_build=true
+              else
+                echo "No new commits since $tag"
+              fi
             fi
+          else
+            echo "Version does not contain 'dev'"
           fi
+          echo "need_build=$need_build" >> "$GITHUB_OUTPUT"
       - name: Set tag name
         id: tag
         if: steps.check.outputs.need_build == 'true'
@@ -76,7 +68,7 @@ jobs:
           git push origin ${{ steps.tag.outputs.tag_name }}
       - name: Skip tagging (version is not dev or no new commits)
         if: steps.check.outputs.need_build == 'false'
-        run: echo "Version is not a dev version. Skipping tag."
+        run: echo "Version is not a dev version or no new commits. Skipping tag."
   linux-wheels:
     name: Build the linux nightly wheels
     runs-on: [self-hosted, linux-build]
