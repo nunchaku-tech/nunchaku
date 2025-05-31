@@ -1,7 +1,6 @@
 import warnings
-from os import PathLike
 from pathlib import Path
-
+import os
 import safetensors
 import torch
 from huggingface_hub import hf_hub_download
@@ -43,7 +42,7 @@ def ceil_divide(x: int, divisor: int) -> int:
 
 
 def load_state_dict_in_safetensors(
-    path: str | PathLike[str],
+    path: str | os.PathLike[str],
     device: str | torch.device = "cpu",
     filter_prefix: str = "",
     return_metadata: bool = False,
@@ -91,7 +90,9 @@ def filter_state_dict(state_dict: dict[str, torch.Tensor], filter_prefix: str = 
 
 
 def get_precision(
-    precision: str = "auto", device: str | torch.device = "cuda", pretrained_model_name_or_path: str | None = None
+    precision: str = "auto",
+    device: str | torch.device = "cuda",
+    pretrained_model_name_or_path: str | os.PathLike[str] | None = None,
 ) -> str:
     assert precision in ("auto", "int4", "fp4")
     if precision == "auto":
@@ -102,10 +103,10 @@ def get_precision(
         precision = "fp4" if sm == "120" else "int4"
     if pretrained_model_name_or_path is not None:
         if precision == "int4":
-            if "fp4" in pretrained_model_name_or_path:
+            if "fp4" in str(pretrained_model_name_or_path):
                 warnings.warn("The model may be quantized to fp4, but you are loading it with int4 precision.")
         elif precision == "fp4":
-            if "int4" in pretrained_model_name_or_path:
+            if "int4" in str(pretrained_model_name_or_path):
                 warnings.warn("The model may be quantized to int4, but you are loading it with fp4 precision.")
     return precision
 
