@@ -46,7 +46,7 @@ class NunchakuModelLoaderMixin:
             "Loading models from a folder will be deprecated in v0.4. "
             "Please download the latest safetensors model, or use one of the following tools to "
             "merge your model into a single file: the CLI utility `python -m nunchaku.merge_safetensors` "
-            "or the ComfyUI workflow `merge_model_folder_to_a_single_file.json`."
+            "or the ComfyUI workflow `merge_safetensors.json`."
         )
         subfolder = kwargs.get("subfolder", None)
         if os.path.exists(pretrained_model_name_or_path):
