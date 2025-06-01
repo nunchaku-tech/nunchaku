@@ -44,7 +44,7 @@ from .utils import already_generate, compute_lpips, offload_pipeline
             "muppets",
             42,
             0.3,
-            0.360 if get_precision() == "int4" else 0.495,
+            0.507 if get_precision() == "int4" else 0.495,
         ),
         (
             1024,

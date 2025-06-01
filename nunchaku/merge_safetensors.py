@@ -63,7 +63,7 @@ def merge_safetensors(
     state_dict.update(transformer_block_sd)
 
     precision = "int4"
-    for v in state_dict.items():
+    for v in state_dict.values():
         assert isinstance(v, torch.Tensor)
         if v.dtype in [
             torch.float8_e4m3fn,
