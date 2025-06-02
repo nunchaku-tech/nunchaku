@@ -10,7 +10,7 @@ def sync_model(hf_repo, ms_repo):
     print(f"\n🔄 Syncing {hf_repo} -> {ms_repo}")
 
     # Login to ModelScope
-    MODELSCOPE_TOKEN = os.getenv("MODELSCOPE_TOKEN")  # Or hardcode your token
+    MODELSCOPE_TOKEN = os.getenv("MODELSCOPE_TOKEN")
     assert MODELSCOPE_TOKEN, "Please set the MODELSCOPE_TOKEN environment variable or hardcode the token."
 
     api = HubApi()
