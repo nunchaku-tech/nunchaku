@@ -45,7 +45,7 @@ def sync_model(repo_name: str, hf_repo: str, ms_repo: str):
         repo_id=ms_repo,
         folder_path=local_dir,
         commit_message=f"Sync from Hugging Face {hf_repo}",
-        ignore_patterns=[".gitattributes", "*mit-han-lab*"],
+        ignore_patterns=["*mit-han-lab*"],
     )
     print(f"✅ Sync complete: {hf_repo} -> {ms_repo}")
 
