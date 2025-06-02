@@ -11,28 +11,28 @@ jobs:
       matrix:
         repo:
           - nunchaku
-          - nunchaku-t5
-          - nunchaku-flux.1-schnell
-          - nunchaku-flux.1-dev
-          - nunchaku-flux.1-fill-dev
-          - nunchaku-flux.1-depth-dev
-          - nunchaku-flux.1-canny-dev
-          - nunchaku-shuttle-jaguar
-          - nunchaku-sana
-          - svdq-fp4-flux.1-schnell
-          - svdq-int4-flux.1-schnell
-          - svdq-fp4-flux.1-dev
-          - svdq-int4-flux.1-dev
-          - svdq-fp4-flux.1-fill-dev
-          - svdq-int4-flux.1-fill-dev
-          - svdq-fp4-flux.1-depth-dev
-          - svdq-int4-flux.1-depth-dev
-          - svdq-fp4-flux.1-canny-dev
-          - svdq-int4-flux.1-canny-dev
-          - svdq-fp4-shuttle-jaguar
-          - svdq-int4-shuttle-jaguar
-          - svdq-int4-sana-1600m
-          - svdq-flux.1-schnell-pix2pix-turbo
+#          - nunchaku-t5
+#          - nunchaku-flux.1-schnell
+#          - nunchaku-flux.1-dev
+#          - nunchaku-flux.1-fill-dev
+#          - nunchaku-flux.1-depth-dev
+#          - nunchaku-flux.1-canny-dev
+#          - nunchaku-shuttle-jaguar
+#          - nunchaku-sana
+#          - svdq-fp4-flux.1-schnell
+#          - svdq-int4-flux.1-schnell
+#          - svdq-fp4-flux.1-dev
+#          - svdq-int4-flux.1-dev
+#          - svdq-fp4-flux.1-fill-dev
+#          - svdq-int4-flux.1-fill-dev
+#          - svdq-fp4-flux.1-depth-dev
+#          - svdq-int4-flux.1-depth-dev
+#          - svdq-fp4-flux.1-canny-dev
+#          - svdq-int4-flux.1-canny-dev
+#          - svdq-fp4-shuttle-jaguar
+#          - svdq-int4-shuttle-jaguar
+#          - svdq-int4-sana-1600m
+#          - svdq-flux.1-schnell-pix2pix-turbo
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
