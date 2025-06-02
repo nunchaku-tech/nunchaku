@@ -776,20 +776,21 @@ std::tuple<Tensor, Tensor> JointTransformerBlock::forward(Tensor hidden_states,
     return {hidden_states, encoder_hidden_states};
 }
 
-FluxModel::FluxModel(bool use_fp4, bool offload, Tensor::ScalarType dtype, Device device)
-    : dtype(dtype), offload(offload) {
-    for (int i = 0; i < 19; i++) {
-        transformer_blocks.push_back(
-            std::make_unique<JointTransformerBlock>(3072, 24, 3072, false, use_fp4, dtype, device));
+FluxModel::FluxModel(FluxConfig config, bool offload, Tensor::ScalarType dtype, Device device)
+    : config(config), dtype(dtype), offload(offload) {
+    const int inner_dim = config.num_attention_heads * config.attention_head_dim;
+    for (int i = 0; i < config.num_layers; i++) {
+        transformer_blocks.push_back(std::make_unique<JointTransformerBlock>(
+            inner_dim, config.num_attention_heads, inner_dim, false, config.use_fp4, dtype, device));
         registerChildren(*transformer_blocks.back(), format("transformer_blocks.{}", i));
         if (offload && i > 0) { // don't offload first block
             transformer_blocks.back()->setLazyLoad(true);
             transformer_blocks.back()->releaseLazyParams();
         }
     }
-    for (int i = 0; i < 38; i++) {
-        single_transformer_blocks.push_back(
-            std::make_unique<FluxSingleTransformerBlock>(3072, 24, 3072, 4, use_fp4, dtype, device));
+    for (int i = 0; i < config.num_single_layers; i++) {
+        single_transformer_blocks.push_back(std::make_unique<FluxSingleTransformerBlock>(
+            inner_dim, config.num_attention_heads, inner_dim, 4, config.use_fp4, dtype, device));
         registerChildren(*single_transformer_blocks.back(), format("single_transformer_blocks.{}", i));
         if (offload) {
             single_transformer_blocks.back()->setLazyLoad(true);

@@ -13,6 +13,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
         .def(py::init<>())
         .def("init",
              &QuantizedFluxModel::init,
+             py::arg("config"),
              py::arg("use_fp4"),
              py::arg("offload"),
              py::arg("bf16"),

@@ -9,7 +9,7 @@
 
 class QuantizedFluxModel : public ModuleWrapper<FluxModel> { // : public torch::CustomClassHolder {
 public:
-    void init(bool use_fp4, bool offload, bool bf16, int8_t deviceId) {
+    void init(pybind11::dict config, bool use_fp4, bool offload, bool bf16, int8_t deviceId) {
         spdlog::info("Initializing QuantizedFluxModel on device {}", deviceId);
         if (!bf16) {
             spdlog::info("Use FP16 model");
@@ -17,11 +17,18 @@ public:
         if (offload) {
             spdlog::info("Layer offloading enabled");
         }
+        FluxConfig cfg{
+            .num_layers          = config["num_layers"].cast<int>(),
+            .num_single_layers   = config["num_single_layers"].cast<int>(),
+            .num_attention_heads = config["num_attention_heads"].cast<int>(),
+            .attention_head_dim  = config["attention_head_dim"].cast<int>(),
+            .use_fp4             = use_fp4,
+        };
         ModuleWrapper::init(deviceId);
 
         CUDADeviceContext ctx(this->deviceId);
-        net = std::make_unique<FluxModel>(
-            use_fp4, offload, bf16 ? Tensor::BF16 : Tensor::FP16, Device::cuda((int)deviceId));
+        net =
+            std::make_unique<FluxModel>(cfg, offload, bf16 ? Tensor::BF16 : Tensor::FP16, Device::cuda((int)deviceId));
     }
 
     bool isBF16() {

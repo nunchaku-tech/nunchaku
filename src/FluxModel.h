@@ -158,9 +158,17 @@ private:
     GEMM mlp_context_fc1, mlp_context_fc2;
 };
 
+struct FluxConfig {
+    int num_layers;
+    int num_single_layers;
+    int num_attention_heads;
+    int attention_head_dim;
+    bool use_fp4;
+};
+
 class FluxModel : public Module {
 public:
-    FluxModel(bool use_fp4, bool offload, Tensor::ScalarType dtype, Device device);
+    FluxModel(FluxConfig config, bool offload, Tensor::ScalarType dtype, Device device);
     Tensor forward(Tensor hidden_states,
                    Tensor encoder_hidden_states,
                    Tensor temb,
@@ -184,6 +192,7 @@ public:
 
 public:
     const Tensor::ScalarType dtype;
+    const FluxConfig config;
 
     std::vector<std::unique_ptr<JointTransformerBlock>> transformer_blocks;
     std::vector<std::unique_ptr<FluxSingleTransformerBlock>> single_transformer_blocks;

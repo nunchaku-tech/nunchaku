@@ -262,6 +262,7 @@ class EmbedND(nn.Module):
 
 
 def load_quantized_module(
+    net: FluxTransformer2DModel,
     path_or_state_dict: str | os.PathLike[str] | dict[str, torch.Tensor],
     device: str | torch.device = "cuda",
     use_fp4: bool = False,
@@ -272,7 +273,7 @@ def load_quantized_module(
     assert device.type == "cuda"
     m = QuantizedFluxModel()
     cutils.disable_memory_auto_release()
-    m.init(use_fp4, offload, bf16, 0 if device.index is None else device.index)
+    m.init(net.config, use_fp4, offload, bf16, 0 if device.index is None else device.index)
     if isinstance(path_or_state_dict, dict):
         m.loadDict(path_or_state_dict, True)
     else:
@@ -377,6 +378,7 @@ class NunchakuFluxTransformer2dModel(FluxTransformer2DModel, NunchakuModelLoader
                 new_quantized_part_sd[k] = v
         transformer._quantized_part_sd = new_quantized_part_sd
         m = load_quantized_module(
+            transformer,
             quantized_part_sd,
             device=device,
             use_fp4=precision == "fp4",
