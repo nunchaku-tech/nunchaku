@@ -46,4 +46,4 @@ jobs:
           pip install huggingface_hub modelscope
       - name: Sync HF Repo ${{ matrix.repo }}
         run: |
-          MODELSCOPE_TOKEN=${{ secrets.MODELSCOPE_TOKEN }} python sync_hf_to_ms.py --repo ${{ matrix.repo }}
+          MODELSCOPE_TOKEN=${{ secrets.MODELSCOPE_TOKEN }} python scripts/sync_hf_to_ms.py --repo ${{ matrix.repo }}
