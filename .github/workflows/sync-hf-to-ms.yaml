@@ -47,4 +47,4 @@ jobs:
       - name: Sync HF Repo ${{ matrix.repo }}
         run: |
           cd scripts
-          HF_TOKEN=${{ secrets.HF_TOKEN }} MODELSCOPE_TOKEN=${{ secrets.MODELSCOPE_TOKEN }} python scripts/sync_hf_to_ms.py --repo ${{ matrix.repo }}
+          HF_TOKEN=${{ secrets.HF_TOKEN }} MODELSCOPE_TOKEN=${{ secrets.MODELSCOPE_TOKEN }} python sync_hf_to_ms.py --repo ${{ matrix.repo }}
