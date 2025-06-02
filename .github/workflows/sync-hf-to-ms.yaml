@@ -43,7 +43,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install huggingface_hub modelscope hf_
+          pip install huggingface_hub modelscope hf_xet
       - name: Sync HF Repo ${{ matrix.repo }}
         run: |
           cd scripts
