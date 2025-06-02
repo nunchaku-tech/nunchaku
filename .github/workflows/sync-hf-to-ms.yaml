@@ -29,8 +29,8 @@ jobs:
           - svdq-int4-flux.1-depth-dev
           - svdq-fp4-flux.1-canny-dev
           - svdq-int4-flux.1-canny-dev
-          - svdq-fp4-flux.1-shuttle-jaguar
-          - svdq-int4-flux.1-shuttle-jaguar
+          - svdq-fp4-shuttle-jaguar
+          - svdq-int4-shuttle-jaguar
           - svdq-int4-sana-1600m
           - svdq-flux.1-schnell-pix2pix-turbo
     steps:
@@ -43,7 +43,8 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install huggingface_hub modelscope
+          pip install huggingface_hub modelscope hf_
       - name: Sync HF Repo ${{ matrix.repo }}
         run: |
-          MODELSCOPE_TOKEN=${{ secrets.MODELSCOPE_TOKEN }} python scripts/sync_hf_to_ms.py --repo ${{ matrix.repo }}
+          cd scripts
+          HF_TOKEN=${{ secrets.HF_TOKEN }} MODELSCOPE_TOKEN=${{ secrets.MODELSCOPE_TOKEN }} python scripts/sync_hf_to_ms.py --repo ${{ matrix.repo }}

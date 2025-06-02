@@ -6,7 +6,7 @@ from modelscope.hub.api import HubApi
 from modelscope.hub.constants import Licenses, ModelVisibility
 
 
-def sync_model(hf_repo, ms_repo):
+def sync_model(repo_name: str, hf_repo: str, ms_repo: str):
     print(f"\n🔄 Syncing {hf_repo} -> {ms_repo}")
 
     # Login to ModelScope
@@ -17,7 +17,7 @@ def sync_model(hf_repo, ms_repo):
     api.login(MODELSCOPE_TOKEN)
 
     # Download the model snapshot from Hugging Face
-    local_dir = snapshot_download(repo_id=hf_repo)
+    local_dir = snapshot_download(repo_id=hf_repo, cache_dir=repo_name, local_dir=repo_name)
     print(f"📥 Downloaded to: {local_dir}")
 
     # Check if the ModelScope repo already exists
@@ -59,4 +59,4 @@ if __name__ == "__main__":
         help="Name of the HuggingFace repository under mit-han-lab to sync to (e.g., `nunchaku`)",
     )
     args = parser.parse_args()
-    sync_model(f"mit-han-lab/{args.repo_name}", f"Lmxyy1999/{args.repo_name}")
+    sync_model(args.repo_name, f"mit-han-lab/{args.repo_name}", f"Lmxyy1999/{args.repo_name}")
