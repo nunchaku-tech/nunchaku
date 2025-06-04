@@ -1,5 +1,4 @@
 import functools
-import unittest
 
 from diffusers import DiffusionPipeline, FluxTransformer2DModel
 from torch import nn
@@ -35,17 +34,13 @@ def apply_cache_on_transformer(
             )
         ]
     )
-    dummy_single_transformer_blocks = nn.ModuleList()
+    transformer.cached_transformer_blocks = cached_transformer_blocks
 
     original_forward = transformer.forward
 
     @functools.wraps(original_forward)
     def new_forward(self, *args, **kwargs):
-        with (
-            unittest.mock.patch.object(self, "transformer_blocks", cached_transformer_blocks),
-            unittest.mock.patch.object(self, "single_transformer_blocks", dummy_single_transformer_blocks),
-        ):
-            return original_forward(*args, **kwargs)
+        return original_forward(*args, **kwargs)
 
     transformer.forward = new_forward.__get__(transformer)
     transformer._is_cached = True
