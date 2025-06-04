@@ -1,24 +1,29 @@
 <div style="display: flex; justify-content: center; align-items: center; text-align: center;">
     <div>
-        <h1 style="text-align: center;">
+        <!-- Logo Row -->
+        <div style="display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 10px;">
             <img src="https://github.com/mit-han-lab/nunchaku/raw/refs/heads/main/assets/nunchaku.svg"
                  alt="nunchaku logo"
-                 style="height: 100px; width: auto;"/>
+                 style="height: 110px; width: auto;"/>
             <img src="https://github.com/mit-han-lab/nunchaku/raw/refs/heads/main/assets/svdquant.svg"
                  alt="svdquant logo"
-                 style="height: 40px; width: auto;"/>
-            <br/>
-            FLUX.1-{model} Demo
-        </h1>
-        <h2>
-            SVDQuant: Absorbing Outliers by Low-Rank Components for 4-Bit Diffusion Models
-        </h2>
+                 style="height: 30px; width: auto;"/>
+        </div>
+
+        <!-- Title -->
+        <h1 style="margin-top: 0;">FLUX.1-{model} Demo</h1>
+
+        <!-- Device Info -->
         <div style="display: flex; justify-content: center; align-items: center; text-align: center;">
             {device_info}
         </div>
+
+        <!-- Notice -->
         <div style="display: flex; justify-content: center; align-items: center; text-align: center;">
             {notice}
         </div>
+
+        <!-- Count Info -->
         {count_info}
     </div>
 </div>
