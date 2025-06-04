@@ -77,7 +77,7 @@ jobs:
     strategy:
       matrix:
         python: ["3.10", "3.11", "3.12"]
-        torch: ["2.5", "2.6", "2.7"]
+        torch: ["2.5", "2.6", "2.7", "2.8"]
     steps:
       - name: Checkout to the tag
         uses: actions/checkout@v4
@@ -95,6 +95,11 @@ jobs:
             cuda_version="12.4"
           fi
           bash scripts/build_linux_wheel.sh ${{ matrix.python }} ${{ matrix.torch }} $cuda_version
+          if [[ "${{ matrix.torch }}" == "2.8" ]]; then
+            bash scripts/build_linux_wheel_torch2.8.sh ${{ matrix.python }} ${{ matrix.torch }} $cuda_version
+          else
+            bash scripts/build_linux_wheel.sh ${{ matrix.python }} ${{ matrix.torch }} $cuda_version
+          fi
       - name: Upload wheels to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -115,7 +120,7 @@ jobs:
     strategy:
       matrix:
         python: ["3.10", "3.11", "3.12"]
-        torch: ["2.5", "2.6", "2.7"]
+        torch: ["2.5", "2.6", "2.7", "2.8"]
     steps:
       - name: Checkout to the tag
         uses: actions/checkout@v4
@@ -129,13 +134,18 @@ jobs:
         shell: cmd
         run: |
           SET TORCH_VERSION=${{ matrix.torch }}
+          SET PYTHON_VERSION=${{ matrix.python }}
           IF "%TORCH_VERSION%"=="2.7" (
             SET CUDA_VERSION=12.8
           ) ELSE (
             SET CUDA_VERSION=12.4
           )
           call C:\Users\muyangl\miniconda3\condabin\activate.bat activate
-          call scripts\build_windows_wheel.cmd ${{ matrix.python }} %TORCH_VERSION% %CUDA_VERSION%
+          IF "%TORCH_VERSION%"=="2.8" (
+            call scripts\build_windows_wheel_torch2.8.cmd %PYTHON_VERSION% %TORCH_VERSION% %CUDA_VERSION%
+          ) ELSE (
+            call scripts\build_windows_wheel.cmd %PYTHON_VERSION% %TORCH_VERSION% %CUDA_VERSION%
+          )
       - name: Upload wheels to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
