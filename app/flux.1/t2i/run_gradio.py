@@ -9,7 +9,7 @@ import spaces
 import torch
 from peft.tuners import lora
 from utils import get_pipeline
-from vars import DEFAULT_HEIGHT, DEFAULT_WIDTH, EXAMPLES, MAX_SEED, PROMPT_TEMPLATES, SVDQ_LORA_PATHS
+from vars import DEFAULT_HEIGHT, DEFAULT_WIDTH, EXAMPLES, LORA_PATHS, MAX_SEED, PROMPT_TEMPLATES
 
 from nunchaku.models.safety_checker import SafetyChecker
 
@@ -97,7 +97,9 @@ def generate(
             else:
                 assert precision == "int4"
                 if lora_name != "None":
-                    pipeline.transformer.update_lora_params(SVDQ_LORA_PATHS[lora_name])
+                    lora_path = LORA_PATHS[lora_name]
+                    lora_path = os.path.join(lora_path["name_or_path"], lora_path["weight_name"])
+                    pipeline.transformer.update_lora_params(lora_path)
                     pipeline.transformer.set_lora_strength(lora_weight)
                 else:
                     pipeline.transformer.set_lora_strength(0)

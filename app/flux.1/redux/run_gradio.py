@@ -4,10 +4,6 @@ import random
 import time
 from datetime import datetime
 
-import GPUtil
-
-# import gradio last to avoid conflicts with other imports
-import gradio as gr
 import torch
 from diffusers import FluxPipeline, FluxPriorReduxPipeline
 from PIL import Image
@@ -15,6 +11,9 @@ from utils import get_args
 from vars import DEFAULT_GUIDANCE, DEFAULT_INFERENCE_STEP, EXAMPLES, MAX_SEED
 
 from nunchaku.models.transformers.transformer_flux import NunchakuFluxTransformer2dModel
+
+# import gradio last to avoid conflicts with other imports
+import gradio as gr  # noqa: isort: skip
 
 args = get_args()
 
@@ -29,7 +28,9 @@ if args.precision == "bf16":
 else:
     assert args.precision == "int4"
     pipeline_init_kwargs = {}
-    transformer = NunchakuFluxTransformer2dModel.from_pretrained("mit-han-lab/svdq-int4-flux.1-dev")
+    transformer = NunchakuFluxTransformer2dModel.from_pretrained(
+        "mit-han-lab/nunchaku-flux.1-dev/svdq-int4_r32-flux.1-dev.safetensors"
+    )
     pipeline = FluxPipeline.from_pretrained(
         "black-forest-labs/FLUX.1-dev",
         text_encoder=None,
@@ -79,11 +80,12 @@ def run(image, num_inference_steps: int, guidance_scale: float, seed: int) -> tu
 with gr.Blocks(css_paths="assets/style.css", title="SVDQuant Flux.1-redux-dev Demo") as demo:
     with open("assets/description.html", "r") as f:
         DESCRIPTION = f.read()
-    gpus = GPUtil.getGPUs()
-    if len(gpus) > 0:
-        gpu = gpus[0]
-        memory = gpu.memoryTotal / 1024
-        device_info = f"Running on {gpu.name} with {memory:.0f} GiB memory."
+    # Get the GPU properties
+    if torch.cuda.device_count() > 0:
+        gpu_properties = torch.cuda.get_device_properties(0)
+        gpu_memory = gpu_properties.total_memory / (1024**3)  # Convert to GiB
+        gpu_name = torch.cuda.get_device_name(0)
+        device_info = f"Running on {gpu_name} with {gpu_memory:.0f} GiB memory."
     else:
         device_info = "Running on CPU 🥶 This demo does not work on CPU."
 

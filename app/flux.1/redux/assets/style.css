@@ -1,7 +1,13 @@
 @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css');
 
-.gradio-container{max-width: 1200px !important}
-h1{text-align:center}
+.gradio-container {
+    max-width: 1200px !important;
+    margin: auto; /* Centers the element horizontally */
+}
+
+h1 {
+    text-align: center
+}
 
 .wrap.svelte-p4aq0j.svelte-p4aq0j {
     display: none;
@@ -22,8 +28,13 @@ h1{text-align:center}
 
 #accessibility {
     text-align: center; /* Center-aligns the text */
-    margin: auto;       /* Centers the element horizontally */
+    margin: auto; /* Centers the element horizontally */
 }
 
-#random_seed {height: 71px;}
-#run_button {height: 87px;}
+#random_seed {
+    height: 71px;
+}
+
+#run_button {
+    height: 87px;
+}

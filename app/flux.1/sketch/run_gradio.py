@@ -1,11 +1,9 @@
 # Changed from https://github.com/GaParmar/img2img-turbo/blob/main/gradio_sketch2image.py
 import os
 import random
-import tempfile
 import time
 from datetime import datetime
 
-import GPUtil
 import numpy as np
 import torch
 from flux_pix2pix_pipeline import FluxPix2pixTurboPipeline
@@ -33,12 +31,16 @@ if args.precision == "bf16":
 else:
     assert args.precision == "int4"
     pipeline_init_kwargs = {}
-    transformer = NunchakuFluxTransformer2dModel.from_pretrained("mit-han-lab/svdq-int4-flux.1-schnell")
+    transformer = NunchakuFluxTransformer2dModel.from_pretrained(
+        "mit-han-lab/nunchaku-flux.1-schnell/svdq-int4_r32-flux.1-schnell.safetensors"
+    )
     pipeline_init_kwargs["transformer"] = transformer
     if args.use_qencoder:
         from nunchaku.models.text_encoders.t5_encoder import NunchakuT5EncoderModel
 
-        text_encoder_2 = NunchakuT5EncoderModel.from_pretrained("mit-han-lab/svdq-flux.1-t5")
+        text_encoder_2 = NunchakuT5EncoderModel.from_pretrained(
+            "mit-han-lab/nunchaku-t5/awq-int4-flux.1-t5xxl.safetensors"
+        )
         pipeline_init_kwargs["text_encoder_2"] = text_encoder_2
 
     pipeline = FluxPix2pixTurboPipeline.from_pretrained(
@@ -53,14 +55,6 @@ else:
         alpha=DEFAULT_SKETCH_GUIDANCE,
     )
 safety_checker = SafetyChecker("cuda", disabled=args.no_safety_checker)
-
-
-def save_image(img):
-    if isinstance(img, dict):
-        img = img["composite"]
-    temp_file = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
-    img.save(temp_file.name)
-    return temp_file.name
 
 
 def run(image, prompt: str, prompt_template: str, sketch_guidance: float, seed: int) -> tuple[Image, str]:
@@ -116,11 +110,12 @@ def run(image, prompt: str, prompt_template: str, sketch_guidance: float, seed: 
 with gr.Blocks(css_paths="assets/style.css", title="SVDQuant Sketch-to-Image Demo") as demo:
     with open("assets/description.html", "r") as f:
         DESCRIPTION = f.read()
-    gpus = GPUtil.getGPUs()
-    if len(gpus) > 0:
-        gpu = gpus[0]
-        memory = gpu.memoryTotal / 1024
-        device_info = f"Running on {gpu.name} with {memory:.0f} GiB memory."
+    # Get the GPU properties
+    if torch.cuda.device_count() > 0:
+        gpu_properties = torch.cuda.get_device_properties(0)
+        gpu_memory = gpu_properties.total_memory / (1024**3)  # Convert to GiB
+        gpu_name = torch.cuda.get_device_name(0)
+        device_info = f"Running on {gpu_name} with {gpu_memory:.0f} GiB memory."
     else:
         device_info = "Running on CPU 🥶 This demo does not work on CPU."
     notice = '<strong>Notice:</strong>&nbsp;We will replace unsafe prompts with a default prompt: "A peaceful world."'
@@ -170,7 +165,6 @@ with gr.Blocks(css_paths="assets/style.css", title="SVDQuant Sketch-to-Image Dem
                 with gr.Row():
                     prompt = gr.Text(label="Prompt", placeholder="Enter your prompt", scale=6)
                     run_button = gr.Button("Run", scale=1, elem_id="run_button")
-            download_sketch = gr.DownloadButton("Download Sketch", scale=1, elem_id="download_sketch")
             with gr.Row():
                 style = gr.Dropdown(label="Style", choices=STYLE_NAMES, value=DEFAULT_STYLE_NAME, scale=1)
                 prompt_template = gr.Textbox(
@@ -207,7 +201,6 @@ with gr.Blocks(css_paths="assets/style.css", title="SVDQuant Sketch-to-Image Dem
                 )
                 latency_result = gr.Text(label="Inference Latency", show_label=True)
 
-            download_result = gr.DownloadButton("Download Result", elem_id="download_result")
             gr.Markdown("### Instructions")
             gr.Markdown("**1**. Enter a text prompt (e.g. a cat)")
             gr.Markdown("**2**. Start sketching")
@@ -235,8 +228,6 @@ with gr.Blocks(css_paths="assets/style.css", title="SVDQuant Sketch-to-Image Dem
         api_name=False,
     )
 
-    download_sketch.click(fn=save_image, inputs=canvas, outputs=download_sketch)
-    download_result.click(fn=save_image, inputs=result, outputs=download_result)
     gr.Markdown("MIT Accessibility: https://accessibility.mit.edu/", elem_id="accessibility")
 
 

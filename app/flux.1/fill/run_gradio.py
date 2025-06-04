@@ -4,7 +4,6 @@ import random
 import time
 from datetime import datetime
 
-import GPUtil
 import torch
 from diffusers import FluxFillPipeline
 from PIL import Image
@@ -26,12 +25,16 @@ if args.precision == "bf16":
 else:
     assert args.precision == "int4"
     pipeline_init_kwargs = {}
-    transformer = NunchakuFluxTransformer2dModel.from_pretrained("mit-han-lab/svdq-int4-flux.1-fill-dev")
+    transformer = NunchakuFluxTransformer2dModel.from_pretrained(
+        "mit-han-lab/nunchaku-flux.1-fill-dev/svdq-int4_r32-flux.1-fill-dev.safetensors"
+    )
     pipeline_init_kwargs["transformer"] = transformer
     if args.use_qencoder:
         from nunchaku.models.text_encoders.t5_encoder import NunchakuT5EncoderModel
 
-        text_encoder_2 = NunchakuT5EncoderModel.from_pretrained("mit-han-lab/svdq-flux.1-t5")
+        text_encoder_2 = NunchakuT5EncoderModel.from_pretrained(
+            "mit-han-lab/nunchaku-t5/awq-int4-flux.1-t5xxl.safetensors"
+        )
         pipeline_init_kwargs["text_encoder_2"] = text_encoder_2
 
     pipeline = FluxFillPipeline.from_pretrained(
@@ -97,11 +100,12 @@ def run(
 with gr.Blocks(css_paths="assets/style.css", title="SVDQuant Flux.1-Fill-dev Sketch-to-Image Demo") as demo:
     with open("assets/description.html", "r") as f:
         DESCRIPTION = f.read()
-    gpus = GPUtil.getGPUs()
-    if len(gpus) > 0:
-        gpu = gpus[0]
-        memory = gpu.memoryTotal / 1024
-        device_info = f"Running on {gpu.name} with {memory:.0f} GiB memory."
+    # Get the GPU properties
+    if torch.cuda.device_count() > 0:
+        gpu_properties = torch.cuda.get_device_properties(0)
+        gpu_memory = gpu_properties.total_memory / (1024**3)  # Convert to GiB
+        gpu_name = torch.cuda.get_device_name(0)
+        device_info = f"Running on {gpu_name} with {gpu_memory:.0f} GiB memory."
     else:
         device_info = "Running on CPU 🥶 This demo does not work on CPU."
     notice = '<strong>Notice:</strong>&nbsp;We will replace unsafe prompts with a default prompt: "A peaceful world."'

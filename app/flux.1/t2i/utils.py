@@ -52,7 +52,7 @@ def get_pipeline(
     elif model_name == "dev":
         if precision == "int4":
             transformer = NunchakuFluxTransformer2dModel.from_pretrained(
-                "mit-han-lab/nunchaku-flux.1-dev/svdq-int4_r32-flux.1-dev"
+                "mit-han-lab/nunchaku-flux.1-dev/svdq-int4_r32-flux.1-dev.safetensors"
             )
             if lora_name not in ["All", "None"]:
                 transformer.update_lora_params(SVDQ_LORA_PATHS[lora_name])
