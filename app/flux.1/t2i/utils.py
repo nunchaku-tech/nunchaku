@@ -28,17 +28,21 @@ def get_pipeline(
         if precision in ["int4", "fp4"]:
             assert torch.device(device).type == "cuda", "int4 only supported on CUDA devices"
             if precision == "int4":
-                transformer = NunchakuFluxTransformer2dModel.from_pretrained("mit-han-lab/svdq-int4-flux.1-schnell")
+                transformer = NunchakuFluxTransformer2dModel.from_pretrained(
+                    "mit-han-lab/nunchaku-flux.1-schnell/svdq-int4_r32-flux.1-schnell.safetensors"
+                )
             else:
                 assert precision == "fp4"
                 transformer = NunchakuFluxTransformer2dModel.from_pretrained(
-                    "mit-han-lab/svdq-fp4-flux.1-schnell", precision="fp4"
+                    "mit-han-lab/nunchaku-flux.1-schnell/svdq-fp4_r32-flux.1-schnell.safetensors", precision="fp4"
                 )
             pipeline_init_kwargs["transformer"] = transformer
             if use_qencoder:
                 from nunchaku.models.text_encoders.t5_encoder import NunchakuT5EncoderModel
 
-                text_encoder_2 = NunchakuT5EncoderModel.from_pretrained("mit-han-lab/svdq-flux.1-t5")
+                text_encoder_2 = NunchakuT5EncoderModel.from_pretrained(
+                    "mit-han-lab/nunchaku-t5/awq-int4-flux.1-t5xxl.safetensors"
+                )
                 pipeline_init_kwargs["text_encoder_2"] = text_encoder_2
         else:
             assert precision == "bf16"
@@ -47,7 +51,9 @@ def get_pipeline(
         )
     elif model_name == "dev":
         if precision == "int4":
-            transformer = NunchakuFluxTransformer2dModel.from_pretrained("mit-han-lab/svdq-int4-flux.1-dev")
+            transformer = NunchakuFluxTransformer2dModel.from_pretrained(
+                "mit-han-lab/nunchaku-flux.1-dev/svdq-int4_r32-flux.1-dev"
+            )
             if lora_name not in ["All", "None"]:
                 transformer.update_lora_params(SVDQ_LORA_PATHS[lora_name])
                 transformer.set_lora_strength(lora_weight)
@@ -55,7 +61,9 @@ def get_pipeline(
             if use_qencoder:
                 from nunchaku.models.text_encoders.t5_encoder import NunchakuT5EncoderModel
 
-                text_encoder_2 = NunchakuT5EncoderModel.from_pretrained("mit-han-lab/svdq-flux.1-t5")
+                text_encoder_2 = NunchakuT5EncoderModel.from_pretrained(
+                    "mit-han-lab/nunchaku-t5/awq-int4-flux.1-t5xxl.safetensors"
+                )
                 pipeline_init_kwargs["text_encoder_2"] = text_encoder_2
             pipeline = FluxPipeline.from_pretrained(
                 "black-forest-labs/FLUX.1-dev", torch_dtype=torch.bfloat16, **pipeline_init_kwargs
