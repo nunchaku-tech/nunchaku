@@ -919,6 +919,14 @@ std::tuple<Tensor, Tensor> FluxModel::forward_layer(size_t layer,
                                                     Tensor controlnet_block_samples,
                                                     Tensor controlnet_single_block_samples) {
 
+    if (offload && layer > 0) {
+        if (layer < transformer_blocks.size()) {
+            transformer_blocks.at(layer)->loadLazyParams();
+        } else {
+            transformer_blocks.at(layer - transformer_blocks.size())->loadLazyParams();
+        }
+    }
+
     if (layer < transformer_blocks.size()) {
         std::tie(hidden_states, encoder_hidden_states) = transformer_blocks.at(layer)->forward(
             hidden_states, encoder_hidden_states, temb, rotary_emb_img, rotary_emb_context, 0.0f);
@@ -952,6 +960,14 @@ std::tuple<Tensor, Tensor> FluxModel::forward_layer(size_t layer,
         auto slice = hidden_states.slice(1, txt_tokens, txt_tokens + img_tokens);
         slice      = kernels::add(slice, controlnet_single_block_samples[block_index]);
         hidden_states.slice(1, txt_tokens, txt_tokens + img_tokens).copy_(slice);
+    }
+
+    if (offload && layer > 0) {
+        if (layer < transformer_blocks.size()) {
+            transformer_blocks.at(layer)->releaseLazyParams();
+        } else {
+            transformer_blocks.at(layer - transformer_blocks.size())->releaseLazyParams();
+        }
     }
 
     return {hidden_states, encoder_hidden_states};

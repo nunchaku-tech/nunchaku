@@ -143,8 +143,16 @@ public:
         temb              = temb.contiguous();
         rotary_emb_single = rotary_emb_single.contiguous();
 
+        if (net->isOffloadEnabled()) {
+            net->single_transformer_blocks.at(idx)->loadLazyParams();
+        }
+
         Tensor result = net->single_transformer_blocks.at(idx)->forward(
             from_torch(hidden_states), from_torch(temb), from_torch(rotary_emb_single));
+
+        if (net->isOffloadEnabled()) {
+            net->single_transformer_blocks.at(idx)->releaseLazyParams();
+        }
 
         hidden_states = to_torch(result);
         Tensor::synchronizeDevice();
