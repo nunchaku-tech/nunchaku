@@ -125,7 +125,7 @@ If you're using a Blackwell GPU (e.g., 50-series GPUs), install a wheel with PyT
    pip install ninja wheel diffusers transformers accelerate sentencepiece protobuf huggingface_hub
 
    # For gradio demos
-   pip install peft opencv-python gradio spaces GPUtil
+   pip install peft opencv-python gradio spaces
    ```
 
    To enable NVFP4 on Blackwell GPUs (e.g., 50-series GPUs), please install nightly PyTorch>=2.7 with CUDA>=12.8. The installation command can be:

@@ -122,7 +122,7 @@ pip install https://huggingface.co/mit-han-lab/nunchaku/resolve/main/nunchaku-0.
    pip install ninja wheel diffusers transformers accelerate sentencepiece protobuf huggingface_hub
 
    # Gradio演示依赖
-   pip install peft opencv-python gradio spaces GPUtil
+   pip install peft opencv-python gradio spaces
    ```
 
    Blackwell用户需安装PyTorch>=2.7, CUDA>=12.8：
