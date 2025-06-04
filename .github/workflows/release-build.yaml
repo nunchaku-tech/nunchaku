@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.repository == 'mit-han-lab/nunchaku'
     outputs:
-      tag_name: ${{ steps.tag.outputs.tag_name }}
+      tag_name: ${{ steps.set-tag.outputs.tag_name }}
     steps:
       - name: Checkout main branch
         uses: actions/checkout@v4
@@ -20,17 +20,30 @@ jobs:
         id: version
         run: |
           version=$(grep '__version__' nunchaku/__version__.py | sed -E 's/.*"([^"]+)".*/\1/')
-          echo "Extracted version: $version"
           echo "version=$version" >> "$GITHUB_OUTPUT"
-      - name: Create and push tag
-        id: tag
+      - name: Check if tag exists
+        id: check-tag
+        run: |
+          tag_name="v${{ steps.version.outputs.version }}"
+          if git rev-parse "$tag_name" >/dev/null 2>&1; then
+            echo "Tag $tag_name already exists."
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Tag $tag_name does not exist."
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Create and push tag if not exists
+        if: steps.check-tag.outputs.exists == 'false'
         run: |
           tag_name="v${{ steps.version.outputs.version }}"
           git config user.name "github-actions"
           git config user.email "github-actions@users.noreply.github.com"
-          git tag $tag_name
-          git push origin $tag_name
-          echo "tag_name=$tag_name" >> "$GITHUB_OUTPUT"
+          git tag "$tag_name"
+          git push origin "$tag_name"
+      - name: Set tag_name output
+        id: set-tag
+        run: |
+          echo "tag_name=v${{ steps.version.outputs.version }}" >> "$GITHUB_OUTPUT"
   linux-wheels:
     name: Build the linux release wheels
     runs-on: [self-hosted, linux-build]
