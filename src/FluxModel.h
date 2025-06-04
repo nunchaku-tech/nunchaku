@@ -189,7 +189,9 @@ public:
     std::vector<std::unique_ptr<FluxSingleTransformerBlock>> single_transformer_blocks;
 
     std::function<Tensor(const Tensor &)> residual_callback;
-    bool isOffloadEnabled() const { return offload; }
+    bool isOffloadEnabled() const {
+        return offload;
+    }
 
 private:
     bool offload;
