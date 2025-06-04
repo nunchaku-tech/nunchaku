@@ -15,7 +15,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: chore/torch2.8wheels
+          ref: main
       - name: Extract version from __version__.py
         id: version
         run: |
@@ -51,8 +51,7 @@ jobs:
     strategy:
       matrix:
         python: ["3.10", "3.11", "3.12"]
-        torch: ["2.8"]
-#        torch: ["2.5", "2.6", "2.7"]
+        torch: ["2.5", "2.6", "2.7"]
     steps:
       - name: Checkout to the tag
         uses: actions/checkout@v4
@@ -94,8 +93,7 @@ jobs:
     strategy:
       matrix:
         python: ["3.10", "3.11", "3.12"]
-        torch: ["2.8"]
-#        torch: ["2.5", "2.6", "2.7"]
+        torch: ["2.5", "2.6", "2.7"]
     steps:
       - name: Checkout to the tag
         uses: actions/checkout@v4
