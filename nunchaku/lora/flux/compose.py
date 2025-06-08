@@ -5,12 +5,19 @@ import torch
 from safetensors.torch import save_file
 
 from .diffusers_converter import to_diffusers
-from .utils import is_nunchaku_format
+from .utils import is_nunchaku_format, load_state_dict_in_safetensors
 
 
 def compose_lora(
     loras: list[tuple[str | dict[str, torch.Tensor], float]], output_path: str | None = None
 ) -> dict[str, torch.Tensor]:
+    if len(loras) == 1:
+        if is_nunchaku_format(loras[0][0]) and (loras[0][1] - 1) < 1e-5:
+            if isinstance(loras[0][0], str):
+                return load_state_dict_in_safetensors(loras[0][0], device="cpu")
+            else:
+                return loras[0][0]
+
     composed = {}
     for lora, strength in loras:
         assert not is_nunchaku_format(lora)
