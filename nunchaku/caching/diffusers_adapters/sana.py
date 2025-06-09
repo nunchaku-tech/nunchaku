@@ -23,7 +23,11 @@ def apply_cache_on_transformer(transformer: SanaTransformer2DModel, *, residual_
 
     @functools.wraps(original_forward)
     def new_forward(self, *args, **kwargs):
-        with unittest.mock.patch.object(self, "transformer_blocks", cached_transformer_blocks):
+        cache_context = utils.get_current_cache_context()
+        if cache_context is not None:
+            with unittest.mock.patch.object(self, "transformer_blocks", cached_transformer_blocks):
+                return original_forward(*args, **kwargs)
+        else:
             return original_forward(*args, **kwargs)
 
     transformer.forward = new_forward.__get__(transformer)
