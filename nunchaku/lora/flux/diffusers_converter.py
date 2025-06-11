@@ -1,6 +1,6 @@
 import argparse
+import logging
 import os
-import warnings
 
 import torch
 from diffusers.loaders import FluxLoraLoaderMixin
@@ -9,12 +9,60 @@ from safetensors.torch import save_file
 
 from .utils import load_state_dict_in_safetensors
 
+# Get log level from environment variable (default to INFO)
+log_level = os.getenv("LOG_LEVEL", "INFO").upper()
+
+# Configure logging
+logging.basicConfig(level=getattr(logging, log_level, logging.INFO), format="%(asctime)s - %(levelname)s - %(message)s")
+logger = logging.getLogger(__name__)
+
+
+def handle_kohya_lora(state_dict: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
+    # first check if the state_dict is in the kohya format
+    # like: https://civitai.com/models/1118358?modelVersionId=1256866
+    if any([not k.startswith("lora_transformer_") for k in state_dict.keys()]):
+        return state_dict
+    else:
+        new_state_dict = {}
+        for k, v in state_dict.items():
+            new_k = k.replace("lora_transformer_", "transformer.")
+
+            new_k = new_k.replace("norm_out_", "norm_out.")
+
+            new_k = new_k.replace("time_text_embed_", "time_text_embed.")
+            new_k = new_k.replace("guidance_embedder_", "guidance_embedder.")
+            new_k = new_k.replace("text_embedder_", "text_embedder.")
+            new_k = new_k.replace("timestep_embedder_", "timestep_embedder.")
+
+            new_k = new_k.replace("single_transformer_blocks_", "single_transformer_blocks.")
+            new_k = new_k.replace("_attn_", ".attn.")
+            new_k = new_k.replace("_norm_linear.", ".norm.linear.")
+            new_k = new_k.replace("_proj_mlp.", ".proj_mlp.")
+            new_k = new_k.replace("_proj_out.", ".proj_out.")
+
+            new_k = new_k.replace("transformer_blocks_", "transformer_blocks.")
+            new_k = new_k.replace("to_out_0.", "to_out.0.")
+            new_k = new_k.replace("_ff_context_net_0_proj.", ".ff_context.net.0.proj.")
+            new_k = new_k.replace("_ff_context_net_2.", ".ff_context.net.2.")
+            new_k = new_k.replace("_ff_net_0_proj.", ".ff.net.0.proj.")
+            new_k = new_k.replace("_ff_net_2.", ".ff.net.2.")
+            new_k = new_k.replace("_norm1_context_linear.", ".norm1_context.linear.")
+            new_k = new_k.replace("_norm1_linear.", ".norm1.linear.")
+
+            new_k = new_k.replace(".lora_down.", ".lora_A.")
+            new_k = new_k.replace(".lora_up.", ".lora_B.")
+
+            new_state_dict[new_k] = v
+        return new_state_dict
+
 
 def to_diffusers(input_lora: str | dict[str, torch.Tensor], output_path: str | None = None) -> dict[str, torch.Tensor]:
     if isinstance(input_lora, str):
         tensors = load_state_dict_in_safetensors(input_lora, device="cpu")
     else:
         tensors = {k: v for k, v in input_lora.items()}
+
+    tensors = handle_kohya_lora(tensors)
 
     ### convert the FP8 tensors to BF16
     for k, v in tensors.items():
@@ -25,7 +73,14 @@ def to_diffusers(input_lora: str | dict[str, torch.Tensor], output_path: str | N
     new_tensors = convert_unet_state_dict_to_peft(new_tensors)
 
     if alphas is not None and len(alphas) > 0:
-        warnings.warn("Alpha values are not used in the conversion to diffusers format.")
+        for k, v in alphas.items():
+            key_A = k.replace(".alpha", ".lora_A.weight")
+            key_B = k.replace(".alpha", ".lora_B.weight")
+            assert key_A in new_tensors, f"Key {key_A} not found in new tensors."
+            assert key_B in new_tensors, f"Key {key_B} not found in new tensors."
+            rank = new_tensors[key_A].shape[0]
+            assert new_tensors[key_B].shape[1] == rank, f"Rank mismatch for {key_B}."
+            new_tensors[key_A] = new_tensors[key_A] * v / rank
 
     if output_path is not None:
         output_dir = os.path.dirname(os.path.abspath(output_path))
