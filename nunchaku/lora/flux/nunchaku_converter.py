@@ -443,9 +443,7 @@ def to_nunchaku(
         tensors = load_state_dict_in_safetensors(input_lora, device="cpu")
     else:
         tensors = input_lora
-    import ipdb
 
-    ipdb.set_trace()
     if is_nunchaku_format(tensors):
         logger.debug("Already in nunchaku format, no conversion needed.")
         converted = tensors

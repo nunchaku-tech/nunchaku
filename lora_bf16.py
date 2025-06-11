@@ -5,8 +5,15 @@ model_id = "black-forest-labs/FLUX.1-dev"
 
 pipe = FluxPipeline.from_pretrained(model_id, torch_dtype=torch.bfloat16)
 
-# pipe.load_lora_weights("./loras/skin_texture.safetensors", adapter_name="default")
-# pipe.set_adapters(["default"], adapter_weights=[10])
+import ipdb
+
+ipdb.set_trace()
+
+pipe.load_lora_weights("./loras/skin_texture.safetensors", adapter_name="default")
+pipe.set_adapters(["default"], adapter_weights=[10])
+
+# with open("flux.txt", "w") as f:
+#     f.write(str(pipe.transformer) + "\n")
 
 pipe.enable_model_cpu_offload()
 

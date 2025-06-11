@@ -14,7 +14,7 @@ if __name__ == "__main__":
     output_dir = os.path.dirname(os.path.abspath(output_path))
     os.makedirs(output_dir, exist_ok=True)
     with open(output_path, "w") as f:
-        for k in keys:
+        for k in sorted(keys):
             v = tensors[k]
             if v.ndim == 1:
                 print(k, v.abs().sum())
