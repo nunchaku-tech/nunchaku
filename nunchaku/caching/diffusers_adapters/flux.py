@@ -47,14 +47,14 @@ def apply_cache_on_transformer(
                 unittest.mock.patch.object(self, "transformer_blocks", cached_transformer_blocks),
                 unittest.mock.patch.object(self, "single_transformer_blocks", dummy_single_transformer_blocks),
             ):
+                transformer._is_cached = True
+                transformer.cached_transformer_blocks = cached_transformer_blocks
+                transformer.single_transformer_blocks = dummy_single_transformer_blocks
                 return original_forward(*args, **kwargs)
         else:
             return original_forward(*args, **kwargs)
 
     transformer.forward = new_forward.__get__(transformer)
-    transformer.cached_transformer_blocks = cached_transformer_blocks
-    transformer.single_transformer_blocks = dummy_single_transformer_blocks
-    transformer._is_cached = True
 
     return transformer
 
