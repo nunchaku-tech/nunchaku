@@ -1,3 +1,4 @@
+import gc
 from types import MethodType
 
 import numpy as np
@@ -15,6 +16,8 @@ from nunchaku.utils import get_precision, is_turing
 
 @pytest.mark.skipif(is_turing(), reason="Skip tests due to using Turing GPUs")
 def test_flux_dev_pulid():
+    gc.collect()
+    torch.cuda.empty_cache()
     precision = get_precision()  # auto-detect your precision is 'int4' or 'fp4' based on your GPU
     transformer = NunchakuFluxTransformer2dModel.from_pretrained(
         f"mit-han-lab/nunchaku-flux.1-dev/svdq-{precision}_r32-flux.1-dev.safetensors"
