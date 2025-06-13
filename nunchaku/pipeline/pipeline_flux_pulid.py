@@ -1,6 +1,8 @@
 # Adapted from https://github.com/ToTheBeginning/PuLID/blob/main/pulid/pipeline.py
 import gc
+import logging
 import os
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Union
 
 import cv2
@@ -14,21 +16,19 @@ from diffusers.pipelines.flux.pipeline_output import FluxPipelineOutput
 from diffusers.utils import replace_example_docstring
 from facexlib.parsing import init_parsing_model
 from facexlib.utils.face_restoration_helper import FaceRestoreHelper
-from huggingface_hub import hf_hub_download, snapshot_download
+from huggingface_hub import snapshot_download
+from huggingface_hub.constants import HUGGINGFACE_HUB_CACHE
 from insightface.app import FaceAnalysis
-from safetensors.torch import load_file
 from torch import nn
 from torchvision.transforms import InterpolationMode
 from torchvision.transforms.functional import normalize, resize
-from pathlib import Path
+
 from ..models.pulid.encoders_transformer import IDFormer, PerceiverAttentionCA
 from ..models.pulid.eva_clip import create_model_and_transforms
 from ..models.pulid.eva_clip.constants import OPENAI_DATASET_MEAN, OPENAI_DATASET_STD
 from ..models.pulid.utils import img2tensor, resize_numpy_image_long, tensor2img
 from ..models.transformers import NunchakuFluxTransformer2dModel
 from ..utils import load_state_dict_in_safetensors
-import logging
-from huggingface_hub.constants import HUGGINGFACE_HUB_CACHE
 
 # Get log level from environment variable (default to INFO)
 log_level = os.getenv("LOG_LEVEL", "INFO").upper()
