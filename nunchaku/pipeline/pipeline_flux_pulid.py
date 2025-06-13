@@ -48,7 +48,7 @@ class PuLIDPipeline(nn.Module):
         pulid_path: str | os.PathLike[str] = "guozinan/PuLID/pulid_flux_v0.9.1.safetensors",
         eva_clip_path: str | os.PathLike[str] = "QuanSun/EVA-CLIP/EVA02_CLIP_L_336_psz14_s6B.pt",
         insightface_dirpath: str | os.PathLike[str] | None = None,
-        facexlib_path: str | os.PathLike[str] | None = None,
+        facexlib_dirpath: str | os.PathLike[str] | None = None,
     ):
         super().__init__()
         self.device = device
@@ -73,9 +73,9 @@ class PuLIDPipeline(nn.Module):
         # preprocessors
         # face align and parsing
 
-        if facexlib_path is None:
-            facexlib_path = Path(HUGGINGFACE_HUB_CACHE) / "facexlib"
-        facexlib_path = Path(facexlib_path)
+        if facexlib_dirpath is None:
+            facexlib_dirpath = Path(HUGGINGFACE_HUB_CACHE) / "facexlib"
+        facexlib_dirpath = Path(facexlib_dirpath)
 
         self.face_helper = FaceRestoreHelper(
             upscale_factor=1,
@@ -84,11 +84,11 @@ class PuLIDPipeline(nn.Module):
             det_model="retinaface_resnet50",
             save_ext="png",
             device=self.device,
-            model_rootpath=str(facexlib_path),
+            model_rootpath=str(facexlib_dirpath),
         )
         self.face_helper.face_parse = None
         self.face_helper.face_parse = init_parsing_model(
-            model_name="bisenet", device=self.device, model_rootpath=str(facexlib_path)
+            model_name="bisenet", device=self.device, model_rootpath=str(facexlib_dirpath)
         )
 
         # clip-vit backbone
