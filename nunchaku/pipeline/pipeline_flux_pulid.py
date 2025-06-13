@@ -72,6 +72,11 @@ class PuLIDPipeline(nn.Module):
 
         # preprocessors
         # face align and parsing
+
+        if facexlib_path is None:
+            facexlib_path = Path(HUGGINGFACE_HUB_CACHE) / "facexlib"
+        facexlib_path = Path(facexlib_path)
+
         self.face_helper = FaceRestoreHelper(
             upscale_factor=1,
             face_size=512,
@@ -79,12 +84,17 @@ class PuLIDPipeline(nn.Module):
             det_model="retinaface_resnet50",
             save_ext="png",
             device=self.device,
+            model_rootpath=str(facexlib_path),
         )
         self.face_helper.face_parse = None
-        self.face_helper.face_parse = init_parsing_model(model_name="bisenet", device=self.device)
+        self.face_helper.face_parse = init_parsing_model(
+            model_name="bisenet", device=self.device, model_rootpath=str(facexlib_path)
+        )
 
         # clip-vit backbone
-        model, _, _ = create_model_and_transforms("EVA02-CLIP-L-14-336", "eva_clip", force_custom_clip=True)
+        model, _, _ = create_model_and_transforms(
+            "EVA02-CLIP-L-14-336", "eva_clip", force_custom_clip=True, pretrained_path=eva_clip_path
+        )
         model = model.visual
         self.clip_vision_model = model.to(self.device, dtype=self.weight_dtype)
         eva_transform_mean = getattr(self.clip_vision_model, "image_mean", OPENAI_DATASET_MEAN)
@@ -99,9 +109,7 @@ class PuLIDPipeline(nn.Module):
         # antelopev2
         if insightface_dirpath is None:
             insightface_dirpath = Path(HUGGINGFACE_HUB_CACHE) / "insightface"
-
-        if isinstance(insightface_dirpath, str):
-            insightface_dirpath = Path(insightface_dirpath)
+        insightface_dirpath = Path(insightface_dirpath)
 
         if insightface_dirpath is not None:
             antelopev2_dirpath = insightface_dirpath / "models" / "antelopev2"
@@ -114,9 +122,12 @@ class PuLIDPipeline(nn.Module):
         )
         self.app = FaceAnalysis(name="antelopev2", root=insightface_dirpath, providers=providers)
         self.app.prepare(ctx_id=0, det_size=(640, 640))
-        self.handler_ante = insightface.model_zoo.get_model(antelopev2_dirpath / "glintr100.onnx", providers=providers)
+        self.handler_ante = insightface.model_zoo.get_model(
+            str(antelopev2_dirpath / "glintr100.onnx"), providers=providers
+        )
         self.handler_ante.prepare(ctx_id=0)
 
+        # pulid model
         state_dict = load_state_dict_in_safetensors(pulid_path)
         module_state_dict = {}
 
@@ -237,8 +248,6 @@ class PuLIDFluxPipeline(FluxPipeline):
         pulid_device="cuda",
         weight_dtype=torch.bfloat16,
         onnx_provider="gpu",
-        pretrained_model=None,
-        folder_path="models",
     ):
         super().__init__(
             scheduler=scheduler,
@@ -263,9 +272,7 @@ class PuLIDFluxPipeline(FluxPipeline):
             device=self.pulid_device,
             weight_dtype=self.weight_dtype,
             onnx_provider=self.onnx_provider,
-            folder_path=folder_path,
         )
-        self.pulid_model.load_pretrain(pretrained_model)
 
     @torch.no_grad()
     @replace_example_docstring(EXAMPLE_DOC_STRING)
