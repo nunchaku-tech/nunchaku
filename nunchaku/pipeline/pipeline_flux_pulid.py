@@ -20,21 +20,39 @@ from safetensors.torch import load_file
 from torch import nn
 from torchvision.transforms import InterpolationMode
 from torchvision.transforms.functional import normalize, resize
-
+from pathlib import Path
 from ..models.pulid.encoders_transformer import IDFormer, PerceiverAttentionCA
 from ..models.pulid.eva_clip import create_model_and_transforms
 from ..models.pulid.eva_clip.constants import OPENAI_DATASET_MEAN, OPENAI_DATASET_STD
 from ..models.pulid.utils import img2tensor, resize_numpy_image_long, tensor2img
+from ..models.transformers import NunchakuFluxTransformer2dModel
+from ..utils import load_state_dict_in_safetensors
+import logging
+from huggingface_hub.constants import HUGGINGFACE_HUB_CACHE
+
+# Get log level from environment variable (default to INFO)
+log_level = os.getenv("LOG_LEVEL", "INFO").upper()
+
+# Configure logging
+logging.basicConfig(level=getattr(logging, log_level, logging.INFO), format="%(asctime)s - %(levelname)s - %(message)s")
+logger = logging.getLogger(__name__)
 
 
 class PuLIDPipeline(nn.Module):
     def __init__(
-        self, dit, device, weight_dtype=torch.bfloat16, onnx_provider="gpu", folder_path="models", *args, **kwargs
+        self,
+        dit: NunchakuFluxTransformer2dModel,
+        device: str | torch.device,
+        weight_dtype: str | torch.dtype = torch.bfloat16,
+        onnx_provider: str = "gpu",
+        pulid_path: str | os.PathLike[str] = "guozinan/PuLID/pulid_flux_v0.9.1.safetensors",
+        eva_clip_path: str | os.PathLike[str] = "QuanSun/EVA-CLIP/EVA02_CLIP_L_336_psz14_s6B.pt",
+        insightface_dirpath: str | os.PathLike[str] | None = None,
+        facexlib_path: str | os.PathLike[str] | None = None,
     ):
         super().__init__()
         self.device = device
         self.weight_dtype = weight_dtype
-        self.folder_path = folder_path
         double_interval = 2
         single_interval = 4
 
@@ -64,6 +82,7 @@ class PuLIDPipeline(nn.Module):
         )
         self.face_helper.face_parse = None
         self.face_helper.face_parse = init_parsing_model(model_name="bisenet", device=self.device)
+
         # clip-vit backbone
         model, _, _ = create_model_and_transforms("EVA02-CLIP-L-14-336", "eva_clip", force_custom_clip=True)
         model = model.visual
@@ -76,46 +95,49 @@ class PuLIDPipeline(nn.Module):
             eva_transform_std = (eva_transform_std,) * 3
         self.eva_transform_mean = eva_transform_mean
         self.eva_transform_std = eva_transform_std
+
         # antelopev2
-        antelopev2_path = os.path.join(folder_path, "insightface", "models", "antelopev2")
-        snapshot_download("DIAMONIK7777/antelopev2", local_dir=antelopev2_path)
+        if insightface_dirpath is None:
+            insightface_dirpath = Path(HUGGINGFACE_HUB_CACHE) / "insightface"
+
+        if isinstance(insightface_dirpath, str):
+            insightface_dirpath = Path(insightface_dirpath)
+
+        if insightface_dirpath is not None:
+            antelopev2_dirpath = insightface_dirpath / "models" / "antelopev2"
+        else:
+            antelopev2_dirpath = None
+
+        snapshot_download("DIAMONIK7777/antelopev2", local_dir=antelopev2_dirpath)
         providers = (
             ["CPUExecutionProvider"] if onnx_provider == "cpu" else ["CUDAExecutionProvider", "CPUExecutionProvider"]
         )
-        self.app = FaceAnalysis(name="antelopev2", root=os.path.join(folder_path, "insightface"), providers=providers)
+        self.app = FaceAnalysis(name="antelopev2", root=insightface_dirpath, providers=providers)
         self.app.prepare(ctx_id=0, det_size=(640, 640))
-        self.handler_ante = insightface.model_zoo.get_model(
-            os.path.join(antelopev2_path, "glintr100.onnx"), providers=providers
-        )
+        self.handler_ante = insightface.model_zoo.get_model(antelopev2_dirpath / "glintr100.onnx", providers=providers)
         self.handler_ante.prepare(ctx_id=0)
+
+        state_dict = load_state_dict_in_safetensors(pulid_path)
+        module_state_dict = {}
+
+        for k, v in state_dict.items():
+            module = k.split(".")[0]
+            module_state_dict.setdefault(module, {})
+            new_k = k[len(module) + 1 :]
+            module_state_dict[module][new_k] = v
+
+        for module in module_state_dict:
+            logging.debug(f"loading from {module}")
+            getattr(self, module).load_state_dict(module_state_dict[module], strict=True)
+
+        del state_dict
+        del module_state_dict
 
         gc.collect()
         torch.cuda.empty_cache()
 
         # other configs
         self.debug_img_list = []
-
-    def load_pretrain(self, pretrain_path=None, version="v0.9.1"):
-        hf_hub_download(
-            "guozinan/PuLID", f"pulid_flux_{version}.safetensors", local_dir=os.path.join(self.folder_path, "pulid")
-        )
-        ckpt_path = os.path.join(self.folder_path, "pulid", f"pulid_flux_{version}.safetensors")
-        if pretrain_path is not None:
-            ckpt_path = pretrain_path
-        state_dict = load_file(ckpt_path)
-        state_dict_dict = {}
-        for k, v in state_dict.items():
-            module = k.split(".")[0]
-            state_dict_dict.setdefault(module, {})
-            new_k = k[len(module) + 1 :]
-            state_dict_dict[module][new_k] = v
-
-        for module in state_dict_dict:
-            print(f"loading from {module}")
-            getattr(self, module).load_state_dict(state_dict_dict[module], strict=True)
-
-        del state_dict
-        del state_dict_dict
 
     def to_gray(self, img):
         x = 0.299 * img[:, 0:1] + 0.587 * img[:, 1:2] + 0.114 * img[:, 2:3]
