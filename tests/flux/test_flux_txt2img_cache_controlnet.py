@@ -1,3 +1,5 @@
+import gc
+
 import torch
 from diffusers import (
     AutoencoderKL,
@@ -88,6 +90,9 @@ txt2img_res = pipe(
     **params,
 ).images[0]
 txt2img_res.save("flux.1-dev-txt2img.jpg")
+
+gc.collect()
+torch.cuda.empty_cache()
 
 # cache
 apply_cache_on_pipe(
