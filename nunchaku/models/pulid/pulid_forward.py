@@ -24,6 +24,8 @@ def pulid_forward(
     controlnet_single_block_samples=None,
     return_dict: bool = True,
     controlnet_blocks_repeat: bool = False,
+    start_timestep: float | None = None,
+    end_timestep: float | None = None,
 ) -> Union[torch.FloatTensor, Transformer2DModelOutput]:
     """
     Copied from diffusers.models.flux.transformer_flux.py
@@ -52,6 +54,16 @@ def pulid_forward(
         `tuple` where the first element is the sample tensor.
     """
     hidden_states = self.x_embedder(hidden_states)
+
+    if timestep.numel() > 1:
+        timestep_float = timestep.flatten()[0].item()
+    else:
+        timestep_float = timestep.item()
+
+    if start_timestep is not None and start_timestep > timestep_float:
+        id_embeddings = None
+    if end_timestep is not None and end_timestep < timestep_float:
+        id_embeddings = None
 
     timestep = timestep.to(hidden_states.dtype) * 1000
     if guidance is not None:

@@ -81,7 +81,7 @@ class NunchakuFluxTransformerBlocks(nn.Module):
         self.id_weight = id_weight
         self.pulid_ca_idx = 0
         if self.id_embeddings is not None:
-            self.set_residual_callback()
+            self.set_pulid_residual_callback()
 
         original_dtype = hidden_states.dtype
         original_device = hidden_states.device
@@ -129,7 +129,7 @@ class NunchakuFluxTransformerBlocks(nn.Module):
         )
 
         if self.id_embeddings is not None:
-            self.reset_residual_callback()
+            self.reset_pulid_residual_callback()
 
         hidden_states = hidden_states.to(original_dtype).to(original_device)
 
@@ -194,7 +194,7 @@ class NunchakuFluxTransformerBlocks(nn.Module):
 
         return encoder_hidden_states, hidden_states
 
-    def set_residual_callback(self):
+    def set_pulid_residual_callback(self):
         id_embeddings = self.id_embeddings
         pulid_ca = self.pulid_ca
         pulid_ca_idx = [self.pulid_ca_idx]
@@ -208,7 +208,7 @@ class NunchakuFluxTransformerBlocks(nn.Module):
         self.callback_holder = callback
         self.m.set_residual_callback(callback)
 
-    def reset_residual_callback(self):
+    def reset_pulid_residual_callback(self):
         self.callback_holder = None
         self.m.set_residual_callback(None)
 
