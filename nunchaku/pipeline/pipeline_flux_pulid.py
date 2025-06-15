@@ -28,7 +28,7 @@ from ..models.pulid.eva_clip import create_model_and_transforms
 from ..models.pulid.eva_clip.constants import OPENAI_DATASET_MEAN, OPENAI_DATASET_STD
 from ..models.pulid.utils import img2tensor, resize_numpy_image_long, tensor2img
 from ..models.transformers import NunchakuFluxTransformer2dModel
-from ..utils import load_state_dict_in_safetensors
+from ..utils import load_state_dict_in_safetensors, sha256sum
 
 # Get log level from environment variable (default to INFO)
 log_level = os.getenv("LOG_LEVEL", "INFO").upper()
@@ -36,6 +36,31 @@ log_level = os.getenv("LOG_LEVEL", "INFO").upper()
 # Configure logging
 logging.basicConfig(level=getattr(logging, log_level, logging.INFO), format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
+
+
+def check_antelopev2_dir(antelopev2_dirpath: str | os.PathLike[str]) -> bool:
+    antelopev2_dirpath = Path(antelopev2_dirpath)
+    required_files = {
+        "1k3d68.onnx": "df5c06b8a0c12e422b2ed8947b8869faa4105387f199c477af038aa01f9a45cc",
+        "2d106det.onnx": "f001b856447c413801ef5c42091ed0cd516fcd21f2d6b79635b1e733a7109dbf",
+        "genderage.onnx": "4fde69b1c810857b88c64a335084f1c3fe8f01246c9a191b48c7bb756d6652fb",
+        "glintr100.onnx": "4ab1d6435d639628a6f3e5008dd4f929edf4c4124b1a7169e1048f9fef534cdf",
+        "scrfd_10g_bnkps.onnx": "5838f7fe053675b1c7a08b633df49e7af5495cee0493c7dcf6697200b85b5b91",
+    }
+
+    if not antelopev2_dirpath.is_dir():
+        logger.debug(f"Directory does not exist: {antelopev2_dirpath}")
+        return False
+
+    for filename, expected_hash in required_files.items():
+        filepath = antelopev2_dirpath / filename
+        if not filepath.exists():
+            logger.debug(f"Missing file: {filename}")
+            return False
+        if expected_hash != "<SKIP_HASH>" and not sha256sum(filepath) == expected_hash:
+            logger.debug(f"Hash mismatch for: {filename}")
+            return False
+    return True
 
 
 class PuLIDPipeline(nn.Module):
@@ -116,7 +141,8 @@ class PuLIDPipeline(nn.Module):
         else:
             antelopev2_dirpath = None
 
-        snapshot_download("DIAMONIK7777/antelopev2", local_dir=antelopev2_dirpath)
+        if antelopev2_dirpath is None or not check_antelopev2_dir(antelopev2_dirpath):
+            snapshot_download("DIAMONIK7777/antelopev2", local_dir=antelopev2_dirpath)
         providers = (
             ["CPUExecutionProvider"] if onnx_provider == "cpu" else ["CUDAExecutionProvider", "CPUExecutionProvider"]
         )
