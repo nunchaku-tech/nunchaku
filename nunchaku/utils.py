@@ -62,8 +62,8 @@ def load_state_dict_in_safetensors(
     with safetensors.safe_open(fetch_or_download(path), framework="pt", device=device) as f:
         metadata = f.metadata()
         for k in f.keys():
-            if len(del_filter_prefixs) > 0:
-                is_del = False
+            is_del = False
+            if len(del_filter_prefixs) > 0:      
                 for del_filter_prefix in del_filter_prefixs:
                     if del_filter_prefix in k:
                         is_del = True
