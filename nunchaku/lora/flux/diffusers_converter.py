@@ -60,7 +60,15 @@ def to_diffusers(input_lora: str | dict[str, torch.Tensor], output_path: str | N
     if isinstance(input_lora, str):
         tensors = load_state_dict_in_safetensors(input_lora, device="cpu", filter_prefix=filter_prefix, del_filter_prefixs=del_filter_prefixs)
     else:
-        tensors = {k: v for k, v in input_lora.items()}
+        tensors = {}
+        for k, v in input_lora.items():
+            del_key = False
+            if len(del_filter_prefixs) > 0:
+                for del_filter_prefix in del_filter_prefixs:
+                    if del_filter_prefix in k:
+                        del_key = True
+            if not del_key:
+                tensors[k] = v
 
     tensors = handle_kohya_lora(tensors)
 
