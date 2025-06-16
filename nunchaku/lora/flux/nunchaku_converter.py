@@ -444,6 +444,8 @@ def to_nunchaku(
     base_sd: str | dict[str, torch.Tensor],
     dtype: str | torch.dtype = torch.bfloat16,
     output_path: str | None = None,
+    filter_prefix: str = "",
+    del_filter_prefixs: list = []
 ) -> dict[str, torch.Tensor]:
     if isinstance(input_lora, str):
         tensors = load_state_dict_in_safetensors(input_lora, device="cpu")
@@ -453,7 +455,7 @@ def to_nunchaku(
         logger.debug("Already in nunchaku format, no conversion needed.")
         converted = tensors
     else:
-        extra_lora_dict = to_diffusers(tensors)
+        extra_lora_dict = to_diffusers(tensors, filter_prefix=filter_prefix, del_filter_prefixs=del_filter_prefixs)
 
         if isinstance(base_sd, str):
             orig_state_dict = load_state_dict_in_safetensors(base_sd)
