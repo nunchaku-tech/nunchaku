@@ -56,9 +56,9 @@ def handle_kohya_lora(state_dict: dict[str, torch.Tensor]) -> dict[str, torch.Te
         return new_state_dict
 
 
-def to_diffusers(input_lora: str | dict[str, torch.Tensor], output_path: str | None = None) -> dict[str, torch.Tensor]:
+def to_diffusers(input_lora: str | dict[str, torch.Tensor], output_path: str | None = None, filter_prefix: str = "") -> dict[str, torch.Tensor]:
     if isinstance(input_lora, str):
-        tensors = load_state_dict_in_safetensors(input_lora, device="cpu")
+        tensors = load_state_dict_in_safetensors(input_lora, device="cpu"， filter_prefix=filter_prefix)
     else:
         tensors = {k: v for k, v in input_lora.items()}
 
