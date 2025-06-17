@@ -13,8 +13,10 @@ copyright = "2025, Nunchaku Team"
 author = "Nunchaku Team"
 
 version_path = Path(__file__).parent.parent.parent / "nunchaku" / "__version__.py"
-version = eval(version_path.read_text().strip())
-release = version
+version_ns = {}
+exec(version_path.read_text(), {}, version_ns)
+version = release = version_ns["__version__"]
+# release = version
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -42,5 +44,7 @@ exclude_patterns = []
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
+# html_permalinks_icon = "<span>#</span>"
+# html_theme = "sphinxawesome_theme"
 html_theme = "furo"
 html_static_path = ["_static"]
