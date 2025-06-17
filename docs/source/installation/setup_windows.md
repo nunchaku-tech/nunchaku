@@ -1,8 +1,8 @@
 # Nunchaku Setup Guide (Windows)
 
-# Environment Setup
+## Environment Setup
 
-## 1. Install Cuda
+### 1. Install Cuda
 
 Download and install the latest CUDA Toolkit from the official [NVIDIA CUDA Downloads](https://developer.nvidia.com/cuda-downloads?target_os=Windows&target_arch=x86_64&target_version=Server2022&target_type=exe_local). After installation, verify the installation:
 
@@ -10,22 +10,22 @@ Download and install the latest CUDA Toolkit from the official [NVIDIA CUDA Down
 nvcc --version
 ```
 
-## 2. Install Visual Studio C++ Build Tools
+### 2. Install Visual Studio C++ Build Tools
 
 Download from the official [Visual Studio Build Tools page](https://visualstudio.microsoft.com/visual-cpp-build-tools/). During installation, select the following workloads:
 
 - **Desktop development with C++**
 - **C++ tools for Linux development**
 
-### 3. Git
+#### 3. Git
 
 Download Git from [https://git-scm.com/downloads/win](https://git-scm.com/downloads/win) and follow the installation steps.
 
-## 4. (Optional) Install Conda
+### 4. (Optional) Install Conda
 
 Conda helps manage Python environments. You can install either Anaconda or Miniconda from the [official site](https://www.anaconda.com/download/success).
 
-## 5. (Optional) Installing ComfyUI
+### 5. (Optional) Installing ComfyUI
 
 You may have some various ways to install ComfyUI. For example, I used ComfyUI CLI. Once Python is installed, you can install ComfyUI via the CLI:
 
@@ -40,9 +40,9 @@ To launch ComfyUI:
 comfy-cli launch
 ```
 
-# Installing Nunchaku
+## Installing Nunchaku
 
-## Step 1: Identify Your Python Environment
+### Step 1: Identify Your Python Environment
 
 To ensure correct installation, you need to find the Python interpreter used by ComfyUI. Launch ComfyUI and look for this line in the log:
 
@@ -57,7 +57,7 @@ Then verify the Python version and installed PyTorch version:
 "G:\ComfyuI\python\python.exe" -m pip show torch
 ```
 
-## Step 2: Install PyTorch (≥2.5) if you haven’t
+### Step 2: Install PyTorch (≥2.5) if you haven’t
 
 Install PyTorch appropriate for your setup
 
@@ -73,9 +73,9 @@ Install PyTorch appropriate for your setup
   "G:\ComfyuI\python\python.exe" -m pip install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu128
   ```
 
-## Step 3: Install Nunchaku
+### Step 3: Install Nunchaku
 
-### Prebuilt Wheels
+#### Prebuilt Wheels
 
 You can install Nunchaku wheels from one of the following:
 
@@ -102,7 +102,7 @@ You can also run a test (requires a Hugging Face token for downloading the model
 "G:\ComfyuI\python\python.exe" -m nunchaku.test
 ```
 
-### (Alternative) Build Nunchaku from Source
+#### (Alternative) Build Nunchaku from Source
 
 Please use CMD instead of PowerShell for building.
 
@@ -165,9 +165,9 @@ Please use CMD instead of PowerShell for building.
   "G:\ComfyuI\python\python.exe" python -m build --wheel --no-isolation
   ```
 
-# Use Nunchaku in ComfyUI
+## Use Nunchaku in ComfyUI
 
-## 1. Install the Plugin
+### 1. Install the Plugin
 
 Clone the [ComfyUI-Nunchaku](https://github.com/mit-han-lab/ComfyUI-nunchaku) plugin into the `custom_nodes` folder:
 
@@ -178,7 +178,7 @@ git clone https://github.com/mit-han-lab/ComfyUI-nunchaku.git
 
 Alternatively, install using [ComfyUI-Manager](https://github.com/Comfy-Org/ComfyUI-Manager) or `comfy-cli`.
 
-## 2. Download Models
+### 2. Download Models
 
 - **Standard FLUX.1-dev Models**
 
@@ -213,7 +213,7 @@ Alternatively, install using [ComfyUI-Manager](https://github.com/Comfy-Org/Comf
   huggingface-cli download aleksa-codes/flux-ghibsky-illustration lora.safetensors --local-dir models/loras
   ```
 
-## 3. Set Up Workflows
+### 3. Set Up Workflows
 
 To use the official workflows, download them from the [ComfyUI-nunchaku](https://github.com/mit-han-lab/ComfyUI-nunchaku/tree/main/workflows) and place them in your `ComfyUI/user/default/workflows` directory. The command can be
 
@@ -224,7 +224,7 @@ cp -r custom_nodes/ComfyUI-nunchaku/workflows user/default/workflows/nunchaku_ex
 
 You can now launch ComfyUI and try running the example workflows.
 
-# Troubleshooting
+## Troubleshooting
 
 If you encounter issues, refer to our:
 

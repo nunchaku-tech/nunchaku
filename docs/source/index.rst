@@ -1,25 +1,17 @@
 .. nunchaku documentation master file
 
-Welcome to Nunchaku's documentation!
+Nunchaku's Documentation
 ====================================
+**Nunchaku** is a high-performance inference engine optimized for low-bit diffusion models and LLMs,
+as introduced in our paper `SVDQuant <http://arxiv.org/abs/2411.05007>`_.
+Check out `DeepCompressor <https://github.com/mit-han-lab/deepcompressor>`_ for the quantization library.
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
+   :caption: Installation
 
-   modules
-   cpp_api
+   installation/installation.md
+   installation/setup_windows.md
 
-Python API Reference
-====================
 
-.. automodule:: nunchaku
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-C++/CUDA API Reference
-======================
-
-.. doxygenindex::
 
