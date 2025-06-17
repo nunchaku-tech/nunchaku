@@ -6,7 +6,7 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any, Callable, Dict, Optional, Union
 
 import diffusers
 import torch
@@ -645,7 +645,7 @@ class NunchakuFluxTransformer2dModel(FluxTransformer2DModel, NunchakuModelLoader
 
         return self
 
-    def set_attention_impl(self, impl: str):
+    def set_attention_impl(self, impl: str, attn_func: Optional[Callable[[torch.Tensor], torch.Tensor]] = None):
         """
         Set the attention implementation for the quantized transformer block.
 
@@ -656,10 +656,15 @@ class NunchakuFluxTransformer2dModel(FluxTransformer2DModel, NunchakuModelLoader
 
             - ``"flashattn2"`` (default): Standard FlashAttention-2.
             - ``"nunchaku-fp16"``: Uses FP16 attention accumulation, up to 1.2× faster than FlashAttention-2 on NVIDIA 30-, 40-, and 50-series GPUs.
+            - ``"custom"``: Custom attention implementation, requires `attn_func` to be provided.
+
+        attn_func : Optional[Callable[[torch.Tensor], torch.Tensor]]
+            Custom attention function to use if `impl` is set to `"custom"`.
+            It should accept a single tensor `qkv` of shape `[batch, num_tokens, 3, num_heads, head_dim]` and return the attention output.
         """
         block = self.transformer_blocks[0]
         assert isinstance(block, NunchakuFluxTransformerBlocks)
-        block.m.setAttentionImpl(impl)
+        block.m.setAttentionImpl(impl, attn_func or (lambda *args: None))
 
     ### LoRA Related Functions
 
