@@ -15,7 +15,7 @@ Check out `DeepCompressor <https://github.com/mit-han-lab/deepcompressor>`_ for 
 
 .. toctree::
     :maxdepth: 2
-    :caption: Usage Examples
+    :caption: Basic Usage
 
 .. toctree::
     :maxdepth: 2
@@ -24,6 +24,14 @@ Check out `DeepCompressor <https://github.com/mit-han-lab/deepcompressor>`_ for 
 .. toctree::
     :maxdepth: 2
     :caption: Gradio Demos
+
+.. toctree::
+    :maxdepth: 1
+    :caption: ComfyUI Support
+
+.. toctree::
+    :maxdepth: 1
+    :caption: Customized Model Quantization
 
 .. toctree::
     :maxdepth: 2
