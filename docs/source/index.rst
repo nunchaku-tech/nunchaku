@@ -1,6 +1,4 @@
-.. nunchaku documentation master file
-
-Nunchaku's Documentation
+Nunchaku Documentation
 ====================================
 **Nunchaku** is a high-performance inference engine optimized for low-bit diffusion models and LLMs,
 as introduced in our paper `SVDQuant <http://arxiv.org/abs/2411.05007>`_.
@@ -16,6 +14,8 @@ Check out `DeepCompressor <https://github.com/mit-han-lab/deepcompressor>`_ for 
 .. toctree::
     :maxdepth: 2
     :caption: Basic Usage
+
+    basic_usage/basic_usage.rst
 
 .. toctree::
     :maxdepth: 2

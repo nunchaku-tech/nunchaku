@@ -48,19 +48,19 @@ To find the correct Python path:
 
 1. Check the console log—look for a line like:
 
-   ```
+   ```text
    ** Python executable: G:\ComfyUI\python\python.exe
    ```
 
 1. Use that executable to install the wheel manually:
 
-   ```cmd
+   ```bat
    "G:\ComfyUI\python\python.exe" -m pip install <your-wheel-file>.whl
    ```
 
 **Example:** Installing for Python 3.11 and PyTorch 2.7:
 
-```cmd
+```bat
 "G:\ComfyUI\python\python.exe" -m pip install https://github.com/mit-han-lab/nunchaku/releases/download/v0.3.1/nunchaku-0.3.1+torch2.7-cp311-cp311-linux_x86_64.whl
 ```
 
@@ -84,11 +84,11 @@ If you're using a **Blackwell (RTX 50-series)** GPU:
   - Windows: Latest **MSVC** via [Visual Studio](https://visualstudio.microsoft.com/visual-cpp-build-tools/)
 
 > Currently supported GPU architectures:
-> `sm_75` (Turing: RTX 2080),
-> `sm_80` (Ampere: A100),
-> `sm_86` (Ampere: RTX 3090, A6000),
-> `sm_89` (Ada: RTX 4090)
-> `sm_120` (Blackwell: RTX 5090)
+> * `sm_75` (Turing: RTX 2080)
+> * `sm_80` (Ampere: A100)
+> * `sm_86` (Ampere: RTX 3090, A6000)
+> * `sm_89` (Ada: RTX 4090)
+> * `sm_120` (Blackwell: RTX 5090)
 
 ### Step 1: Set Up Environment
 

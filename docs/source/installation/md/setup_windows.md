@@ -131,7 +131,7 @@ Please use CMD instead of PowerShell for building.
 
   Locate the `VsDevCmd.bat` script on your system. Example path:
 
-  ```bat
+  ```text
   C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\Common7\Tools\VsDevCmd.bat
   ```
 
