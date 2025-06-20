@@ -62,11 +62,11 @@ To find the correct Python path:
 
        "G:\ComfyUI\python\python.exe" -m pip install <your-wheel-file>.whl
 
-**Example:** Installing for Python 3.11 and PyTorch 2.7:
+    **Example:** Installing for Python 3.11 and PyTorch 2.7:
 
-.. code-block:: bat
+    .. code-block:: bat
 
-    "G:\ComfyUI\python\python.exe" -m pip install https://github.com/mit-han-lab/nunchaku/releases/download/v0.3.1/nunchaku-0.3.1+torch2.7-cp311-cp311-linux_x86_64.whl
+        "G:\ComfyUI\python\python.exe" -m pip install https://github.com/mit-han-lab/nunchaku/releases/download/v0.3.1/nunchaku-0.3.1+torch2.7-cp311-cp311-linux_x86_64.whl
 
 For Blackwell GPUs (50-series)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
