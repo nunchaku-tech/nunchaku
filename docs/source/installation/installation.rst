@@ -1,11 +1,7 @@
-.. _visualstudio: https://visualstudio.microsoft.com/visual-cpp-build-tools/
-.. _github-nunchaku: https://github.com/mit-han-lab/nunchaku
-.. _windows-setup-guide: ./setup_windows.rst
-
 Installation
 ============
 
-We provide step-by-step tutorial videos to help you install and use **Nunchaku on Windows**, available in both `English <https://youtu.be/YHAVe-oM7U8?si=cM9zaby_aEHiFXk0>`_ and `Chinese <https://www.bilibili.com/video/BV1BTocYjEk5/?share_source=copy_web&vd_source=8926212fef622f25cc95380515ac74ee>`_. You can also follow the corresponding text guide at `Window Setup Guide <windows-setup-guide_>`_. If you encounter any issues, these resources are a good place to start.
+We provide step-by-step tutorial videos to help you install and use **Nunchaku on Windows**, available in both `English <https://youtu.be/YHAVe-oM7U8?si=cM9zaby_aEHiFXk0>`_ and `Chinese <https://www.bilibili.com/video/BV1BTocYjEk5/?share_source=copy_web&vd_source=8926212fef622f25cc95380515ac74ee>`_. You can also follow the corresponding text guide at :doc:`Window Setup Guide <setup_windows>`. If you encounter any issues, these resources are a good place to start.
 
 (Recommended) Option 1: Installing Prebuilt Wheels
 --------------------------------------------------
@@ -38,13 +34,13 @@ For ComfyUI Users
 If you're using the **ComfyUI portable package**,
 ensure that ``nunchaku`` is installed into the Python environment bundled with ComfyUI. You can either:
 
-- Use our **NunchakuWheelInstaller Node** in `ComfyUI-nunchaku <https://github.com/mit-han-lab/ComfyUI-nunchaku>`_, or
+- Use our **NunchakuWheelInstaller Node** in `ComfyUI-nunchaku <https://github.com/mit-han-lab/ComfyUI-nunchaku>`__, or
 - Manually install the wheel using the correct Python path.
 
 Option 1: Using NunchakuWheelInstaller
 """"""""""""""""""""""""""""""""""""""
 
-With `ComfyUI-nunchaku v0.3.2+ <https://github.com/mit-han-lab/ComfyUI-nunchaku>`_, you can install Nunchaku using the provided `workflow <https://github.com/mit-han-lab/ComfyUI-nunchaku/blob/main/example_workflows/install_wheel.json>`_ directly in ComfyUI.
+With `ComfyUI-nunchaku v0.3.2+ <https://github.com/mit-han-lab/ComfyUI-nunchaku>`__, you can install Nunchaku using the provided `workflow <https://github.com/mit-han-lab/ComfyUI-nunchaku/blob/main/example_workflows/install_wheel.json>`__ directly in ComfyUI.
 
 .. image:: https://huggingface.co/mit-han-lab/nunchaku-artifacts/resolve/main/ComfyUI-nunchaku/assets/install_wheel.png
 
@@ -92,7 +88,7 @@ Requirements
   - **Blackwell GPUs**: CUDA ≥ 12.8 required
 - **Compiler**:
   - Linux: ``gcc/g++ ≥ 11``
-  - Windows: Latest **MSVC** via `Visual Studio <visualstudio_>`_
+  - Windows: Latest **MSVC** via `Visual Studio <https://visualstudio.microsoft.com/visual-cpp-build-tools/>`__
 
 .. note::
 
@@ -136,7 +132,7 @@ Step 2: Build and Install Nunchaku
 
     conda install -c conda-forge gxx=11 gcc=11
 
-For Windows users, download and install the latest `Visual Studio <visualstudio_>`_ and use its development environment. See `Window Setup Guide <windows-setup-guide_>`_ for more details.
+For Windows users, download and install the latest `Visual Studio <https://visualstudio.microsoft.com/visual-cpp-build-tools/>`__ and use its development environment. See :doc:`Window Setup Guide <setup_windows>` for more details.
 
 **Clone and build:**
 

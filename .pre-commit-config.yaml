@@ -63,12 +63,8 @@ repos:
     hooks:
       - id: doc8
         additional_dependencies: []
-  - repo: https://github.com/myint/rstcheck
-    rev: v6.2.5
+  - repo: https://github.com/rstcheck/rstcheck
+    rev: main # should be replaced with the current verison
     hooks:
       - id: rstcheck
-        name: rstcheck
-        entry: rstcheck
-        language: python
-        types: [rst]
-        additional_dependencies: []
+        additional_dependencies: ['rstcheck[sphinx,toml]']

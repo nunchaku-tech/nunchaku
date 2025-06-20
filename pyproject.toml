@@ -37,7 +37,6 @@ include = ["nunchaku"]
 
 [tool.rstcheck]
 ignore_directives = ["tabs"]
-report_level = "warning"
 
 [tool.doc8]
 max-line-length = 120

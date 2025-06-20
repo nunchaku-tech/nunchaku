@@ -68,7 +68,7 @@ Then verify the Python version and installed PyTorch version:
    "G:\ComfyuI\python\python.exe" --version
    "G:\ComfyuI\python\python.exe" -m pip show torch
 
-Step 2: Install PyTorch (≥2.5) if you haven’t
+Step 2: Install PyTorch (≥2.5) if you haven't
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Install PyTorch appropriate for your setup:
@@ -91,7 +91,7 @@ Step 3: Install Nunchaku
 Option 1: Use NunchakuWheelInstaller Node in ComfyUI
 """"""""""""""""""""""""""""""""""""""""""""""""""""
 
-With `ComfyUI-nunchaku v0.3.2+ <https://github.com/mit-han-lab/ComfyUI-nunchaku>`_, you can install Nunchaku using the provided `workflow <https://github.com/mit-han-lab/ComfyUI-nunchaku/blob/main/example_workflows/install_wheel.json>`_ directly in ComfyUI.
+With `ComfyUI-nunchaku v0.3.2+ <https://github.com/mit-han-lab/ComfyUI-nunchaku>`__, you can install Nunchaku using the provided `workflow <https://github.com/mit-han-lab/ComfyUI-nunchaku/blob/main/example_workflows/install_wheel.json>`__ directly in ComfyUI.
 
 .. image:: https://huggingface.co/mit-han-lab/nunchaku-artifacts/resolve/main/ComfyUI-nunchaku/assets/install_wheel.png
 
@@ -192,7 +192,7 @@ Use Nunchaku in ComfyUI
 1. Install the Plugin
 ^^^^^^^^^^^^^^^^^^^^^
 
-Clone the `ComfyUI-Nunchaku <https://github.com/mit-han-lab/ComfyUI-nunchaku>`_ plugin into the ``custom_nodes`` folder:
+Clone the `ComfyUI-nunchaku <https://github.com/mit-han-lab/ComfyUI-nunchaku>`__ plugin into the ``custom_nodes`` folder:
 
 .. code-block:: bat
 
@@ -228,7 +228,7 @@ Alternatively, install using `ComfyUI-Manager <https://github.com/Comfy-Org/Comf
 3. Set Up Workflows
 ^^^^^^^^^^^^^^^^^^^
 
-Download example workflows from `ComfyUI-nunchaku <https://github.com/mit-han-lab/ComfyUI-nunchaku>`_ and place them into ``ComfyUI/user/default/workflows``. Example:
+Download example workflows from `ComfyUI-nunchaku <https://github.com/mit-han-lab/ComfyUI-nunchaku>`__ and place them into ``ComfyUI/user/default/workflows``. Example:
 
 .. code-block:: bat
 
