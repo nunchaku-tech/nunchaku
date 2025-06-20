@@ -117,7 +117,7 @@ Please use CMD instead of PowerShell for building.
   ```bat
   "G:\ComfyuI\python\python.exe" -m pip install ninja setuptools wheel build
   ```
-  
+
 - Step 2: Clone the Repository
 
   ```bat
