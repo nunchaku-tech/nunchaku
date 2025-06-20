@@ -1,6 +1,5 @@
 .. _svdquant_paper: http://arxiv.org/abs/2411.05007
 .. _deepcompressor_repo: https://github.com/mit-han-lab/deepcompressor
-.. _deepcompressor_main: https://github.com/mit-han-lab/DeepCompressor
 .. _pytorch_home: https://pytorch.org/
 .. _flux_repo: https://github.com/black-forest-labs/flux
 .. _diffusers_repo: https://github.com/huggingface/diffusers

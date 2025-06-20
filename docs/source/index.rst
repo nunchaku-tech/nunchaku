@@ -19,6 +19,10 @@ Check out `DeepCompressor <deepcompressor_main_>`_ for the quantization library.
 
 .. toctree::
     :maxdepth: 2
+    :caption: FAQ
+
+.. toctree::
+    :maxdepth: 2
     :caption: Advanced Features
 
 .. toctree::
@@ -29,13 +33,13 @@ Check out `DeepCompressor <deepcompressor_main_>`_ for the quantization library.
     :maxdepth: 1
     :caption: ComfyUI Support
 
-    ComfyUI-nunchaku Plugin <comfyui_nunchaku_>
+    ComfyUI-nunchaku <comfyui_nunchaku_> Plugin
 
 .. toctree::
     :maxdepth: 1
     :caption: Customized Model Quantization
 
-    DeepCompressor <deepcompressor_main_>
+    DeepCompressor <deepcompressor_repo_>
 
 .. toctree::
     :maxdepth: 2

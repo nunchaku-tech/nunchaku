@@ -48,8 +48,8 @@ To launch ComfyUI:
 
    comfy launch
 
-Installing Nunchaku
--------------------
+Installing Nunchaku on Windows
+-------------------------------
 
 Step 1: Identify Your Python Environment
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -91,7 +91,7 @@ Step 3: Install Nunchaku
 Option 1: Use NunchakuWheelInstaller Node in ComfyUI
 """"""""""""""""""""""""""""""""""""""""""""""""""""
 
-With `ComfyUI-nunchaku <comfyui_nunchaku_>`_  v0.3.2+, you can install Nunchaku using the provided `workflow <comfyui_nunchaku_wheel_installation_workflow_>`__ directly in ComfyUI.
+With `ComfyUI-nunchaku <comfyui_nunchaku_>`_  v0.3.2+, you can install Nunchaku using the provided `workflow <comfyui_nunchaku_wheel_installation_workflow_>`_ directly in ComfyUI.
 
 .. image:: https://huggingface.co/mit-han-lab/nunchaku-artifacts/resolve/main/ComfyUI-nunchaku/assets/install_wheel.png
 
@@ -192,7 +192,7 @@ Use Nunchaku in ComfyUI
 1. Install the Plugin
 ^^^^^^^^^^^^^^^^^^^^^
 
-Clone the `ComfyUI-nunchaku <comfyui_nunchaku_>`__ plugin into the ``custom_nodes`` folder:
+Clone the `ComfyUI-nunchaku <comfyui_nunchaku_>`_ plugin into the ``custom_nodes`` folder:
 
 .. code-block:: bat
 
