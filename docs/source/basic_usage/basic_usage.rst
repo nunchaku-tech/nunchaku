@@ -1,8 +1,8 @@
 Basic Usage Example
 ====================
 
-The following is a minimal script for running 4-bit `FLUX.1 <https://github.com/black-forest-labs/flux>`_ using Nunchaku.
-Nunchaku provides the same API as `🤗 Diffusers <https://github.com/huggingface/diffusers>`_, so you can use it in a familiar way.
+The following is a minimal script for running 4-bit `FLUX.1 <flux_repo_>`_ using Nunchaku.
+Nunchaku provides the same API as `🤗 Diffusers <diffusers_repo_>`_, so you can use it in a familiar way.
 
 .. tabs::
 
@@ -23,3 +23,5 @@ Nunchaku provides the same API as `🤗 Diffusers <https://github.com/huggingfac
 .. note::
 
    If you're using a **Turing GPU (e.g., NVIDIA 20-series)**, set ``torch_dtype=torch.float16`` and use the ``nunchaku-fp16`` attention module instead.
+
+.. include:: ../links.rst

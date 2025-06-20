@@ -1,7 +1,7 @@
 Installation
 ============
 
-We provide step-by-step tutorial videos to help you install and use **Nunchaku on Windows**, available in both `English <https://youtu.be/YHAVe-oM7U8?si=cM9zaby_aEHiFXk0>`_ and `Chinese <https://www.bilibili.com/video/BV1BTocYjEk5/?share_source=copy_web&vd_source=8926212fef622f25cc95380515ac74ee>`_. You can also follow the corresponding text guide at :doc:`Window Setup Guide <setup_windows>`. If you encounter any issues, these resources are a good place to start.
+We provide step-by-step tutorial videos to help you install and use **Nunchaku on Windows**, available in both `English <nunchaku_windows_tutorial_en_>`_ and `Chinese <nunchaku_windows_tutorial_zh_>`_. You can also follow the corresponding text guide at :doc:`Window Setup Guide <setup_windows>`. If you encounter any issues, these resources are a good place to start.
 
 (Recommended) Option 1: Installing Prebuilt Wheels
 --------------------------------------------------
@@ -9,7 +9,7 @@ We provide step-by-step tutorial videos to help you install and use **Nunchaku o
 Prerequisites
 ^^^^^^^^^^^^^
 
-Ensure that you have `PyTorch ≥ 2.5 <https://pytorch.org/>`_ installed. For example, to install **PyTorch 2.7 with CUDA 12.8**, use:
+Ensure that you have `PyTorch ≥ 2.5 <pytorch_home_>`_ installed. For example, to install **PyTorch 2.7 with CUDA 12.8**, use:
 
 .. code-block:: shell
 
@@ -20,9 +20,9 @@ Installing Nunchaku
 
 Once PyTorch is installed, you can install ``nunchaku`` from one of the following sources:
 
-- `GitHub Releases <https://github.com/mit-han-lab/nunchaku/releases>`_
-- `Hugging Face <https://huggingface.co/mit-han-lab/nunchaku/tree/main>`_
-- `ModelScope <https://modelscope.cn/models/Lmxyy1999/nunchaku>`_
+- `GitHub Releases <nunchaku_github_releases_>`_
+- `Hugging Face <nunchaku_huggingface_>`_
+- `ModelScope <nunchaku_modelscope_>`_
 
 .. code-block:: shell
 
@@ -34,13 +34,13 @@ For ComfyUI Users
 If you're using the **ComfyUI portable package**,
 ensure that ``nunchaku`` is installed into the Python environment bundled with ComfyUI. You can either:
 
-- Use our **NunchakuWheelInstaller Node** in `ComfyUI-nunchaku <https://github.com/mit-han-lab/ComfyUI-nunchaku>`__, or
+- Use our **NunchakuWheelInstaller Node** in `ComfyUI-nunchaku <comfyui_nunchaku_>`_, or
 - Manually install the wheel using the correct Python path.
 
 Option 1: Using NunchakuWheelInstaller
 """"""""""""""""""""""""""""""""""""""
 
-With `ComfyUI-nunchaku v0.3.2+ <https://github.com/mit-han-lab/ComfyUI-nunchaku>`__, you can install Nunchaku using the provided `workflow <https://github.com/mit-han-lab/ComfyUI-nunchaku/blob/main/example_workflows/install_wheel.json>`__ directly in ComfyUI.
+With `ComfyUI-nunchaku v0.3.2+ <comfyui_nunchaku_>`_, you can install Nunchaku using the provided `workflow <comfyui_nunchaku_wheel_installation_workflow_>`__ directly in ComfyUI.
 
 .. image:: https://huggingface.co/mit-han-lab/nunchaku-artifacts/resolve/main/ComfyUI-nunchaku/assets/install_wheel.png
 
@@ -88,7 +88,7 @@ Requirements
   - **Blackwell GPUs**: CUDA ≥ 12.8 required
 - **Compiler**:
   - Linux: ``gcc/g++ ≥ 11``
-  - Windows: Latest **MSVC** via `Visual Studio <https://visualstudio.microsoft.com/visual-cpp-build-tools/>`__
+  - Windows: Latest **MSVC** via `Visual Studio <visual_studio_>`_
 
 .. note::
 
@@ -132,7 +132,7 @@ Step 2: Build and Install Nunchaku
 
     conda install -c conda-forge gxx=11 gcc=11
 
-For Windows users, download and install the latest `Visual Studio <https://visualstudio.microsoft.com/visual-cpp-build-tools/>`__ and use its development environment. See :doc:`Window Setup Guide <setup_windows>` for more details.
+For Windows users, download and install the latest `Visual Studio <visual_studio_>`_ and use its development environment. See :doc:`Window Setup Guide <setup_windows>` for more details.
 
 **Clone and build:**
 
@@ -153,3 +153,5 @@ For Windows users, download and install the latest `Visual Studio <https://visua
 .. important::
 
    Set ``NUNCHAKU_INSTALL_MODE=ALL`` to ensure the wheel works on all supported GPU architectures. Otherwise, it may only run on the GPU type used for building.
+
+.. include:: ../links.rst

@@ -40,6 +40,11 @@ extensions = [
 templates_path = ["_templates"]
 exclude_patterns = []
 
+# -- Include global link definitions -----------------------------------------
+rst_prolog = """
+.. include:: links.rst
+"""
+
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
