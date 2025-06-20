@@ -1,7 +1,11 @@
+.. _visualstudio: https://visualstudio.microsoft.com/visual-cpp-build-tools/
+.. _github-nunchaku: https://github.com/mit-han-lab/nunchaku
+.. _windows-setup-guide: ./setup_windows.rst
+
 Installation
 ============
 
-We provide step-by-step tutorial videos to help you install and use **Nunchaku on Windows**, available in both `English <https://youtu.be/YHAVe-oM7U8?si=cM9zaby_aEHiFXk0>`_ and `Chinese <https://www.bilibili.com/video/BV1BTocYjEk5/?share_source=copy_web&vd_source=8926212fef622f25cc95380515ac74ee>`_. You can also follow the corresponding text guide at `Window Setup Guide <./setup_windows.rst>`_. If you encounter any issues, these resources are a good place to start.
+We provide step-by-step tutorial videos to help you install and use **Nunchaku on Windows**, available in both `English <https://youtu.be/YHAVe-oM7U8?si=cM9zaby_aEHiFXk0>`_ and `Chinese <https://www.bilibili.com/video/BV1BTocYjEk5/?share_source=copy_web&vd_source=8926212fef622f25cc95380515ac74ee>`_. You can also follow the corresponding text guide at `Window Setup Guide <windows-setup-guide_>`_. If you encounter any issues, these resources are a good place to start.
 
 (Recommended) Option 1: Installing Prebuilt Wheels
 --------------------------------------------------
@@ -31,7 +35,8 @@ Once PyTorch is installed, you can install ``nunchaku`` from one of the followin
 For ComfyUI Users
 ^^^^^^^^^^^^^^^^^
 
-If you're using the **ComfyUI portable package**, ensure that ``nunchaku`` is installed into the Python environment bundled with ComfyUI. You can either:
+If you're using the **ComfyUI portable package**,
+ensure that ``nunchaku`` is installed into the Python environment bundled with ComfyUI. You can either:
 
 - Use our **NunchakuWheelInstaller Node** in `ComfyUI-nunchaku <https://github.com/mit-han-lab/ComfyUI-nunchaku>`_, or
 - Manually install the wheel using the correct Python path.
@@ -87,7 +92,7 @@ Requirements
   - **Blackwell GPUs**: CUDA ≥ 12.8 required
 - **Compiler**:
   - Linux: ``gcc/g++ ≥ 11``
-  - Windows: Latest **MSVC** via `Visual Studio <https://visualstudio.microsoft.com/visual-cpp-build-tools/>`_
+  - Windows: Latest **MSVC** via `Visual Studio <visualstudio_>`_
 
 .. note::
 
@@ -131,7 +136,7 @@ Step 2: Build and Install Nunchaku
 
     conda install -c conda-forge gxx=11 gcc=11
 
-For Windows users, download and install the latest `Visual Studio <https://visualstudio.microsoft.com/thank-you-downloading-visual-studio/?sku=Community&channel=Release&version=VS2022&source=VSLandingPage&cid=2030&passive=false>`_ and use its development environment. See `Window Setup Guide <./setup_windows.rst>`_ for more details.
+For Windows users, download and install the latest `Visual Studio <visualstudio_>`_ and use its development environment. See `Window Setup Guide <windows-setup-guide_>`_ for more details.
 
 **Clone and build:**
 

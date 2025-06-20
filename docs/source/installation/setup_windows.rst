@@ -34,7 +34,8 @@ Conda helps manage Python environments. You can install either Anaconda or Minic
 5. (Optional) Install ComfyUI
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-You may have various ways to install ComfyUI. For example, you can use ComfyUI CLI. Once Python is installed, you can install ComfyUI via the CLI:
+You may have various ways to install ComfyUI. For example, you can use ComfyUI CLI.
+Once Python is installed, you can install ComfyUI via the CLI:
 
 .. code-block:: bat
 
@@ -53,7 +54,8 @@ Installing Nunchaku
 Step 1: Identify Your Python Environment
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-To ensure correct installation, you need to find the Python interpreter used by ComfyUI. Launch ComfyUI and look for this line in the log:
+To ensure correct installation, you need to find the Python interpreter used by ComfyUI.
+Launch ComfyUI and look for this line in the log:
 
 .. code-block:: text
 
@@ -226,7 +228,7 @@ Alternatively, install using `ComfyUI-Manager <https://github.com/Comfy-Org/Comf
 3. Set Up Workflows
 ^^^^^^^^^^^^^^^^^^^
 
-Download workflows from `ComfyUI-nunchaku <https://github.com/mit-han-lab/ComfyUI-nunchaku/tree/main/workflows>`_ and place them into ``ComfyUI/user/default/workflows``. Example:
+Download example workflows from `ComfyUI-nunchaku <https://github.com/mit-han-lab/ComfyUI-nunchaku>`_ and place them into ``ComfyUI/user/default/workflows``. Example:
 
 .. code-block:: bat
 

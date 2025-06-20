@@ -58,18 +58,18 @@ repos:
     hooks:
       - id: mdformat
         name: (Markdown) Format docs with mdformat
-        #  - repo: https://github.com/PyCQA/doc8
-        #    rev: v2.0.0
-        #    hooks:
-        #      - id: doc8
-        #        args: ["--max-line-length=120"]
-        #        additional_dependencies: []
-#  - repo: https://github.com/myint/rstcheck
-#    rev: v6.2.5
-#    hooks:
-#      - id: rstcheck
-#        name: rstcheck
-#        entry: rstcheck
-#        language: python
-#        types: [rst]
-#        additional_dependencies: []
+  - repo: https://github.com/PyCQA/doc8
+    rev: v2.0.0
+    hooks:
+      - id: doc8
+        args: ["--max-line-length=120"]
+        additional_dependencies: []
+  - repo: https://github.com/myint/rstcheck
+    rev: v6.2.5
+    hooks:
+      - id: rstcheck
+        name: rstcheck
+        entry: rstcheck
+        language: python
+        types: [rst]
+        additional_dependencies: []
