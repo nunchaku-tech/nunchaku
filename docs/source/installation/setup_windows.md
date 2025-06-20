@@ -1,4 +1,4 @@
-# Nunchaku Setup Guide (Windows)
+# Nunchaku Windows Setup Guide
 
 ## Environment Setup
 
@@ -17,7 +17,7 @@ Download from the official [Visual Studio Build Tools page](https://visualstudio
 - **Desktop development with C++**
 - **C++ tools for Linux development**
 
-#### 3. Git
+#### 3. Install Git
 
 Download Git from [https://git-scm.com/downloads/win](https://git-scm.com/downloads/win) and follow the installation steps.
 
@@ -25,19 +25,19 @@ Download Git from [https://git-scm.com/downloads/win](https://git-scm.com/downlo
 
 Conda helps manage Python environments. You can install either Anaconda or Miniconda from the [official site](https://www.anaconda.com/download/success).
 
-### 5. (Optional) Installing ComfyUI
+### 5. (Optional) Install ComfyUI
 
 You may have some various ways to install ComfyUI. For example, I used ComfyUI CLI. Once Python is installed, you can install ComfyUI via the CLI:
 
-```shell
+```cmd
 pip install comfy-cli
-comfy-cli install
+comfy install
 ```
 
 To launch ComfyUI:
 
-```shell
-comfy-cli launch
+```cmd
+comfy launch
 ```
 
 ## Installing Nunchaku
@@ -75,7 +75,13 @@ Install PyTorch appropriate for your setup
 
 ### Step 3: Install Nunchaku
 
-#### Prebuilt Wheels
+#### Option 1: Use NunchakuWheelInstaller Node in ComfyUI
+
+With [ComfyUI-nunchaku v0.3.2+](https://github.com/mit-han-lab/ComfyUI-nunchaku), you can install Nunchaku using the provided [workflow](https://github.com/mit-han-lab/ComfyUI-nunchaku/blob/main/example_workflows/install_wheel.json) directly in ComfyUI. This automates installation once ComfyUI-nunchaku and its dependencies are set up.
+
+![install_wheel.png](https://huggingface.co/mit-han-lab/nunchaku-artifacts/resolve/main/ComfyUI-nunchaku/assets/install_wheel.png)
+
+#### Option 2: Manually Install Prebuilt Wheels
 
 You can install Nunchaku wheels from one of the following:
 
@@ -83,10 +89,10 @@ You can install Nunchaku wheels from one of the following:
 - [ModelScope](https://modelscope.cn/models/Lmxyy1999/nunchaku)
 - [GitHub Releases](https://github.com/mit-han-lab/nunchaku/releases)
 
-Example (for Python 3.10 + PyTorch 2.6):
+Example (for Python 3.11 + PyTorch 2.7):
 
-```bash
-"G:\ComfyuI\python\python.exe" -m pip install https://huggingface.co/mit-han-lab/nunchaku/resolve/main/nunchaku-0.2.0+torch2.6-cp310-cp310-win_amd64.whl
+```cmd
+"G:\ComfyUI\python\python.exe" -m pip install https://github.com/mit-han-lab/nunchaku/releases/download/v0.3.1/nunchaku-0.3.1+torch2.7-cp311-cp311-linux_x86_64.whl
 ```
 
 To verify the installation:
@@ -102,7 +108,7 @@ You can also run a test (requires a Hugging Face token for downloading the model
 "G:\ComfyuI\python\python.exe" -m nunchaku.test
 ```
 
-#### (Alternative) Build Nunchaku from Source
+#### Option 3: Build Nunchaku from Source
 
 Please use CMD instead of PowerShell for building.
 
@@ -176,7 +182,7 @@ cd ComfyUI/custom_nodes
 git clone https://github.com/mit-han-lab/ComfyUI-nunchaku.git
 ```
 
-Alternatively, install using [ComfyUI-Manager](https://github.com/Comfy-Org/ComfyUI-Manager) or `comfy-cli`.
+Alternatively, install it using [ComfyUI-Manager](https://github.com/Comfy-Org/ComfyUI-Manager) or `comfy-cli`.
 
 ### 2. Download Models
 
@@ -223,10 +229,3 @@ cp -r custom_nodes/ComfyUI-nunchaku/workflows user/default/workflows/nunchaku_ex
 ```
 
 You can now launch ComfyUI and try running the example workflows.
-
-## Troubleshooting
-
-If you encounter issues, refer to our:
-
-- [FAQs](https://github.com/mit-han-lab/nunchaku/discussions/262)
-- [GitHub Issues](https://github.com/mit-han-lab/nunchaku/issues)

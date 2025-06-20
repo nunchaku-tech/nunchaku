@@ -1,100 +1,142 @@
 # Installation
 
-We provide tutorial videos to help you install and use Nunchaku on Windows, available in both [**English**](https://youtu.be/YHAVe-oM7U8?si=cM9zaby_aEHiFXk0) and [**Chinese**](https://www.bilibili.com/video/BV1BTocYjEk5/?share_source=copy_web&vd_source=8926212fef622f25cc95380515ac74ee). You can also follow the corresponding step-by-step text guide at [`docs/setup_windows.md`](docs/setup_windows.md). If you run into issues, these resources are a good place to start.
+We provide step-by-step tutorial videos to help you install and use **Nunchaku on Windows**, available in both [**English**](https://youtu.be/YHAVe-oM7U8?si=cM9zaby_aEHiFXk0) and [**Chinese**](https://www.bilibili.com/video/BV1BTocYjEk5/?share_source=copy_web&vd_source=8926212fef622f25cc95380515ac74ee). You can also follow the corresponding text guide at [`setup_windows`](./setup_windows.md). If you encounter any issues, these resources are a good place to start.
 
-## Wheels
+## Option 1: Installing Prebuilt Wheels (Recommended)
 
 ### Prerequisites
 
-Before installation, ensure you have [PyTorch>=2.5](https://pytorch.org/) installed. For example, you can use the following command to install PyTorch 2.6:
+Ensure that you have [PyTorch ≥ 2.5](https://pytorch.org/) installed. For example, to install **PyTorch 2.7 with CUDA 12.8**, use:
 
 ```shell
-pip install torch==2.6 torchvision==0.21 torchaudio==2.6
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
 ```
 
-### Install nunchaku
+### Installing Nunchaku
 
-Once PyTorch is installed, you can directly install `nunchaku` from [Hugging Face](https://huggingface.co/mit-han-lab/nunchaku/tree/main), [ModelScope](https://modelscope.cn/models/Lmxyy1999/nunchaku) or [GitHub release](https://github.com/mit-han-lab/nunchaku/releases). Be sure to select the appropriate wheel for your Python and PyTorch version. For example, for Python 3.11 and PyTorch 2.6:
+Once PyTorch is installed, you can install `nunchaku` from one of the following sources:
+
+- [GitHub Releases](https://github.com/mit-han-lab/nunchaku/releases)
+
+- [Hugging Face](https://huggingface.co/mit-han-lab/nunchaku/tree/main)
+
+- [ModelScope](https://modelscope.cn/models/Lmxyy1999/nunchaku)
 
 ```shell
-pip install https://huggingface.co/mit-han-lab/nunchaku/resolve/main/nunchaku-0.2.0+torch2.6-cp311-cp311-linux_x86_64.whl
+pip install https://github.com/mit-han-lab/nunchaku/releases/download/v0.3.1/nunchaku-0.3.1+torch2.7-cp311-cp311-linux_x86_64.whl
 ```
 
 #### For ComfyUI Users
 
-If you're using the **ComfyUI portable package**, make sure to install `nunchaku` into the correct Python environment bundled with ComfyUI. To find the right Python path, launch ComfyUI and check the log output. You'll see something like this in the first several lines:
+If you're using the **ComfyUI portable package**, ensure that `nunchaku` is installed into the Python environment bundled with ComfyUI. You can either:
 
-```text
-** Python executable: G:\ComfyuI\python\python.exe
-```
+- Use our **NunchakuWheelInstaller Node** in [ComfyUI-nunchaku](https://github.com/mit-han-lab/ComfyUI-nunchaku), or
 
-Use that Python executable to install `nunchaku`:
+- Manually install the wheel using the correct Python path.
 
-```shell
-"G:\ComfyUI\python\python.exe" -m pip install <your-wheel-file>.whl
-```
+##### Option 1: Using NunchakuWheelInstaller
 
-**Example:** Installing for Python 3.11 and PyTorch 2.6:
+With [ComfyUI-nunchaku v0.3.2+](https://github.com/mit-han-lab/ComfyUI-nunchaku), you can install Nunchaku using the provided [workflow](https://github.com/mit-han-lab/ComfyUI-nunchaku/blob/main/example_workflows/install_wheel.json) directly in ComfyUI. This automates installation once ComfyUI-nunchaku and its dependencies are set up.
 
-```shell
-"G:\ComfyUI\python\python.exe" -m pip install https://github.com/mit-han-lab/nunchaku/releases/download/v0.2.0/nunchaku-0.2.0+torch2.6-cp311-cp311-linux_x86_64.whl
+![install_wheel.png](https://huggingface.co/mit-han-lab/nunchaku-artifacts/resolve/main/ComfyUI-nunchaku/assets/install_wheel.png)
+
+##### Option 2: Manual Installation
+
+To find the correct Python path:
+
+1. Launch ComfyUI.
+
+1. Check the console log—look for a line like:
+
+   ```
+   ** Python executable: G:\ComfyUI\python\python.exe
+   ```
+
+1. Use that executable to install the wheel manually:
+
+   ```cmd
+   "G:\ComfyUI\python\python.exe" -m pip install <your-wheel-file>.whl
+   ```
+
+**Example:** Installing for Python 3.11 and PyTorch 2.7:
+
+```cmd
+"G:\ComfyUI\python\python.exe" -m pip install https://github.com/mit-han-lab/nunchaku/releases/download/v0.3.1/nunchaku-0.3.1+torch2.7-cp311-cp311-linux_x86_64.whl
 ```
 
 #### For Blackwell GPUs (50-series)
 
-If you're using a Blackwell GPU (e.g., 50-series GPUs), install a wheel with PyTorch 2.7 and higher. Additionally, use **FP4 models** instead of INT4 models."
+If you're using a **Blackwell (RTX 50-series)** GPU:
 
-## Build from Source
+- Use **PyTorch ≥ 2.7** with **CUDA ≥ 12.8**.
+- Use **FP4 models** instead of **INT4 models** for best compatibility and performance.
 
-**Note**:
+## Option 2: Build from Source
 
-- Make sure your CUDA version is **at least 12.2 on Linux** and **at least 12.6 on Windows**. If you're using a Blackwell GPU (e.g., 50-series GPUs), CUDA **12.8 or higher is required**.
+### Requirements
 
-- For Windows users, please refer to [this issue](https://github.com/mit-han-lab/nunchaku/issues/6) for the instruction. Please upgrade your MSVC compiler to the latest version.
+- **CUDA version**:
+  - **Linux**: ≥ 12.2
+  - **Windows**: ≥ 12.6
+  - **Blackwell GPUs**: CUDA ≥ 12.8 required
+- **Compiler**:
+  - Linux: `gcc/g++ ≥ 11`
+  - Windows: Latest **MSVC** via [Visual Studio](https://visualstudio.microsoft.com/visual-cpp-build-tools/)
 
-- We currently support only NVIDIA GPUs with architectures sm_75 (Turing: RTX 2080), sm_86 (Ampere: RTX 3090, A6000), sm_89 (Ada: RTX 4090), and sm_80 (A100). See [this issue](https://github.com/mit-han-lab/nunchaku/issues/1) for more details.
+> Currently supported GPU architectures:
+> `sm_75` (Turing: RTX 2080),
+> `sm_80` (Ampere: A100),
+> `sm_86` (Ampere: RTX 3090, A6000),
+> `sm_89` (Ada: RTX 4090)
+> `sm_120` (Blackwell: RTX 5090)
 
-1. Install dependencies:
+### Step 1: Set Up Environment
 
-   ```shell
-   conda create -n nunchaku python=3.11
-   conda activate nunchaku
-   pip install torch torchvision torchaudio
-   pip install ninja wheel diffusers transformers accelerate sentencepiece protobuf huggingface_hub
+```shell
+conda create -n nunchaku python=3.11
+conda activate nunchaku
 
-   # For gradio demos
-   pip install peft opencv-python gradio spaces
-   ```
+# Install PyTorch
+pip install torch torchvision torchaudio
 
-   To enable NVFP4 on Blackwell GPUs (e.g., 50-series GPUs), please install nightly PyTorch>=2.7 with CUDA>=12.8. The installation command can be:
+# Install dependencies
+pip install ninja wheel diffusers transformers accelerate sentencepiece protobuf huggingface_hub
 
-   ```shell
-   pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
-   ```
+# Optional: For gradio demos
+pip install peft opencv-python gradio spaces
+```
 
-1. Install `nunchaku` package:
-   Make sure you have `gcc/g++>=11`. If you don't, you can install it via Conda on Linux:
+For Blackwell users (50-series), install PyTorch ≥ 2.7 with CUDA ≥ 12.8:
 
-   ```shell
-   conda install -c conda-forge gxx=11 gcc=11
-   ```
+```shell
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
+```
 
-   For Windows users, you can download and install the latest [Visual Studio](https://visualstudio.microsoft.com/thank-you-downloading-visual-studio/?sku=Community&channel=Release&version=VS2022&source=VSLandingPage&cid=2030&passive=false).
+### Step 2: Build and Install Nunchaku
 
-   Then build the package from source with
+**For Linux (if `gcc/g++` is not recent enough):**
 
-   ```shell
-   git clone https://github.com/mit-han-lab/nunchaku.git
-   cd nunchaku
-   git submodule init
-   git submodule update
-   python setup.py develop
-   ```
+```shell
+conda install -c conda-forge gxx=11 gcc=11
+```
 
-   If you are building wheels for distribution, use:
+For Windows users, you can download and install the latest [Visual Studio](https://visualstudio.microsoft.com/thank-you-downloading-visual-studio/?sku=Community&channel=Release&version=VS2022&source=VSLandingPage&cid=2030&passive=false) and use its development environment. See [`setup_windows.md`](./setup_windows.md) for more details.
 
-   ```shell
-   NUNCHAKU_INSTALL_MODE=ALL NUNCHAKU_BUILD_WHEELS=1 python -m build --wheel --no-isolation
-   ```
+**Clone and build:**
 
-   Make sure to set the environment variable `NUNCHAKU_INSTALL_MODE` to `ALL`. Otherwise, the generated wheels will only work on GPUs with the same architecture as the build machine.
+```shell
+git clone https://github.com/mit-han-lab/nunchaku.git
+cd nunchaku
+git submodule init
+git submodule update
+python setup.py develop
+```
+
+**To build a wheel for distribution:**
+
+```shell
+NUNCHAKU_INSTALL_MODE=ALL NUNCHAKU_BUILD_WHEELS=1 python -m build --wheel --no-isolation
+```
+
+> **Important:**
+> Set `NUNCHAKU_INSTALL_MODE=ALL` to ensure the wheel works on all supported GPU architectures. Otherwise, it may only run on the GPU type used for building.

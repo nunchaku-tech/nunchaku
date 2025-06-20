@@ -29,9 +29,13 @@ Check out `DeepCompressor <https://github.com/mit-han-lab/deepcompressor>`_ for 
     :maxdepth: 1
     :caption: ComfyUI Support
 
+    ComfyUI-nunchaku Plugin <https://github.com/mit-han-lab/ComfyUI-nunchaku>
+
 .. toctree::
     :maxdepth: 1
     :caption: Customized Model Quantization
+
+    DeepCompressor <https://github.com/mit-han-lab/DeepCompressor>
 
 .. toctree::
     :maxdepth: 2
@@ -40,4 +44,3 @@ Check out `DeepCompressor <https://github.com/mit-han-lab/deepcompressor>`_ for 
 .. toctree::
     :maxdepth: 2
     :caption: Developer Guidance
-
