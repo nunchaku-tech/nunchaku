@@ -1,10 +1,10 @@
 Installation
 ============
 
-We provide step-by-step tutorial videos to help you install and use **Nunchaku on Windows**, available in both `English <https://youtu.be/YHAVe-oM7U8?si=cM9zaby_aEHiFXk0>`_ and `Chinese <https://www.bilibili.com/video/BV1BTocYjEk5/?share_source=copy_web&vd_source=8926212fef622f25cc95380515ac74ee>`_. You can also follow the corresponding text guide at `Window Setup Guide <./setup_windows.md>`_. If you encounter any issues, these resources are a good place to start.
+We provide step-by-step tutorial videos to help you install and use **Nunchaku on Windows**, available in both `English <https://youtu.be/YHAVe-oM7U8?si=cM9zaby_aEHiFXk0>`_ and `Chinese <https://www.bilibili.com/video/BV1BTocYjEk5/?share_source=copy_web&vd_source=8926212fef622f25cc95380515ac74ee>`_. You can also follow the corresponding text guide at `Window Setup Guide <./setup_windows.rst>`_. If you encounter any issues, these resources are a good place to start.
 
-Option 1: Installing Prebuilt Wheels (Recommended)
----------------------------------------------------
+(Recommended) Option 1: Installing Prebuilt Wheels
+--------------------------------------------------
 
 Prerequisites
 ^^^^^^^^^^^^^
@@ -131,7 +131,7 @@ Step 2: Build and Install Nunchaku
 
     conda install -c conda-forge gxx=11 gcc=11
 
-For Windows users, download and install the latest `Visual Studio <https://visualstudio.microsoft.com/thank-you-downloading-visual-studio/?sku=Community&channel=Release&version=VS2022&source=VSLandingPage&cid=2030&passive=false>`_ and use its development environment. See `Window Setup Guide <./setup_windows.md>`_ for more details.
+For Windows users, download and install the latest `Visual Studio <https://visualstudio.microsoft.com/thank-you-downloading-visual-studio/?sku=Community&channel=Release&version=VS2022&source=VSLandingPage&cid=2030&passive=false>`_ and use its development environment. See `Window Setup Guide <./setup_windows.rst>`_ for more details.
 
 **Clone and build:**
 

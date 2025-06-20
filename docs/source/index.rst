@@ -8,8 +8,8 @@ Check out `DeepCompressor <https://github.com/mit-han-lab/deepcompressor>`_ for 
    :maxdepth: 2
    :caption: Installation
 
-   installation/installation.md
-   installation/setup_windows.md
+   installation/installation.rst
+   installation/setup_windows.rst
 
 .. toctree::
     :maxdepth: 2
