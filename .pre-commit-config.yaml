@@ -62,7 +62,6 @@ repos:
     rev: v2.0.0
     hooks:
       - id: doc8
-        args: ["--max-line-length=120"]
         additional_dependencies: []
   - repo: https://github.com/myint/rstcheck
     rev: v6.2.5
