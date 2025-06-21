@@ -20,3 +20,5 @@
 .. _turbo_lora: https://huggingface.co/alimama-creative/FLUX.1-Turbo-Alpha
 .. _nunchaku_flux1_dev_fp4: https://huggingface.co/mit-han-lab/nunchaku-flux.1-dev/blob/main/svdq-fp4_r32-flux.1-dev.safetensors
 .. _nunchaku_flux1_dev_int4: https://huggingface.co/mit-han-lab/nunchaku-flux.1-dev/blob/main/svdq-int4_r32-flux.1-dev.safetensors
+.. _to_diffusers_lora: https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/lora.py#L100
+.. _to_nunchaku_lora: https://github.com/mit-han-lab/nunchaku/blob/main/nunchaku/lora/flux/nunchaku_converter.py#L442

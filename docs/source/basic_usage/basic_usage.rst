@@ -2,7 +2,7 @@ Basic Usage Tutorial
 ====================
 
 The following is a minimal script for running 4-bit `FLUX.1 <flux_repo_>`_ using Nunchaku.
-Nunchaku provides the same API as `🤗 Diffusers <diffusers_repo_>`_, so you can use it in a familiar way.
+Nunchaku provides the same API as `Diffusers <diffusers_repo_>`_, so you can use it in a familiar way.
 
 .. tabs::
 

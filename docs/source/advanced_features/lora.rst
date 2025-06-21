@@ -58,7 +58,48 @@ This composition method allows for precise control over individual LoRA strength
 LoRA Conversion
 ---------------
 
-We use diffusers LoRA format as a proxy to convert the LoRA to Nunchaku's format. 
+Nunchaku utilizes the `Diffusers <diffusers_repo_>`_ LoRA format as an intermediate representation for converting LoRAs to Nunchaku's native format. 
+Both the ``transformer.update_lora_params`` method and ``compose_lora`` function internally invoke the `to_diffusers <to_diffusers_lora_>`_ method to convert LoRAs to the `Diffusers <diffusers_repo_>`_ format. 
+If LoRA functionality is not working as expected, verify that the LoRA has been properly converted to the `Diffusers <diffusers_repo_>`_ format. Please check `to_diffusers <to_diffusers_lora_>`_ for more details.
+
+Following the conversion to `Diffusers <diffusers_repo_>`_ format, the ``transformer.update_lora_params`` method calls the `to_nunchaku <to_nunchaku_lora_>`_ method to perform the final conversion to Nunchaku's format.
+
+Exporting Converted LoRAs
+-------------------------
+
+The current implementation employs single-threaded conversion, which may result in extended processing times, particularly for large LoRA files. 
+To address this limitation, users can pre-compose LoRAs using the ``python -m nunchaku.lora.flux.compose`` command-line interface. 
+The syntax is as follows:
+
+.. code-block:: bash
+
+   python -m nunchaku.lora.flux.compose -i lora1.safetensors lora2.safetensors -s 0.8 0.6 -o composed_lora.safetensors
+
+Parameters:
+
+- ``-i, --input-paths``: Paths to the LoRA safetensors files (supports multiple files)
+- ``-s, --strengths``: Strength values for each LoRA (must correspond to the number of input files)
+- ``-o, --output-path``: Output path for the composed LoRA safetensors file
+
+This command composes the specified LoRAs with their respective strength values and saves the result to the output file, which can subsequently be loaded using ``transformer.update_lora_params`` for optimized inference performance.
+
+Following composition, users may either load the file directly (via the ComfyUI LoRA loader or ``transformer.update_lora_params``) or utilize `python -m nunchaku.lora.flux.convert` to convert the composed LoRA to Nunchaku's format and export it. The syntax is as follows:
+
+.. code-block:: bash
+
+   python -m nunchaku.lora.flux.convert --lora-path composed_lora.safetensors --quant-path mit-han-lab/svdq-int4-flux.1-dev/transformer_blocks.safetensors --output-root ./converted --dtype bfloat16
+
+Parameters:
+
+- ``--lora-path``: Path to the LoRA weights safetensor file (required)
+- ``--quant-path``: Path to the quantized model safetensor file (default: ``mit-han-lab/svdq-int4-flux.1-dev/transformer_blocks.safetensors``)
+- ``--output-root``: Root directory for the output safetensor file (default: parent directory of the lora file)
+- ``--lora-name``: Name of the LoRA weights (optional, auto-generated if not provided)
+- ``--dtype``: Data type of the converted weights, either ``bfloat16`` or ``float16`` (default: ``bfloat16``)
+
+This command converts the LoRA to Nunchaku's format and saves it with an appropriate filename based on the quantization precision (fp4 or int4).
 
 
-**For ComfyUI users, you can directly use our LoRA loader. The converted LoRA is deprecated. Please refer to `mit-han-lab/ComfyUI-nunchaku <comfyui_nunchaku_>`_ for more details.**
+.. warning::
+
+   LoRAs in Nunchaku format should not be composed with other LoRAs. Additionally, LoRA strength values are permanently embedded in the composed LoRA. To apply different strength values, the LoRAs must be recomposed.
