@@ -187,7 +187,7 @@ If building directly with portable Python fails:
    "G:\ComfyuI\python\python.exe" python -m build --wheel --no-isolation
 
 Use Nunchaku in ComfyUI
-------------------------
+-----------------------
 
 1. Install the Plugin
 ^^^^^^^^^^^^^^^^^^^^^
@@ -198,3 +198,47 @@ Clone the `ComfyUI-nunchaku <comfyui_nunchaku_>`_ plugin into the ``custom_nodes
 
    cd ComfyUI/custom_nodes
    git clone https://github.com/mit-han-lab/ComfyUI-nunchaku.git
+
+Alternatively, install it using `ComfyUI-Manager <comfyui_manager_>`_ or ``comfy-cli``.
+
+2. Download Models
+^^^^^^^^^^^^^^^^^^
+
+**Standard FLUX.1-dev Models**
+
+Start by downloading the standard `FLUX.1-dev text encoders <https://huggingface.co/comfyanonymous/flux_text_encoders/tree/main>`__ and `VAE <https://huggingface.co/black-forest-labs/FLUX.1-dev/blob/main/ae.safetensors>`__. You can also optionally download the original `BF16 FLUX.1-dev <https://huggingface.co/black-forest-labs/FLUX.1-dev/blob/main/flux1-dev.safetensors>`__ model. An example command:
+
+.. code-block:: bat
+
+   huggingface-cli download comfyanonymous/flux_text_encoders clip_l.safetensors --local-dir models/text_encoders
+   huggingface-cli download comfyanonymous/flux_text_encoders t5xxl_fp16.safetensors --local-dir models/text_encoders
+   huggingface-cli download black-forest-labs/FLUX.1-schnell ae.safetensors --local-dir models/vae
+   huggingface-cli download black-forest-labs/FLUX.1-dev flux1-dev.safetensors --local-dir models/diffusion_models
+
+**Nunchaku 4-bit FLUX.1-dev Models**
+
+Next, download the Nunchaku 4-bit models to ``models/diffusion_models``:
+
+- For **50-series GPUs**, use the `FP4 model <nunchaku_flux1_dev_fp4_>`_.
+- For **other GPUs**, use the `INT4 model <nunchaku_flux1_dev_int4_>`_.
+
+**(Optional): Download Sample LoRAs**
+
+You can test with some sample LoRAs like `FLUX.1-Turbo <turbo_lora_>`_ and `Ghibsky <ghibsky_lora_>`_. Place these files in the ``models/loras`` directory:
+
+.. code-block:: bat
+
+   huggingface-cli download alimama-creative/FLUX.1-Turbo-Alpha diffusion_pytorch_model.safetensors --local-dir models/loras
+   huggingface-cli download aleksa-codes/flux-ghibsky-illustration lora.safetensors --local-dir models/loras
+
+1. Set Up Workflows
+^^^^^^^^^^^^^^^^^^^
+
+To use the official workflows, download them from the `ComfyUI-nunchaku <comfyui_nunchaku_>`_ and place them in your ``ComfyUI/user/default/workflows`` directory. The command can be:
+
+.. code-block:: bat
+
+   # From the root of your ComfyUI folder
+   cp -r custom_nodes/ComfyUI-nunchaku/example_workflows user/default/workflows/nunchaku_examples
+
+You can now launch ComfyUI and try running the example workflows.

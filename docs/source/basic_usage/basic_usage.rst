@@ -20,6 +20,16 @@ Nunchaku provides the same API as `🤗 Diffusers <diffusers_repo_>`_, so you ca
          :caption: Running FLUX.1-dev on Turing GPUs (`examples/flux.1-dev-turing.py <https://github.com/mit-han-lab/nunchaku/blob/main/examples/flux.1-dev-turing.py>`__)
          :linenos:
 
+The key difference when using Nunchaku is replacing the standard ``FluxTransformer2dModel`` with ``NunchakuFluxTransformer2dModel``. The ``NunchakuFluxTransformer2dModel.from_pretrained`` method loads quantized models and accepts either Hugging Face remote file paths or local file paths.
+
 .. note::
 
-   If you're using a **Turing GPU (e.g., NVIDIA 20-series)**, set ``torch_dtype=torch.float16`` and use the ``nunchaku-fp16`` attention module instead.
+   The ``get_precision()`` function automatically detects whether your GPU supports INT4 or FP4 quantization. Use FP4 models for Blackwell GPUs (RTX 50-series) and INT4 models for other architectures.
+
+.. note::
+
+   For **Turing GPUs (e.g., NVIDIA 20-series)**, additional configuration is required:
+   
+   - Set ``torch_dtype=torch.float16`` in both the transformer and pipeline initialization
+   - Use ``transformer.set_attention_impl("nunchaku-fp16")`` to enable FP16 attention
+   - Enable offloading with ``offload=True`` in the transformer and ``pipeline.enable_sequential_cpu_offload()`` if you do not have enough VRAM.

@@ -90,7 +90,7 @@ Requirements
 
 - **Compiler**:
 
-  - Linux: ``gcc/g++ ≥ 11``
+  - Linux: ``gcc/g++ >= 11``
   - Windows: Latest **MSVC** via `Visual Studio <visual_studio_>`_
 
 .. note::
@@ -129,7 +129,7 @@ For Blackwell users (50-series), install PyTorch ≥ 2.7 with CUDA ≥ 12.8:
 Step 2: Build and Install Nunchaku
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-**For Linux (if ``gcc/g++`` is not recent enough):**
+**For Linux (if** ``gcc/g++`` **is not recent enough):**
 
 .. code-block:: shell
 
