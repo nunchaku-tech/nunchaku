@@ -16,3 +16,5 @@
 .. _nunchaku_windows_tutorial_en: https://youtu.be/YHAVe-oM7U8?si=cM9zaby_aEHiFXk0
 .. _nunchaku_windows_tutorial_zh: https://www.bilibili.com/video/BV1BTocYjEk5/?share_source=copy_web&vd_source=8926212fef622f25cc95380515ac74ee
 .. _nunchaku_repo: https://github.com/mit-han-lab/nunchaku
+.. _ghibsky_lora: https://huggingface.co/aleksa-codes/flux-ghibsky-illustration
+.. _turbo_lora: https://huggingface.co/alimama-creative/FLUX.1-Turbo-Alpha
