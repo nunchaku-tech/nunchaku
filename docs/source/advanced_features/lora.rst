@@ -55,5 +55,10 @@ This composition method allows for precise control over individual LoRA strength
 
    When using multiple LoRAs, avoid using ``transformer.set_lora_strength`` as it applies a uniform strength to all LoRAs. Instead, specify individual strength values for each LoRA within the ``compose_lora`` function call for granular control over each LoRA's influence.
 
+LoRA Conversion
+---------------
+
+We use diffusers LoRA format as a proxy to convert the LoRA to Nunchaku's format. 
+
 
 **For ComfyUI users, you can directly use our LoRA loader. The converted LoRA is deprecated. Please refer to `mit-han-lab/ComfyUI-nunchaku <comfyui_nunchaku_>`_ for more details.**
