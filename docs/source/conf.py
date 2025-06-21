@@ -44,7 +44,6 @@ exclude_patterns = []
 with open(Path(__file__).parent / "links.rst", encoding="utf-8") as f:
     rst_epilog = f.read()
 
-
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 

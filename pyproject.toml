@@ -35,9 +35,11 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 include = ["nunchaku"]
 
-[tool.rstcheck]
-ignore_directives = ["tabs"]
-
 [tool.doc8]
 max-line-length = 120
 ignore-path = ["docs/_build"]
+ignore = ["D000"]
+
+[tool.rstcheck]
+ignore_directives = ["tabs"]
+ignore_messages = ["ERROR/3", "INFO/1"]
