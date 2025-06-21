@@ -9,7 +9,7 @@ Single LoRA
 
 `Nunchaku <nunchaku_repo_>`_ seamlessly integrates with off-the-shelf LoRAs without requiring requantization.
 Instead of fusing the LoRA branch into the main branch, we directly concatenate the LoRA weights to our low-rank branch.
-As Nunchaku uses fused kernel, the overhead of a separate low-rank branch is negligible.
+As Nunchaku uses fused kernel, the overhead of a separate low-rank branch is largely reduced.
 Below is an example of running FLUX.1-dev with `Ghibsky <ghibsky_lora_>`_ LoRA.
 
 .. literalinclude:: ../../../examples/flux.1-dev-lora.py
@@ -53,7 +53,13 @@ This composition method allows for precise control over individual LoRA strength
 
 .. warning::
 
-   When using multiple LoRAs, avoid using ``transformer.set_lora_strength`` as it applies a uniform strength to all LoRAs. Instead, specify individual strength values for each LoRA within the ``compose_lora`` function call for granular control over each LoRA's influence.
+   When using multiple LoRAs, the ``transformer.set_lora_strength`` method applies a uniform strength value across all loaded LoRAs, which may not provide the desired level of control. For precise management of individual LoRA influences, specify strength values for each LoRA within the ``compose_lora`` function call.
+
+.. warning::
+
+   Nunchaku's current implementation maintains the LoRA branch separately from the main branch.
+   This design choice may impact inference performance when the composed rank becomes large (e.g., > 256). 
+   A future release will include quantization tools to fuse the LoRA branch into the main branch.
 
 LoRA Conversion
 ---------------
