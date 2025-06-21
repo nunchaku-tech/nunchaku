@@ -12,7 +12,7 @@ You can simply use your LoRA with:
 
 .. literalinclude:: ../../../examples/flux.1-dev-lora.py
    :language: python
-   :caption: Example running FLUX.1-dev with `Ghibsky <ghibsky_lora_>`_  LoRA with Nunchaku (`examples/flux.1-dev-lora.py <https://github.com/mit-han-lab/nunchaku/blob/main/examples/flux.1-dev-lora.py>`__)
+   :caption: Running FLUX.1-dev with `Ghibsky <ghibsky_lora_>`_  LoRA (`examples/flux.1-dev-lora.py <https://github.com/mit-han-lab/nunchaku/blob/main/examples/flux.1-dev-lora.py>`__)
    :linenos:
    :emphasize-lines: 16-19
 
@@ -25,7 +25,7 @@ To compose multiple LoRAs, you can use ``nunchaku.lora.flux.compose.compose_lora
 
 .. literalinclude:: ../../../examples/flux.1-dev-multiple-lora.py
    :language: python
-   :caption: Example running FLUX.1-dev with `Ghibsky <ghibsky_lora_>`_ and `FLUX-Turbo <turbo_lora_>`_ LoRA with Nunchaku (`examples/flux.1-dev-multiple-lora.py <https://github.com/mit-han-lab/nunchaku/blob/main/examples/flux.1-dev-multiple-lora.py>`__)
+   :caption: Running FLUX.1-dev with `Ghibsky <ghibsky_lora_>`_ and `FLUX-Turbo <turbo_lora_>`_ LoRA (`examples/flux.1-dev-multiple-lora.py <https://github.com/mit-han-lab/nunchaku/blob/main/examples/flux.1-dev-multiple-lora.py>`__)
    :linenos:
    :emphasize-lines: 17-23
 

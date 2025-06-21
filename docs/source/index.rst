@@ -25,6 +25,8 @@ Check out `DeepCompressor <deepcompressor_repo>`_ for the quantization library.
     :maxdepth: 2
     :caption: Advanced Features
 
+    advanced_features/lora.rst
+
 .. toctree::
     :maxdepth: 2
     :caption: Gradio Demos
