@@ -23,5 +23,3 @@ Nunchaku provides the same API as `🤗 Diffusers <diffusers_repo_>`_, so you ca
 .. note::
 
    If you're using a **Turing GPU (e.g., NVIDIA 20-series)**, set ``torch_dtype=torch.float16`` and use the ``nunchaku-fp16`` attention module instead.
-
-.. include:: ../links.rst

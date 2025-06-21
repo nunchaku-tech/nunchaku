@@ -40,7 +40,7 @@ ensure that ``nunchaku`` is installed into the Python environment bundled with C
 Option 1: Using NunchakuWheelInstaller
 """"""""""""""""""""""""""""""""""""""
 
-With `ComfyUI-nunchaku v0.3.2+ <comfyui_nunchaku_>`_, you can install Nunchaku using the provided `workflow <comfyui_nunchaku_wheel_installation_workflow_>`__ directly in ComfyUI.
+With `ComfyUI-nunchaku v0.3.2+ <comfyui_nunchaku_>`_, you can install Nunchaku using the provided `workflow <comfyui_nunchaku_wheel_installation_workflow_>`_ directly in ComfyUI.
 
 .. image:: https://huggingface.co/mit-han-lab/nunchaku-artifacts/resolve/main/ComfyUI-nunchaku/assets/install_wheel.png
 
@@ -83,10 +83,13 @@ Requirements
 ^^^^^^^^^^^^
 
 - **CUDA version**:
-  - **Linux**: ≥ 12.2
-  - **Windows**: ≥ 12.6
-  - **Blackwell GPUs**: CUDA ≥ 12.8 required
+
+  - Linux: ≥ 12.2
+  - Windows: ≥ 12.6
+  - Blackwell GPUs: CUDA ≥ 12.8 required
+
 - **Compiler**:
+
   - Linux: ``gcc/g++ ≥ 11``
   - Windows: Latest **MSVC** via `Visual Studio <visual_studio_>`_
 
@@ -153,5 +156,3 @@ For Windows users, download and install the latest `Visual Studio <visual_studio
 .. important::
 
    Set ``NUNCHAKU_INSTALL_MODE=ALL`` to ensure the wheel works on all supported GPU architectures. Otherwise, it may only run on the GPU type used for building.
-
-.. include:: ../links.rst

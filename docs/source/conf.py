@@ -41,9 +41,8 @@ templates_path = ["_templates"]
 exclude_patterns = []
 
 # -- Include global link definitions -----------------------------------------
-rst_prolog = """
-.. include:: links.rst
-"""
+with open(Path(__file__).parent / "links.rst", encoding="utf-8") as f:
+    rst_epilog = f.read()
 
 
 # -- Options for HTML output -------------------------------------------------

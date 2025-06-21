@@ -1,8 +1,8 @@
 Nunchaku Documentation
-====================================
+======================
 **Nunchaku** is a high-performance inference engine optimized for low-bit diffusion models and LLMs,
-as introduced in our paper `SVDQuant <svdquant_paper_>`_.
-Check out `DeepCompressor <deepcompressor_main_>`_ for the quantization library.
+as introduced in our paper `SVDQuant <svdquant_paper>`_.
+Check out `DeepCompressor <deepcompressor_repo>`_ for the quantization library.
 
 .. toctree::
    :maxdepth: 2
@@ -32,14 +32,16 @@ Check out `DeepCompressor <deepcompressor_main_>`_ for the quantization library.
 .. toctree::
     :maxdepth: 1
     :caption: ComfyUI Support
+    :titlesonly:
 
-    ComfyUI-nunchaku <comfyui_nunchaku_> Plugin
+    ComfyUI-nunchaku Plugin <https://github.com/mit-han-lab/ComfyUI-nunchaku>
 
 .. toctree::
     :maxdepth: 1
     :caption: Customized Model Quantization
+    :titlesonly:
 
-    DeepCompressor <deepcompressor_repo_>
+    DeepCompressor <https://github.com/mit-han-lab/deepcompressor>
 
 .. toctree::
     :maxdepth: 2
@@ -48,5 +50,3 @@ Check out `DeepCompressor <deepcompressor_main_>`_ for the quantization library.
 .. toctree::
     :maxdepth: 2
     :caption: Developer Guidance
-
-.. include:: links.rst

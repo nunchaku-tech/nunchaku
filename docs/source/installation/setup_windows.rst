@@ -198,5 +198,3 @@ Clone the `ComfyUI-nunchaku <comfyui_nunchaku_>`_ plugin into the ``custom_nodes
 
    cd ComfyUI/custom_nodes
    git clone https://github.com/mit-han-lab/ComfyUI-nunchaku.git
-
-.. include:: ../links.rst
