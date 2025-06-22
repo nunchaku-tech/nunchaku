@@ -76,15 +76,18 @@ requiring only the ``FluxControlPipeline`` for the target model.
 ControlNet-Union-Pro
 --------------------
 
-`ControlNet-Union-Pro <controlnet_union_pro_>`_ is a community-contributed ControlNet for FLUX.1. 
-Unlike FLUX.1-tools, which directly finetune the model to adapt to the additional control signals,
-`ControlNet-Union-Pro <controlnet_union_pro_>`_ adds additional control modules on base models and leave the original model unchanged.
-Moreover, it directly supports various controls, including Canny, Depth, and so on. 
-Currently, Nunchaku directly runs the control modules in their original precision.
-Below are the examples for using `ControlNet-Union-Pro <controlnet_union_pro_>`_ with Nunchaku. 
-`ControlNet-Union-Pro2 <controlnet_union_pro2_>`_'s usage is similar. Quantized ControlNet are under development. Stay tuned!
+`ControlNet-Union-Pro <controlnet_union_pro_>`_ is a community-developed ControlNet implementation for FLUX.1. 
+Unlike FLUX.1-tools that directly fine-tunes the model to incorporate control signals,
+`ControlNet-Union-Pro <controlnet_union_pro_>`_ uses additional control modules.
+It provides native support for multiple control types including Canny edges and depth maps.
+
+Nunchaku currently executes these control modules at their original precision levels.
+The following example demonstrates running `ControlNet-Union-Pro <controlnet_union_pro_>`_ with Nunchaku.
 
 .. literalinclude:: ../../../examples/flux.1-dev-controlnet-union-pro.py
    :language: python
    :caption: Running ControlNet-Union-Pro (`examples/flux.1-dev-controlnet-union-pro.py <https://github.com/mit-han-lab/nunchaku/blob/main/examples/flux.1-dev-controlnet-union-pro.py>`__)
    :linenos:
+
+Usage for `ControlNet-Union-Pro2 <controlnet_union_pro2_>`_ is similar. 
+Quantized ControlNet support is currently in development. Stay tuned!
