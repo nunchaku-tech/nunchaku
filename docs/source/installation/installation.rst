@@ -1,7 +1,10 @@
 Installation
 ============
 
-We provide step-by-step tutorial videos to help you install and use **Nunchaku on Windows**, available in both `English <nunchaku_windows_tutorial_en_>`_ and `Chinese <nunchaku_windows_tutorial_zh_>`_. You can also follow the corresponding text guide at :doc:`Window Setup Guide <setup_windows>`. If you encounter any issues, these resources are a good place to start.
+We provide step-by-step tutorial videos to help you install and use **Nunchaku on Windows**,
+available in both `English <nunchaku_windows_tutorial_en_>`_ and `Chinese <nunchaku_windows_tutorial_zh_>`_.
+You can also follow the corresponding text guide at :doc:`Windows Setup Guide <setup_windows>`.
+If you encounter any issues, these resources are a good place to start.
 
 (Recommended) Option 1: Installing Prebuilt Wheels
 --------------------------------------------------

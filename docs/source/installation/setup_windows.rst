@@ -231,7 +231,7 @@ You can test with some sample LoRAs like `FLUX.1-Turbo <turbo_lora_>`_ and `Ghib
    huggingface-cli download alimama-creative/FLUX.1-Turbo-Alpha diffusion_pytorch_model.safetensors --local-dir models/loras
    huggingface-cli download aleksa-codes/flux-ghibsky-illustration lora.safetensors --local-dir models/loras
 
-1. Set Up Workflows
+3. Set Up Workflows
 ^^^^^^^^^^^^^^^^^^^
 
 To use the official workflows, download them from the `ComfyUI-nunchaku <comfyui_nunchaku_>`_ and place them in your ``ComfyUI/user/default/workflows`` directory. The command can be:

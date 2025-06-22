@@ -22,3 +22,6 @@
 .. _nunchaku_flux1_dev_int4: https://huggingface.co/mit-han-lab/nunchaku-flux.1-dev/blob/main/svdq-int4_r32-flux.1-dev.safetensors
 .. _to_diffusers_lora: https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/lora.py#L100
 .. _to_nunchaku_lora: https://github.com/mit-han-lab/nunchaku/blob/main/nunchaku/lora/flux/nunchaku_converter.py#L442
+.. _flux1_tools: https://bfl.ai/announcements/24-11-21-tools
+.. _controlnet_union_pro: https://huggingface.co/Shakker-Labs/FLUX.1-dev-ControlNet-Union-Pro
+.. _controlnet_union_pro2: https://huggingface.co/Shakker-Labs/FLUX.1-dev-ControlNet-Union-Pro-2.0

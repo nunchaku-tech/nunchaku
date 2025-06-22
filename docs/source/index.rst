@@ -18,14 +18,11 @@ Check out `DeepCompressor <deepcompressor_repo>`_ for the quantization library.
     basic_usage/basic_usage.rst
 
 .. toctree::
-    :maxdepth: 2
-    :caption: FAQ
-
-.. toctree::
-    :maxdepth: 2
+    :maxdepth: 1
     :caption: Advanced Features
 
     advanced_features/lora.rst
+    advanced_features/controlnet.rst
 
 .. toctree::
     :maxdepth: 2
@@ -48,6 +45,10 @@ Check out `DeepCompressor <deepcompressor_repo>`_ for the quantization library.
 .. toctree::
     :maxdepth: 2
     :caption: API Reference
+
+.. toctree::
+    :maxdepth: 2
+    :caption: FAQ
 
 .. toctree::
     :maxdepth: 2
