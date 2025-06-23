@@ -57,8 +57,6 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
              py::arg("temb"),
              py::arg("rotary_emb_img"),
              py::arg("rotary_emb_context"),
-             py::arg("k_img"),
-             py::arg("v_img"),
              py::arg("controlnet_block_samples")        = py::none(),
              py::arg("controlnet_single_block_samples") = py::none())
         .def("forward_single_layer", &QuantizedFluxModel::forward_single_layer)

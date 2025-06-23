@@ -13,8 +13,13 @@ def apply_cache_on_transformer(
     use_double_fb_cache: bool = False,
     residual_diff_threshold: float = 0.12,
     residual_diff_threshold_multi: float | None = None,
-    residual_diff_threshold_single: float = 0.1,
+    residual_diff_threshold_single: float | None = None,
 ):
+    if not hasattr(transformer, "_original_forward"):
+        transformer._original_forward = transformer.forward
+    if not hasattr(transformer, "_original_blocks"):
+        transformer._original_blocks = transformer.transformer_blocks
+
     if residual_diff_threshold_multi is None:
         residual_diff_threshold_multi = residual_diff_threshold
 
@@ -49,6 +54,9 @@ def apply_cache_on_transformer(
 
     transformer.forward = new_forward.__get__(transformer)
     transformer._is_cached = True
+    transformer.use_double_fb_cache = use_double_fb_cache
+    transformer.residual_diff_threshold_multi = residual_diff_threshold_multi
+    transformer.residual_diff_threshold_single = residual_diff_threshold_single
 
     return transformer
 

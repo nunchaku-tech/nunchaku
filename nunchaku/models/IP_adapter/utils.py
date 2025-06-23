@@ -5,6 +5,7 @@ import insightface
 import numpy as np
 import torch
 import torch.nn.functional as F
+from diffusers import FluxTransformer2DModel
 from facexlib.parsing import init_parsing_model
 from facexlib.utils.face_restoration_helper import FaceRestoreHelper
 from huggingface_hub import hf_hub_download
@@ -15,6 +16,7 @@ from torchvision.transforms import InterpolationMode
 from torchvision.transforms.functional import normalize, resize
 from torchvision.utils import make_grid
 
+from nunchaku.caching.utils import FluxCachedTransformerBlocks, check_and_apply_cache
 from nunchaku.models.pulid.encoders_transformer import IDFormer
 from nunchaku.models.pulid.eva_clip import create_model_and_transforms
 from nunchaku.models.pulid.eva_clip.constants import OPENAI_DATASET_MEAN, OPENAI_DATASET_STD
@@ -24,7 +26,7 @@ num_transformer_blocks = 19  # FIXME
 num_single_transformer_blocks = 38  # FIXME
 
 
-class IPA_TransformerBlocks(nn.Module):
+class IPA_TransformerBlocks(FluxCachedTransformerBlocks):
     def __init__(
         self,
         *,
@@ -35,37 +37,17 @@ class IPA_TransformerBlocks(nn.Module):
         verbose: bool = False,
         device: str | torch.device,
     ):
-        super().__init__()
-        self.transformer = transformer
-        self.transformer_blocks = transformer.transformer_blocks
-        self.return_hidden_states_first = return_hidden_states_first
-        self.return_hidden_states_only = return_hidden_states_only
-        self.verbose = verbose
+        super().__init__(
+            transformer=transformer,
+            use_double_fb_cache=False,
+            residual_diff_threshold_multi=-1,
+            residual_diff_threshold_single=-1,
+            return_hidden_states_first=return_hidden_states_first,
+            return_hidden_states_only=return_hidden_states_only,
+            verbose=verbose,
+        )
         self.ip_adapter_scale = ip_adapter_scale
-
-        self.m = self.transformer_blocks[0].m
-        self.dtype = torch.bfloat16 if self.m.isBF16() else torch.float16
-        self.device = device
-
-    @staticmethod
-    def pack_rotemb(rotemb: torch.Tensor) -> torch.Tensor:
-        assert rotemb.dtype == torch.float32
-        B = rotemb.shape[0]
-        M = rotemb.shape[1]
-        D = rotemb.shape[2] * 2
-        msg_shape = "rotemb shape must be (B, M, D//2, 1, 2)"
-        assert rotemb.shape == (B, M, D // 2, 1, 2), msg_shape
-        assert M % 16 == 0
-        assert D % 8 == 0
-        rotemb = rotemb.reshape(B, M // 16, 16, D // 8, 8)
-        rotemb = rotemb.permute(0, 1, 3, 2, 4)
-        # 16*8 pack, FP32 accumulator (C) format
-        # https://docs.nvidia.com/cuda/parallel-thread-execution/#mma-16816-c
-        rotemb = rotemb.reshape(*rotemb.shape[0:3], 2, 8, 4, 2)
-        rotemb = rotemb.permute(0, 1, 2, 4, 5, 3, 6)
-        rotemb = rotemb.contiguous()
-        rotemb = rotemb.view(B, M, D)
-        return rotemb
+        self.image_embeds = None
 
     def forward(
         self,
@@ -80,45 +62,40 @@ class IPA_TransformerBlocks(nn.Module):
         controlnet_single_block_samples=None,
         skip_first_layer=False,
     ):
-        # batch_size = hidden_states.shape[0]
+        batch_size = hidden_states.shape[0]
         txt_tokens = encoder_hidden_states.shape[1]
         img_tokens = hidden_states.shape[1]
-
-        self.id_embeddings = id_embeddings
-        self.id_weight = id_weight
-        self.pulid_ca_idx = 0
-        if self.id_embeddings is not None:
-            self.set_residual_callback()
 
         original_dtype = hidden_states.dtype
         original_device = hidden_states.device
 
-        hidden_states = hidden_states.to(self.dtype).to(self.device)
-        encoder_hidden_states = encoder_hidden_states.to(self.dtype).to(self.device)
-        temb = temb.to(self.dtype).to(self.device)
-        image_rotary_emb = image_rotary_emb.to(self.device)
+        hidden_states = hidden_states.to(self.dtype).to(original_device)
+        encoder_hidden_states = encoder_hidden_states.to(self.dtype).to(original_device)
+        temb = temb.to(self.dtype).to(original_device)
+        image_rotary_emb = image_rotary_emb.to(original_device)
 
         if controlnet_block_samples is not None:
-            if len(controlnet_block_samples) > 0:
-                controlnet_block_samples = torch.stack(controlnet_block_samples).to(self.device)
-            else:
-                controlnet_block_samples = None
-
+            controlnet_block_samples = (
+                torch.stack(controlnet_block_samples).to(original_device) if len(controlnet_block_samples) > 0 else None
+            )
         if controlnet_single_block_samples is not None:
-            if len(controlnet_single_block_samples) > 0:
-                controlnet_single_block_samples = torch.stack(controlnet_single_block_samples).to(self.device)
-            else:
-                controlnet_single_block_samples = None
+            controlnet_single_block_samples = (
+                torch.stack(controlnet_single_block_samples).to(original_device)
+                if len(controlnet_single_block_samples) > 0
+                else None
+            )
 
         assert image_rotary_emb.ndim == 6
         assert image_rotary_emb.shape[0] == 1
         assert image_rotary_emb.shape[1] == 1
-        assert image_rotary_emb.shape[2] == 1 * (txt_tokens + img_tokens)
-        # [1, tokens, head_dim / 2, 1, 2] (sincos)
+        # [1, tokens, head_dim/2, 1, 2] (sincos)
+        total_tokens = txt_tokens + img_tokens
+        assert image_rotary_emb.shape[2] == 1 * total_tokens
+
         image_rotary_emb = image_rotary_emb.reshape([1, txt_tokens + img_tokens, *image_rotary_emb.shape[3:]])
-        rotary_emb_txt = image_rotary_emb[:, :txt_tokens, ...]  # .to(self.dtype)
-        rotary_emb_img = image_rotary_emb[:, txt_tokens:, ...]  # .to(self.dtype)
-        rotary_emb_single = image_rotary_emb  # .to(self.dtype)
+        rotary_emb_txt = image_rotary_emb[:, :txt_tokens, ...]
+        rotary_emb_img = image_rotary_emb[:, txt_tokens:, ...]
+        rotary_emb_single = image_rotary_emb
 
         rotary_emb_txt = self.pack_rotemb(pad_tensor(rotary_emb_txt, 256, 1))
         rotary_emb_img = self.pack_rotemb(pad_tensor(rotary_emb_img, 256, 1))
@@ -126,6 +103,8 @@ class IPA_TransformerBlocks(nn.Module):
 
         if joint_attention_kwargs is not None and "ip_hidden_states" in joint_attention_kwargs:
             ip_hidden_states = joint_attention_kwargs.pop("ip_hidden_states")
+        elif self.image_embeds is not None:
+            ip_hidden_states = self.image_embeds
 
         remaining_kwargs = {
             "temb": temb,
@@ -139,15 +118,97 @@ class IPA_TransformerBlocks(nn.Module):
         }
 
         torch._dynamo.graph_break()
-        updated_h, updated_enc, _, _ = self.call_multi_transformer_blocks(
-            hidden_states=hidden_states, encoder_hidden_states=encoder_hidden_states, **remaining_kwargs
+
+        if (self.residual_diff_threshold_multi <= 0.0) or (batch_size > 1):
+            updated_h, updated_enc, _, _ = self.call_IPA_multi_transformer_blocks(
+                hidden_states=hidden_states,
+                encoder_hidden_states=encoder_hidden_states,
+                skip_block=False,
+                **remaining_kwargs,
+            )
+
+            remaining_kwargs.pop("ip_hidden_states", None)
+            cat_hidden_states = torch.cat([updated_enc, updated_h], dim=1)
+
+            updated_cat, _ = self.call_remaining_single_transformer_blocks(
+                hidden_states=cat_hidden_states, encoder_hidden_states=None, start_idx=0, **remaining_kwargs
+            )
+            # torch._dynamo.graph_break()
+
+            final_enc = updated_cat[:, :txt_tokens, ...]
+            final_h = updated_cat[:, txt_tokens:, ...]
+
+            final_h = final_h.to(original_dtype).to(original_device)
+            final_enc = final_enc.to(original_dtype).to(original_device)
+
+            if self.return_hidden_states_only:
+                return final_h
+            if self.return_hidden_states_first:
+                return final_h, final_enc
+            return final_enc, final_h
+
+        original_hidden_states = hidden_states
+        first_hidden_states, first_encoder_hidden_states, _, _ = self.call_IPA_multi_transformer_blocks(
+            hidden_states=hidden_states,
+            encoder_hidden_states=encoder_hidden_states,
+            first_block=True,
+            skip_block=False,
+            **remaining_kwargs,
         )
+
+        hidden_states = first_hidden_states
+        encoder_hidden_states = first_encoder_hidden_states
+        first_hidden_states_residual_multi = hidden_states - original_hidden_states
+        del original_hidden_states
+
+        call_remaining_fn = self.call_IPA_multi_transformer_blocks
+
+        torch._dynamo.graph_break()
+        updated_h, updated_enc, threshold = check_and_apply_cache(
+            first_residual=first_hidden_states_residual_multi,
+            hidden_states=hidden_states,
+            encoder_hidden_states=encoder_hidden_states,
+            threshold=self.residual_diff_threshold_multi,
+            parallelized=False,
+            mode="multi",
+            verbose=self.verbose,
+            call_remaining_fn=call_remaining_fn,
+            remaining_kwargs=remaining_kwargs,
+        )
+        self.residual_diff_threshold_multi = threshold
+
+        # Single layer
+        remaining_kwargs.pop("ip_hidden_states", None)
 
         cat_hidden_states = torch.cat([updated_enc, updated_h], dim=1)
+        original_cat = cat_hidden_states
+        if not self.use_double_fb_cache:
+            ##NO FBCache
+            updated_cat, _ = self.call_remaining_single_transformer_blocks(
+                hidden_states=cat_hidden_states, encoder_hidden_states=None, start_idx=0, **remaining_kwargs
+            )
+        else:
+            # USE FBCache
+            cat_hidden_states = self.m.forward_single_layer(0, cat_hidden_states, temb, rotary_emb_single)
 
-        updated_cat, _ = self.call_single_transformer_blocks(
-            hidden_states=cat_hidden_states, encoder_hidden_states=None, **remaining_kwargs
-        )
+            first_hidden_states_residual_single = cat_hidden_states - original_cat
+            del original_cat
+
+            call_remaining_fn_single = self.call_remaining_single_transformer_blocks
+
+            updated_cat, _, threshold = check_and_apply_cache(
+                first_residual=first_hidden_states_residual_single,
+                hidden_states=cat_hidden_states,
+                encoder_hidden_states=None,
+                threshold=self.residual_diff_threshold_single,
+                parallelized=False,
+                mode="single",
+                verbose=self.verbose,
+                call_remaining_fn=call_remaining_fn_single,
+                remaining_kwargs=remaining_kwargs,
+            )
+            self.residual_diff_threshold_single = threshold
+
         # torch._dynamo.graph_break()
 
         final_enc = updated_cat[:, :txt_tokens, ...]
@@ -162,7 +223,7 @@ class IPA_TransformerBlocks(nn.Module):
             return final_h, final_enc
         return final_enc, final_h
 
-    def call_multi_transformer_blocks(
+    def call_IPA_multi_transformer_blocks(
         self,
         hidden_states: torch.Tensor,
         temb: torch.Tensor,
@@ -175,12 +236,20 @@ class IPA_TransformerBlocks(nn.Module):
         skip_first_layer=False,
         txt_tokens=None,
         ip_hidden_states=None,
+        first_block: bool = False,
+        skip_block: bool = True,
     ):
-        start_idx = 0
+        if first_block and skip_block:
+            raise ValueError("`first_block` and `skip_block` cannot both be True.")
+
+        start_idx = 1 if skip_block else 0
+        end_idx = 1 if first_block else num_transformer_blocks
+
         original_hidden_states = hidden_states.clone()
         original_encoder_hidden_states = encoder_hidden_states.clone()
+        ip_hidden_states[0] = ip_hidden_states[0].to(self.dtype).to(self.device)
 
-        for idx in range(start_idx, num_transformer_blocks):
+        for idx in range(start_idx, end_idx):
             k_img = self.ip_k_projs[idx](ip_hidden_states[0])
             v_img = self.ip_v_projs[idx](ip_hidden_states[0])
 
@@ -191,12 +260,11 @@ class IPA_TransformerBlocks(nn.Module):
                 temb,
                 rotary_emb_img,
                 rotary_emb_txt,
-                k_img.squeeze(dim=1),
-                v_img.squeeze(dim=1),
                 controlnet_block_samples,
                 controlnet_single_block_samples,
             )
-            ip_query = ip_query.contiguous()
+
+            ip_query = ip_query.contiguous().to(self.dtype)
             ip_query = ip_query.view(1, -1, 24, 128).transpose(1, 2)
 
             k_img = k_img.view(1, -1, 24, 128).transpose(1, 2)
@@ -211,39 +279,10 @@ class IPA_TransformerBlocks(nn.Module):
 
         hidden_states = hidden_states.contiguous()
         encoder_hidden_states = encoder_hidden_states.contiguous()
-
         hs_res = hidden_states - original_hidden_states
         enc_res = encoder_hidden_states - original_encoder_hidden_states
+
         return hidden_states, encoder_hidden_states, hs_res, enc_res
-
-    def call_single_transformer_blocks(
-        self,
-        hidden_states: torch.Tensor,
-        temb: torch.Tensor,
-        encoder_hidden_states: torch.Tensor,
-        rotary_emb_img: torch.Tensor,
-        rotary_emb_txt: torch.Tensor,
-        rotary_emb_single: torch.Tensor,
-        controlnet_block_samples=None,
-        controlnet_single_block_samples=None,
-        skip_first_layer=False,
-        txt_tokens=None,
-        ip_hidden_states=None,
-    ):
-        start_idx = 0
-        original_hidden_states = hidden_states.clone()
-
-        for idx in range(start_idx, num_single_transformer_blocks):
-            hidden_states = self.m.forward_single_layer(
-                idx,
-                hidden_states,
-                temb,
-                rotary_emb_single,
-            )
-
-        hidden_states = hidden_states.contiguous()
-        hs_res = hidden_states - original_hidden_states
-        return hidden_states, hs_res
 
     def load_ip_adapter_weights_per_layer(
         self,
@@ -290,6 +329,9 @@ class IPA_TransformerBlocks(nn.Module):
 
             self.ip_k_projs.append(k_proj)
             self.ip_v_projs.append(v_proj)
+
+    def set_ip_hidden_states(self, image_embeds, negative_image_embeds=None):
+        self.image_embeds = image_embeds
 
 
 def resize_numpy_image_long(image, resize_long_edge=768):
@@ -513,3 +555,13 @@ def get_puild_embed(image, device, cal_uncond=False, weight_dtype=torch.bfloat16
     uncond_id_embedding = pulid_encoder(id_uncond, id_vit_hidden_uncond)
 
     return id_embedding, uncond_id_embedding
+
+
+def undo_all_mods_on_transformer(transformer: FluxTransformer2DModel):
+    if hasattr(transformer, "_original_forward"):
+        transformer.forward = transformer._original_forward
+        del transformer._original_forward
+    if hasattr(transformer, "_original_blocks"):
+        transformer.transformer_blocks = transformer._original_blocks
+        del transformer._original_blocks
+    return transformer

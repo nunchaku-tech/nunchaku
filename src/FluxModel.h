@@ -139,6 +139,12 @@ public:
                                                                  Tensor rotary_emb,
                                                                  Tensor rotary_emb_context,
                                                                  float sparsityRatio);
+    Tensor get_q_heads(Tensor hidden_states,
+                       Tensor encoder_hidden_states,
+                       Tensor temb,
+                       Tensor rotary_emb,
+                       Tensor rotary_emb_context,
+                       float sparsityRatio);
 
 public:
     const int dim;
@@ -191,8 +197,6 @@ public:
                                                           Tensor temb,
                                                           Tensor rotary_emb_img,
                                                           Tensor rotary_emb_context,
-                                                          Tensor k_img,
-                                                          Tensor v_img,
                                                           Tensor controlnet_block_samples,
                                                           Tensor controlnet_single_block_samples);
 

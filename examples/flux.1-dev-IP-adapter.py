@@ -3,6 +3,7 @@ from diffusers import FluxPipeline
 from diffusers.utils import load_image
 
 from nunchaku import NunchakuFluxTransformer2dModel
+from nunchaku.caching.diffusers_adapters import apply_cache_on_pipe
 from nunchaku.models.IP_adapter.diffusers_adapters import apply_IPA_on_pipe
 from nunchaku.utils import get_precision
 
@@ -18,8 +19,15 @@ pipeline.load_ip_adapter(
     weight_name="ip_adapter.safetensors",
     image_encoder_pretrained_model_name_or_path="openai/clip-vit-large-patch14",
 )
+apply_cache_on_pipe(
+    pipeline,
+    use_double_fb_cache=True,
+    residual_diff_threshold_multi=0.09,
+    residual_diff_threshold_single=0.12,
+)
 
 apply_IPA_on_pipe(pipeline, ip_adapter_scale=1.0, repo_id="XLabs-AI/flux-ip-adapter-v2")
+
 
 IP_image = load_image("https://github.com/ToTheBeginning/PuLID/blob/main/example_inputs/liuyifei.png?raw=true")
 

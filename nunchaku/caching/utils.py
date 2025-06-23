@@ -260,7 +260,7 @@ class SanaCachedTransformerBlocks(nn.Module):
         can_use_cache, _ = get_can_use_cache(
             first_hidden_states_residual,
             threshold=self.residual_diff_threshold,
-            parallelized=self.transformer is not None and getattr(self.transformer, "_is_parallelized", False),
+            parallelized=False,
         )
 
         torch._dynamo.graph_break()
@@ -329,7 +329,7 @@ class FluxCachedTransformerBlocks(nn.Module):
         verbose: bool = False,
     ):
         super().__init__()
-        self.transformer = transformer
+        # self.transformer = transformer
         self.transformer_blocks = transformer.transformer_blocks
         self.single_transformer_blocks = transformer.single_transformer_blocks
 
@@ -486,7 +486,7 @@ class FluxCachedTransformerBlocks(nn.Module):
             hidden_states=hidden_states,
             encoder_hidden_states=encoder_hidden_states,
             threshold=self.residual_diff_threshold_multi,
-            parallelized=(self.transformer is not None and getattr(self.transformer, "_is_parallelized", False)),
+            parallelized=False,
             mode="multi",
             verbose=self.verbose,
             call_remaining_fn=call_remaining_fn,
@@ -515,7 +515,7 @@ class FluxCachedTransformerBlocks(nn.Module):
             hidden_states=cat_hidden_states,
             encoder_hidden_states=None,
             threshold=self.residual_diff_threshold_single,
-            parallelized=(self.transformer is not None and getattr(self.transformer, "_is_parallelized", False)),
+            parallelized=False,
             mode="single",
             verbose=self.verbose,
             call_remaining_fn=call_remaining_fn_single,
@@ -591,8 +591,9 @@ class FluxCachedTransformerBlocks(nn.Module):
         controlnet_single_block_samples=None,
         skip_first_layer=False,
         txt_tokens=None,
+        start_idx=1,
     ):
-        start_idx = 1
+        start_idx = start_idx
         original_hidden_states = hidden_states.clone()
         original_encoder_hidden_states = encoder_hidden_states.clone()
 
@@ -627,8 +628,9 @@ class FluxCachedTransformerBlocks(nn.Module):
         controlnet_single_block_samples=None,
         skip_first_layer=False,
         txt_tokens=None,
+        start_idx=1,
     ):
-        start_idx = 1
+        start_idx = start_idx
         original_hidden_states = hidden_states.clone()
 
         for idx in range(start_idx, num_single_transformer_blocks):

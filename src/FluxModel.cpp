@@ -775,6 +775,73 @@ std::tuple<Tensor, Tensor> JointTransformerBlock::forward(Tensor hidden_states,
 
     return {hidden_states, encoder_hidden_states};
 }
+Tensor JointTransformerBlock::get_q_heads(Tensor hidden_states,
+                                          Tensor encoder_hidden_states,
+                                          Tensor temb,
+                                          Tensor rotary_emb,
+                                          Tensor rotary_emb_context,
+                                          float sparsityRatio) {
+    int batch_size     = hidden_states.shape[0];
+    int num_tokens_img = hidden_states.shape[1];
+    int num_tokens_txt = encoder_hidden_states.shape[1];
+
+    // Apply AdaNorm.
+    auto norm1_output         = norm1.forward(hidden_states, temb);
+    auto norm1_context_output = norm1_context.forward(encoder_hidden_states, temb);
+
+    Tensor concat = Tensor::allocate(
+        {batch_size, num_tokens_img + num_tokens_txt, dim * 3}, norm1_output.x.scalar_type(), norm1_output.x.device());
+
+    const bool blockSparse  = sparsityRatio > 0;
+    constexpr int POOL_SIZE = Attention::POOL_SIZE;
+    const int poolTokens    = num_tokens_img / POOL_SIZE + num_tokens_txt / POOL_SIZE;
+    Tensor pool =
+        blockSparse
+            ? Tensor::allocate({batch_size, poolTokens, dim * 3}, norm1_output.x.scalar_type(), norm1_output.x.device())
+            : Tensor{};
+
+    // QKV Projection.
+    for (int i = 0; i < batch_size; i++) {
+        Tensor qkv         = concat.slice(0, i, i + 1).slice(1, 0, num_tokens_img);
+        Tensor qkv_context = concat.slice(0, i, i + 1).slice(1, num_tokens_img, num_tokens_img + num_tokens_txt);
+        Tensor pool_qkv    = pool.valid() ? pool.slice(0, i, i + 1).slice(1, 0, num_tokens_img / POOL_SIZE) : Tensor{};
+        Tensor pool_qkv_context =
+            pool.valid() ? pool.slice(0, i, i + 1).slice(1, num_tokens_img / POOL_SIZE, poolTokens) : Tensor{};
+
+        qkv_proj.forward(norm1_output.x.slice(0, i, i + 1), qkv, pool_qkv, norm_q.weight, norm_k.weight, rotary_emb);
+        qkv_proj_context.forward(norm1_context_output.x.slice(0, i, i + 1),
+                                 qkv_context,
+                                 pool_qkv_context,
+                                 norm_added_q.weight,
+                                 norm_added_k.weight,
+                                 rotary_emb_context);
+    }
+
+    // Extract and return q_heads.
+    Tensor q_all = concat.slice(2, 0, num_heads * dim_head);
+    Tensor q_img = q_all.slice(1, 0, num_tokens_img);
+
+    auto make_contiguous = [&](const Tensor &t) {
+        int B            = t.shape.dataExtent[0];
+        int R            = t.shape.dataExtent[1];
+        int C            = t.shape.dataExtent[2];
+        size_t E         = t.scalar_size();
+        size_t src_pitch = t.stride(1) * E;
+        size_t dst_pitch = C * E;
+        size_t width     = C * E;
+        size_t height    = R;
+        Tensor out       = Tensor::allocate({B, R, C}, t.scalarType, t.device());
+        auto stream      = getCurrentCUDAStream();
+        for (int b = 0; b < B; ++b) {
+            const void *src = (const char *)t.data_ptr<char>() + t.stride(0) * b * E;
+            void *dst       = (char *)out.data_ptr<char>() + out.stride(0) * b * E;
+            checkCUDA(
+                cudaMemcpy2DAsync(dst, dst_pitch, src, src_pitch, width, height, cudaMemcpyDeviceToDevice, stream));
+        }
+        return out;
+    };
+    return make_contiguous(q_img);
+}
 
 std::tuple<Tensor, Tensor, Tensor> JointTransformerBlock::forward_ip_adapter_branch(Tensor hidden_states,
                                                                                     Tensor encoder_hidden_states,
@@ -1000,11 +1067,7 @@ std::tuple<Tensor, Tensor, Tensor> JointTransformerBlock::forward_ip_adapter_bra
         raw_attn_output =
             raw_attn_output.view({batch_size, num_tokens_img_pad + num_tokens_txt_pad, num_heads, dim_head});
 
-        Tensor q_tmp  = concat_q.slice(2, 0, num_tokens_img);
-        Tensor q_view = q_tmp.transpose(1, 2).reshape({batch_size * num_tokens_img, num_heads * dim_head});
-
-        q_heads = make_contiguous(q_view);
-
+        q_heads = concat_q;
     } else {
         assert(false);
     }
@@ -1357,104 +1420,35 @@ std::tuple<Tensor, Tensor, Tensor> FluxModel::forward_ip_adapter(size_t layer,
                                                                  Tensor temb,
                                                                  Tensor rotary_emb_img, // [B, Nq, dim_head]
                                                                  Tensor rotary_emb_context,
-                                                                 Tensor k_img, // for Scaled_Dot_Product_Attention
-                                                                 Tensor v_img, // for Scaled_Dot_Product_Attention
                                                                  Tensor controlnet_block_samples,
                                                                  Tensor controlnet_single_block_samples) {
-    if (layer >= transformer_blocks.size()) {
-        auto [hs, enc] = forward_layer(layer,
-                                       hidden_states,
-                                       encoder_hidden_states,
-                                       temb,
-                                       rotary_emb_img,
-                                       rotary_emb_context,
-                                       controlnet_block_samples,
-                                       controlnet_single_block_samples);
-        Tensor dummy   = Tensor{};
-        return {hs, enc, dummy};
-    }
-
-    JointTransformerBlock *block = transformer_blocks.at(layer).get();
-
-    Tensor ip_query;
-    std::tie(hidden_states, encoder_hidden_states, ip_query) = block->forward_ip_adapter_branch(
-        hidden_states, encoder_hidden_states, temb, rotary_emb_img, rotary_emb_context, 0.0f);
-
-    return {hidden_states, encoder_hidden_states, ip_query};
-
-    /*
-    auto make_contiguous4d = [&](const Tensor &t4) {
-    // t4.shape.dataExtent = {B, H, N, C}
-    const auto &D = t4.shape.dataExtent;
-    size_t E = t4.scalar_size();
-
-    Tensor out = Tensor::allocate(
-        {D[0], D[1], D[2], D[3]},
-        t4.scalarType,
-        t4.device()
-    );
-
-    out.shape.dataStride.resize(4);
-    int64_t acc = 1;
-    for (int d = 3; d >= 0; --d) {
-        out.shape.dataStride[d] = acc;
-        acc *= out.shape.dataExtent[d];
-    }
-
-    auto stream = getCurrentCUDAStream();
-
-    size_t width     = D[3] * E;
-    size_t dst_pitch = width;
-    size_t src_pitch = t4.stride(2) * E;
-
-    for (int b = 0; b < D[0]; ++b) {
-        for (int h = 0; h < D[1]; ++h) {
-            // src pointer = base + (b*stride(0) + h*stride(1))*E
-            const char *src = (const char*)t4.data_ptr<char>()
-                              + (t4.stride(0) * b + t4.stride(1) * h) * E;
-            // dst pointer = base + ((b*H + h)*N*C)*E
-            char *dst = (char*)out.data_ptr<char>()
-                        + ((b * D[1] + h) * D[2] * D[3]) * E;
-
-            checkCUDA(cudaMemcpy2DAsync(
-                dst,       dst_pitch,
-                src,       src_pitch,
-                width,
-                D[2],
-                cudaMemcpyDeviceToDevice,
-                stream));
+    if (offload && layer > 0) {
+        if (layer < transformer_blocks.size()) {
+            transformer_blocks.at(layer)->loadLazyParams();
+        } else {
+            transformer_blocks.at(layer - transformer_blocks.size())->loadLazyParams();
         }
     }
-    checkCUDA(cudaStreamSynchronize(stream));
-    return out;
-    };
 
-    int B   = ip_query.size(0);
-    int Nq  = ip_query.size(1);
-    int dim = ip_query.size(2);
-    constexpr int HEAD_DIM = 128;
-    int num_heads = dim / HEAD_DIM;
-    float scale = 1.0f / std::sqrt(float(HEAD_DIM));
+    std::tie(hidden_states, encoder_hidden_states) = transformer_blocks.at(layer)->forward(
+        hidden_states, encoder_hidden_states, temb, rotary_emb_img, rotary_emb_context, 0.0f);
+    Tensor ip_query = transformer_blocks.at(layer)->get_q_heads(
+        hidden_states, encoder_hidden_states, temb, rotary_emb_img, rotary_emb_context, 0.0f);
 
-    Tensor q0 = ip_query
-    .reshape(TensorShape{B, Nq, num_heads, HEAD_DIM})
-    .transpose(1, 2);
+    if (controlnet_block_samples.valid()) {
+        const int num_controlnet_block_samples = controlnet_block_samples.shape[0];
 
-    Tensor q  = make_contiguous4d(q0);
-    Tensor k = k_img;
-    Tensor v = v_img;
+        int interval_control = ceilDiv(transformer_blocks.size(), static_cast<size_t>(num_controlnet_block_samples));
+        int block_index      = layer / interval_control;
 
-    Tensor ip_attn_output = Tensor::empty(
-        TensorShape{B, Nq, num_heads * HEAD_DIM},
-        Tensor::FP16,
-        q.device()
-    );
+        hidden_states = kernels::add(hidden_states, controlnet_block_samples[block_index]);
+    }
 
-    //TODO
-    kernels::Scaled_Dot_Product_Attention(q, k, v, ip_attn_output, pow(HEAD_DIM, (-0.5)));
+    if (offload && layer > 0) {
+        transformer_blocks.at(layer)->releaseLazyParams();
+    }
 
-    return {hidden_states, encoder_hidden_states, q};
-    */
+    return {hidden_states, encoder_hidden_states, ip_query};
 }
 
 void FluxModel::setAttentionImpl(AttentionImpl impl) {
