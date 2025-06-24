@@ -26,6 +26,7 @@ Check out `DeepCompressor <deepcompressor_repo>`_ for the quantization library.
     advanced_features/qencoder.rst
     advanced_features/offload.rst
     advanced_features/attention.rst
+    advanced_features/fbcache.rst
 
 .. toctree::
     :maxdepth: 2

@@ -1,7 +1,7 @@
 FP16 Attention
 ==============
 
-Nunchaku provides an FP16 attention implementation that delivers up to 1.2× faster performance on NVIDIA 30-, 40-, and 50-series GPUs compared to FlashAttention-2, without precision loss.
+Nunchaku provides an FP16 attention implementation that delivers up to **1.2×** faster performance on NVIDIA 30-, 40-, and 50-series GPUs compared to FlashAttention-2, without precision loss.
 
 .. literalinclude:: ../../../examples/flux.1-dev-fp16attn.py
    :language: python
