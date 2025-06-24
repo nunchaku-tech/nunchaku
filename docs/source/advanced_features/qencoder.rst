@@ -19,4 +19,4 @@ Pass the quantized encoder to the pipeline via the ``text_encoder_2`` parameter,
 
 .. note::
 
-   The quantized T5 encoder currently only supports CUDA backend.
+   The quantized T5 encoder currently only supports CUDA backend. Turing GPUs will be supported later.
