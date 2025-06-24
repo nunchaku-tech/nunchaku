@@ -25,6 +25,7 @@ Check out `DeepCompressor <deepcompressor_repo>`_ for the quantization library.
     advanced_features/controlnet.rst
     advanced_features/qencoder.rst
     advanced_features/offload.rst
+    advanced_features/attention.rst
 
 .. toctree::
     :maxdepth: 2

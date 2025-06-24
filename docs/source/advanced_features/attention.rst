@@ -9,6 +9,6 @@ Nunchaku provides an FP16 attention implementation that delivers up to 1.2× fas
    :linenos:
    :emphasize-lines: 11
 
-Compared to `basic usage <../basic_usage/basic_usage>`_, the key change for FP16 attention is:
-
-Use ``transformer.set_attention_impl("nunchaku-fp16")`` to enable FP16 attention. While FlashAttention-2 is the default, FP16 attention offers better performance on modern NVIDIA GPUs. Switch back with ``transformer.set_attention_impl("flash-attention-2")``.
+The key change from `basic usage <../basic_usage/basic_usage>`_ is use ``transformer.set_attention_impl("nunchaku-fp16")`` to enable FP16 attention.
+While FlashAttention-2 is the default, FP16 attention offers better performance on modern NVIDIA GPUs.
+Switch back with ``transformer.set_attention_impl("flash-attention2")``.
