@@ -1,8 +1,8 @@
 CPU Offload
 ===========
 
-Nunchaku supports CPU offload to further reduce GPU memory usage without much communication overhead. 
-It is also compatible with `Diffusers <diffusers_repo_>`_ offload.
+Nunchaku provides CPU offload capabilities to significantly reduce GPU memory usage with minimal performance impact. 
+This feature is fully compatible with `Diffusers <diffusers_repo>`_ offload mechanisms.
 
 .. literalinclude:: ../../../examples/flux.1-dev-offload.py
    :language: python
@@ -10,16 +10,16 @@ It is also compatible with `Diffusers <diffusers_repo_>`_ offload.
    :linenos:
    :emphasize-lines: 9, 13, 14
 
-Compared to `basic usage <../basic_usage/basic_usage>`_, the key changes for CPU offload are:
+The following modifications are required compared to `basic usage <../basic_usage/basic_usage>`_:
 
-**Enabling Nunchaku Offload** (line 9):
-Set ``offload=True`` in the transformer initialization to enable Nunchaku's CPU offload functionality.
-This reduces GPU memory usage by offloading model components to CPU when not in use.
+**Nunchaku CPU Offload** (line 9):
+Enable Nunchaku's built-in CPU offload by setting ``offload=True`` during transformer initialization.
+This intelligently offloads inactive model components to CPU memory, reducing GPU memory footprint.
 
-**Enabling Diffusers Offload** (line 14):
-Call ``pipeline.enable_sequential_cpu_offload()`` to enable Diffusers' sequential CPU offload.
-This automatically handles device placement and further reduces GPU memory usage.
+**Diffusers Sequential Offload** (line 14):
+Activate Diffusers' sequential CPU offload with ``pipeline.enable_sequential_cpu_offload()``.
+This provides automatic device management and additional memory optimization.
 
 .. note::
-    Unlike basic usage, you don't need to explicitly call ``.to('cuda')`` on the pipeline,
-    as ``pipeline.enable_sequential_cpu_offload()`` automatically manages device placement.
+    When using CPU offload, manual device placement with ``.to('cuda')`` is unnecessary,
+    as ``pipeline.enable_sequential_cpu_offload()`` handles all device management automatically.
