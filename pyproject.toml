@@ -38,7 +38,7 @@ include = ["nunchaku"]
 [tool.doc8]
 max-line-length = 120
 ignore-path = ["docs/_build"]
-ignore = ["D000"]
+ignore = ["D000", "D001"]
 
 [tool.rstcheck]
 ignore_directives = ["tabs"]

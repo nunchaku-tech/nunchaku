@@ -16,7 +16,8 @@ FLUX.1-tools Base Models
 
 Nunchaku provides quantized FLUX.1-tools base models.
 The implementation follows the same pattern as described in :doc:`Basic Usage <../basic_usage/basic_usage>`,
-utilizing an API interface compatible with `Diffusers <diffusers_repo_>`_ where the ``FluxTransformer2dModel`` is replaced with ``NunchakuFluxTransformer2dModel``.
+utilizing an API interface compatible with `Diffusers <diffusers_repo_>`_
+where the ``FluxTransformer2dModel`` is replaced with ``NunchakuFluxTransformer2dModel``.
 The primary modification involves switching to the appropriate ControlNet pipeline.
 Refer to the following examples for detailed implementation guidance.
 
