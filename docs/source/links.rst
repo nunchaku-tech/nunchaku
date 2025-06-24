@@ -26,3 +26,4 @@
 .. _controlnet_union_pro: https://huggingface.co/Shakker-Labs/FLUX.1-dev-ControlNet-Union-Pro
 .. _controlnet_union_pro2: https://huggingface.co/Shakker-Labs/FLUX.1-dev-ControlNet-Union-Pro-2.0
 .. _fbcache: https://github.com/chengzeyi/ParaAttention?tab=readme-ov-file#first-block-cache-our-dynamic-caching
+.. _pulid: https://arxiv.org/abs/2404.16022
