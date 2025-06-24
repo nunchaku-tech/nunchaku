@@ -1,7 +1,7 @@
 PuLID
 =====
 
-Nunchaku integrates `PuLID <_pulid>`_, a tuning-free identity customization method for text-to-image generation. 
+Nunchaku integrates `PuLID <_pulid>`_, a tuning-free identity customization method for text-to-image generation.
 This feature allows you to generate images that maintain specific identity characteristics from reference photos.
 
 .. literalinclude:: ../../../examples/flux.1-dev-pulid.py
@@ -10,7 +10,7 @@ This feature allows you to generate images that maintain specific identity chara
    :linenos:
 
 Implementation Overview
-----------------------
+-----------------------
 
 The PuLID integration follows these key steps:
 
@@ -18,11 +18,11 @@ The PuLID integration follows these key steps:
 Load a Nunchaku FLUX.1-dev model using ``NunchakuFluxTransformer2dModel`` and initialize the FLUX PuLID pipeline with ``PuLIDFluxPipeline``.
 
 **Forward Method Override** (line 22):
-Replace the transformer's forward method with PuLID's specialized implementation using ``MethodType(pulid_forward, pipeline.transformer)``. 
+Replace the transformer's forward method with PuLID's specialized implementation using ``MethodType(pulid_forward, pipeline.transformer)``.
 This modification enables identity-aware generation capabilities.
 
 **Reference Image Processing** (line 24):
-Load and prepare the reference identity image that will guide the generation process. 
+Load and prepare the reference identity image that will guide the generation process.
 This image defines the identity characteristics to be preserved in the output.
 
 **Identity-Controlled Generation** (lines 26-32):

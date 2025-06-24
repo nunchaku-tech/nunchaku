@@ -32,8 +32,8 @@ The ``transformer.set_lora_strength`` method sets the LoRA strength parameter, w
 Multiple LoRAs
 --------------
 
-To load multiple LoRAs simultaneously, Nunchaku provides the ``nunchaku.lora.flux.compose.compose_lora`` function, 
-which combines multiple LoRA weights into a single composed LoRA before loading. 
+To load multiple LoRAs simultaneously, Nunchaku provides the ``nunchaku.lora.flux.compose.compose_lora`` function,
+which combines multiple LoRA weights into a single composed LoRA before loading.
 This approach enables efficient multi-LoRA inference without requiring separate loading operations.
 
 The following example demonstrates how to compose and load multiple LoRAs:
@@ -58,14 +58,14 @@ This composition method allows for precise control over individual LoRA strength
 .. warning::
 
    Nunchaku's current implementation maintains the LoRA branch separately from the main branch.
-   This design choice may impact inference performance when the composed rank becomes large (e.g., > 256). 
+   This design choice may impact inference performance when the composed rank becomes large (e.g., > 256).
    A future release will include quantization tools to fuse the LoRA branch into the main branch.
 
 LoRA Conversion
 ---------------
 
-Nunchaku utilizes the `Diffusers <diffusers_repo_>`_ LoRA format as an intermediate representation for converting LoRAs to Nunchaku's native format. 
-Both the ``transformer.update_lora_params`` method and ``compose_lora`` function internally invoke the `to_diffusers <to_diffusers_lora_>`_ method to convert LoRAs to the `Diffusers <diffusers_repo_>`_ format. 
+Nunchaku utilizes the `Diffusers <diffusers_repo_>`_ LoRA format as an intermediate representation for converting LoRAs to Nunchaku's native format.
+Both the ``transformer.update_lora_params`` method and ``compose_lora`` function internally invoke the `to_diffusers <to_diffusers_lora_>`_ method to convert LoRAs to the `Diffusers <diffusers_repo_>`_ format.
 If LoRA functionality is not working as expected, verify that the LoRA has been properly converted to the `Diffusers <diffusers_repo_>`_ format. Please check `to_diffusers <to_diffusers_lora_>`_ for more details.
 
 Following the conversion to `Diffusers <diffusers_repo_>`_ format, the ``transformer.update_lora_params`` method calls the `to_nunchaku <to_nunchaku_lora_>`_ method to perform the final conversion to Nunchaku's format.
@@ -73,8 +73,8 @@ Following the conversion to `Diffusers <diffusers_repo_>`_ format, the ``transfo
 Exporting Converted LoRAs
 -------------------------
 
-The current implementation employs single-threaded conversion, which may result in extended processing times, particularly for large LoRA files. 
-To address this limitation, users can pre-compose LoRAs using the ``python -m nunchaku.lora.flux.compose`` command-line interface. 
+The current implementation employs single-threaded conversion, which may result in extended processing times, particularly for large LoRA files.
+To address this limitation, users can pre-compose LoRAs using the ``python -m nunchaku.lora.flux.compose`` command-line interface.
 The syntax is as follows:
 
 .. code-block:: bash

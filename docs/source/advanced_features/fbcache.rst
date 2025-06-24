@@ -15,5 +15,5 @@ Enable it with:
 
     apply_cache_on_pipe(pipeline, residual_diff_threshold=0.12)
 
-Adjust ``residual_diff_threshold`` to trade speed for quality - higher values are faster but lower quality. 
+Adjust ``residual_diff_threshold`` to trade speed for quality - higher values are faster but lower quality.
 Recommended value 0.12 gives 2× speedup for 50-step and 1.4× for 30-step denoising.

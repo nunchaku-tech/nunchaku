@@ -1,7 +1,7 @@
 CPU Offload
 ===========
 
-Nunchaku provides CPU offload capabilities to significantly reduce GPU memory usage with minimal performance impact. 
+Nunchaku provides CPU offload capabilities to significantly reduce GPU memory usage with minimal performance impact.
 This feature is fully compatible with `Diffusers <diffusers_repo>`_ offload mechanisms.
 
 .. literalinclude:: ../../../examples/flux.1-dev-offload.py

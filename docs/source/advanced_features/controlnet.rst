@@ -4,8 +4,8 @@ ControlNets
 .. image:: https://huggingface.co/mit-han-lab/nunchaku-artifacts/resolve/main/nunchaku/assets/control.jpg
    :alt: ControlNet integration with Nunchaku
 
-Nunchaku supports mainly two types of ControlNets for FLUX.1. 
-The first one is `FLUX.1-tools <flux1_tools_>`_ from Black-Forest-Labs. 
+Nunchaku supports mainly two types of ControlNets for FLUX.1.
+The first one is `FLUX.1-tools <flux1_tools_>`_ from Black-Forest-Labs.
 The second one is the community-contributed ControlNets, like `ControlNet-Union-Pro <controlnet_union_pro_>`_.
 
 FLUX.1-tools
@@ -14,10 +14,10 @@ FLUX.1-tools
 FLUX.1-tools Base Models
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-Nunchaku provides quantized FLUX.1-tools base models. 
-The implementation follows the same pattern as described in :doc:`Basic Usage <../basic_usage/basic_usage>`, 
+Nunchaku provides quantized FLUX.1-tools base models.
+The implementation follows the same pattern as described in :doc:`Basic Usage <../basic_usage/basic_usage>`,
 utilizing an API interface compatible with `Diffusers <diffusers_repo_>`_ where the ``FluxTransformer2dModel`` is replaced with ``NunchakuFluxTransformer2dModel``.
-The primary modification involves switching to the appropriate ControlNet pipeline. 
+The primary modification involves switching to the appropriate ControlNet pipeline.
 Refer to the following examples for detailed implementation guidance.
 
 .. tabs::
@@ -53,8 +53,8 @@ Refer to the following examples for detailed implementation guidance.
 FLUX.1-tools LoRAs
 ^^^^^^^^^^^^^^^^^^
 
-Nunchaku supports FLUX.1-tools LoRAs for converting quantized FLUX.1-dev models to controllable variants. 
-Implementation follows the same pattern as :doc:`Customized LoRAs <lora>`, 
+Nunchaku supports FLUX.1-tools LoRAs for converting quantized FLUX.1-dev models to controllable variants.
+Implementation follows the same pattern as :doc:`Customized LoRAs <lora>`,
 requiring only the ``FluxControlPipeline`` for the target model.
 
 .. tabs::
@@ -76,7 +76,7 @@ requiring only the ``FluxControlPipeline`` for the target model.
 ControlNet-Union-Pro
 --------------------
 
-`ControlNet-Union-Pro <controlnet_union_pro_>`_ is a community-developed ControlNet implementation for FLUX.1. 
+`ControlNet-Union-Pro <controlnet_union_pro_>`_ is a community-developed ControlNet implementation for FLUX.1.
 Unlike FLUX.1-tools that directly fine-tunes the model to incorporate control signals,
 `ControlNet-Union-Pro <controlnet_union_pro_>`_ uses additional control modules.
 It provides native support for multiple control types including Canny edges and depth maps.
@@ -89,5 +89,5 @@ The following example demonstrates running `ControlNet-Union-Pro <controlnet_uni
    :caption: Running ControlNet-Union-Pro (`examples/flux.1-dev-controlnet-union-pro.py <https://github.com/mit-han-lab/nunchaku/blob/main/examples/flux.1-dev-controlnet-union-pro.py>`__)
    :linenos:
 
-Usage for `ControlNet-Union-Pro2 <controlnet_union_pro2_>`_ is similar. 
+Usage for `ControlNet-Union-Pro2 <controlnet_union_pro2_>`_ is similar.
 Quantized ControlNet support is currently in development. Stay tuned!

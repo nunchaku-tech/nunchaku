@@ -29,7 +29,7 @@ The key difference when using Nunchaku is replacing the standard ``FluxTransform
 .. note::
 
    For **Turing GPUs (e.g., NVIDIA 20-series)**, additional configuration is required:
-   
+
    - Set ``torch_dtype=torch.float16`` in both the transformer and pipeline initialization
    - Use ``transformer.set_attention_impl("nunchaku-fp16")`` to enable FP16 attention
    - Enable offloading with ``offload=True`` in the transformer and ``pipeline.enable_sequential_cpu_offload()`` if you do not have enough VRAM.
