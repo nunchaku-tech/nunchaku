@@ -109,8 +109,6 @@ def pulid_forward(
         controlnet_block_samples=controlnet_block_samples,
         controlnet_single_block_samples=controlnet_single_block_samples,
     )
-    hidden_states = torch.cat([encoder_hidden_states, hidden_states], dim=1)
-    hidden_states = hidden_states[:, encoder_hidden_states.shape[1] :, ...]
     hidden_states = self.norm_out(hidden_states, temb)
     output = self.proj_out(hidden_states)
 
