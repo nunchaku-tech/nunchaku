@@ -1,6 +1,7 @@
 MAX_SEED = 1000000000
 
-EXAMPLES = [
+EXAMPLES = (
+    [
         [
             "https://huggingface.co/mit-han-lab/svdq-int4-flux.1-canny-dev/resolve/main/logo_example.png",
             "Convert the logo pixel style.",
@@ -13,6 +14,7 @@ EXAMPLES = [
             "Make Pikachu hold a sign that says 'Nunchaku is awesome', yarn art style, detailed, vibrant colors",
             28,
             2.5,
-            3
+            3,
         ],
     ],
+)

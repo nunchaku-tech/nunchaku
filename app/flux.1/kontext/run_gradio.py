@@ -8,10 +8,7 @@ import torch
 from diffusers import FluxKontextPipeline
 from PIL import Image
 from utils import get_args
-from vars import (
-    EXAMPLES,
-    MAX_SEED
-)
+from vars import EXAMPLES, MAX_SEED
 
 from nunchaku.models.transformers.transformer_flux import NunchakuFluxTransformer2dModel
 
@@ -21,9 +18,7 @@ import gradio as gr  # noqa: isort: skip
 args = get_args()
 
 if args.precision == "bf16":
-    pipeline = FluxKontextPipeline.from_pretrained(
-        f"black-forest-labs/FLUX.1-Kontext-dev", torch_dtype=torch.bfloat16
-    )
+    pipeline = FluxKontextPipeline.from_pretrained(f"black-forest-labs/FLUX.1-Kontext-dev", torch_dtype=torch.bfloat16)
     pipeline = pipeline.to("cuda")
     pipeline.precision = "bf16"
 else:
@@ -47,9 +42,8 @@ else:
     pipeline = pipeline.to("cuda")
     pipeline.precision = "int4"
 
-def run(
-    image, prompt: str, num_inference_steps: int, guidance_scale: float, seed: int
-) -> tuple[Image, str]:
+
+def run(image, prompt: str, num_inference_steps: int, guidance_scale: float, seed: int) -> tuple[Image, str]:
     img = image["composite"][0].convert("RGB")
 
     start_time = time.time()
@@ -150,20 +144,8 @@ with gr.Blocks(css_paths="assets/style.css", title=f"SVDQuant FLUX.1-Kontext Dem
                 randomize_seed = gr.Button("Random Seed", scale=1, min_width=50, elem_id="random_seed")
             with gr.Accordion("Advanced options", open=False):
                 with gr.Group():
-                    num_inference_steps = gr.Slider(
-                        label="Inference Steps",
-                        minimum=10,
-                        maximum=50,
-                        step=1,
-                        value=28
-                    )
-                    guidance_scale = gr.Slider(
-                        label="Guidance Scale",
-                        minimum=1,
-                        maximum=10,
-                        step=0.1,
-                        value=2.5
-                    )
+                    num_inference_steps = gr.Slider(label="Inference Steps", minimum=10, maximum=50, step=1, value=28)
+                    guidance_scale = gr.Slider(label="Guidance Scale", minimum=1, maximum=10, step=0.1, value=2.5)
 
         with gr.Column(elem_id="column_output"):
             gr.Markdown("## OUTPUT", elem_id="output_header")
@@ -192,11 +174,7 @@ with gr.Blocks(css_paths="assets/style.css", title=f"SVDQuant FLUX.1-Kontext Dem
     gr.Examples(examples=EXAMPLES[args.model], inputs=run_inputs, outputs=run_outputs, fn=run)
 
     randomize_seed.click(
-        lambda: random.randint(0, MAX_SEED),
-        inputs=[],
-        outputs=seed,
-        api_name=False,
-        queue=False
+        lambda: random.randint(0, MAX_SEED), inputs=[], outputs=seed, api_name=False, queue=False
     ).then(run, inputs=run_inputs, outputs=run_outputs, api_name=False)
 
     gr.on(
