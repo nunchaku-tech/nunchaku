@@ -18,14 +18,14 @@ import gradio as gr  # noqa: isort: skip
 args = get_args()
 
 if args.precision == "bf16":
-    pipeline = FluxKontextPipeline.from_pretrained(f"black-forest-labs/FLUX.1-Kontext-dev", torch_dtype=torch.bfloat16)
+    pipeline = FluxKontextPipeline.from_pretrained("black-forest-labs/FLUX.1-Kontext-dev", torch_dtype=torch.bfloat16)
     pipeline = pipeline.to("cuda")
     pipeline.precision = "bf16"
 else:
     assert args.precision == "int4"
     pipeline_init_kwargs = {}
     transformer = NunchakuFluxTransformer2dModel.from_pretrained(
-        f"mit-han-lab/nunchaku-flux.1-kontext-dev/svdq-int4_r32-flux.1-kontext-dev.safetensors"
+        "mit-han-lab/nunchaku-flux.1-kontext-dev/svdq-int4_r32-flux.1-kontext-dev.safetensors"
     )
     pipeline_init_kwargs["transformer"] = transformer
     if args.use_qencoder:
@@ -37,14 +37,14 @@ else:
         pipeline_init_kwargs["text_encoder_2"] = text_encoder_2
 
     pipeline = FluxKontextPipeline.from_pretrained(
-        f"black-forest-labs/FLUX.1-Kontext-dev", torch_dtype=torch.bfloat16, **pipeline_init_kwargs
+        "black-forest-labs/FLUX.1-Kontext-dev", torch_dtype=torch.bfloat16, **pipeline_init_kwargs
     )
     pipeline = pipeline.to("cuda")
     pipeline.precision = "int4"
 
 
 def run(image, prompt: str, num_inference_steps: int, guidance_scale: float, seed: int) -> tuple[Image, str]:
-    img = image["composite"][0].convert("RGB")
+    img = image["composite"].convert("RGB")
 
     start_time = time.time()
     result_image = pipeline(
@@ -80,7 +80,7 @@ def run(image, prompt: str, num_inference_steps: int, guidance_scale: float, see
     return result_image, latency_str
 
 
-with gr.Blocks(css_paths="assets/style.css", title=f"SVDQuant FLUX.1-Kontext Demo") as demo:
+with gr.Blocks(css_paths="assets/style.css", title="Nunchaku FLUX.1-Kontext Demo") as demo:
     with open("assets/description.html", "r") as f:
         DESCRIPTION = f.read()
     # Get the GPU properties
@@ -96,8 +96,8 @@ with gr.Blocks(css_paths="assets/style.css", title=f"SVDQuant FLUX.1-Kontext Dem
     def get_header_str():
 
         if args.count_use:
-            if os.path.exists(f"{args.model}-use_count.txt"):
-                with open(f"{args.model}-use_count.txt", "r") as f:
+            if os.path.exists("use_count.txt"):
+                with open("use_count.txt", "r") as f:
                     count = int(f.read())
             else:
                 count = 0
@@ -108,9 +108,7 @@ with gr.Blocks(css_paths="assets/style.css", title=f"SVDQuant FLUX.1-Kontext Dem
             )
         else:
             count_info = ""
-        header_str = DESCRIPTION.format(
-            model_name=args.model, device_info=device_info, notice=notice, count_info=count_info
-        )
+        header_str = DESCRIPTION.format(device_info=device_info, notice=notice, count_info=count_info)
         return header_str
 
     header = gr.HTML(get_header_str())
@@ -171,7 +169,7 @@ with gr.Blocks(css_paths="assets/style.css", title=f"SVDQuant FLUX.1-Kontext Dem
     run_inputs = [canvas, prompt, num_inference_steps, guidance_scale, seed]
     run_outputs = [result, latency_result]
 
-    gr.Examples(examples=EXAMPLES[args.model], inputs=run_inputs, outputs=run_outputs, fn=run)
+    gr.Examples(examples=EXAMPLES, inputs=run_inputs, outputs=run_outputs, fn=run)
 
     randomize_seed.click(
         lambda: random.randint(0, MAX_SEED), inputs=[], outputs=seed, api_name=False, queue=False
