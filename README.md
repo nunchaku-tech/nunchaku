@@ -15,6 +15,7 @@ Join our user groups on [**Slack**](https://join.slack.com/t/nunchaku/shared_inv
 
 ## News
 
+- **[2025-06-29]** 🔥 Support **FLUX.1-Kontext**! Try out our [example script](./examples/flux.1-kontext-dev.py) to see it in action!
 - **[2025-06-01]** 🚀 **Release v0.3.0!** This update adds support for multiple-batch inference, [**ControlNet-Union-Pro 2.0**](https://huggingface.co/Shakker-Labs/FLUX.1-dev-ControlNet-Union-Pro-2.0), initial integration of [**PuLID**](https://github.com/ToTheBeginning/PuLID), and introduces [**Double FB Cache**](examples/flux.1-dev-double_cache.py). You can now load Nunchaku FLUX models as a single file, and our upgraded [**4-bit T5 encoder**](https://huggingface.co/mit-han-lab/nunchaku-t5) now matches **FP8 T5** in quality!
 - **[2025-04-16]** 🎥 Released tutorial videos in both [**English**](https://youtu.be/YHAVe-oM7U8?si=cM9zaby_aEHiFXk0) and [**Chinese**](https://www.bilibili.com/video/BV1BTocYjEk5/?share_source=copy_web&vd_source=8926212fef622f25cc95380515ac74ee) to assist installation and usage.
 - **[2025-04-09]** 📢 Published the [April roadmap](https://github.com/mit-han-lab/nunchaku/issues/266) and an [FAQ](https://github.com/mit-han-lab/nunchaku/discussions/262) to help the community get started and stay up to date with Nunchaku’s development.
@@ -274,6 +275,12 @@ transformer.update_lora_params(composed_lora)
 You can specify individual strengths for each LoRA in the list. For a complete example, refer to [`examples/flux.1-dev-multiple-lora.py`](examples/flux.1-dev-multiple-lora.py).
 
 **For ComfyUI users, you can directly use our LoRA loader. The converted LoRA is deprecated. Please refer to [mit-han-lab/ComfyUI-nunchaku](https://github.com/mit-han-lab/ComfyUI-nunchaku) for more details.**
+
+## Kontext
+
+Nunchaku supports [FLUX.1-Kontext-dev](https://huggingface.co/black-forest-labs/FLUX.1-Kontext-dev), which enables natural language image editing. You can find the [example script](./examples/flux.1-kontext-dev.py) in our examples directory. **Note:** This feature requires diffusers>=0.35.
+
+![kontext](https://huggingface.co/mit-han-lab/nunchaku-artifacts/resolve/main/nunchaku/assets/kontext.png)
 
 ## ControlNets
 
