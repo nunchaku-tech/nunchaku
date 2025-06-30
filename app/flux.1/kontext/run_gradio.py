@@ -65,8 +65,8 @@ def run(image, prompt: str, num_inference_steps: int, guidance_scale: float, see
         latency_str = f"{latency:.2f}s"
     torch.cuda.empty_cache()
     if args.count_use:
-        if os.path.exists(f"{args.model}-use_count.txt"):
-            with open(f"{args.model}-use_count.txt", "r") as f:
+        if os.path.exists("use_count.txt"):
+            with open("use_count.txt", "r") as f:
                 count = int(f.read())
         else:
             count = 0
