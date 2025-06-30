@@ -73,9 +73,9 @@ def run(image, prompt: str, num_inference_steps: int, guidance_scale: float, see
         count += 1
         current_time = datetime.now()
         print(f"{current_time}: {count}")
-        with open(f"{args.model}-use_count.txt", "w") as f:
+        with open("use_count.txt", "w") as f:
             f.write(str(count))
-        with open(f"{args.model}-use_record.txt", "a") as f:
+        with open("use_record.txt", "a") as f:
             f.write(f"{current_time}: {count}\n")
     return result_image, latency_str
 
