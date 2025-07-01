@@ -210,3 +210,5 @@ cython_debug/
 *.safetensors
 *.onnx
 .gitattributes
+nunchaku-models/
+*.png

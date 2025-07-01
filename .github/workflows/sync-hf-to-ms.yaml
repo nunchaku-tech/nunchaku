@@ -19,6 +19,7 @@ jobs:
           - nunchaku-flux.1-canny-dev
           - nunchaku-shuttle-jaguar
           - nunchaku-sana
+          - nunchaku-flux.1-kontext-dev
           - svdq-fp4-flux.1-schnell
           - svdq-int4-flux.1-schnell
           - svdq-fp4-flux.1-dev
