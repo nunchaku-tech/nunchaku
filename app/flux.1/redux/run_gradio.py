@@ -26,10 +26,10 @@ if args.precision == "bf16":
     pipeline = pipeline.to("cuda")
     pipeline.precision = "bf16"
 else:
-    assert args.precision == "int4"
+    assert args.precision in ["int4", "fp4"]
     pipeline_init_kwargs = {}
     transformer = NunchakuFluxTransformer2dModel.from_pretrained(
-        "mit-han-lab/nunchaku-flux.1-dev/svdq-int4_r32-flux.1-dev.safetensors"
+        f"mit-han-lab/nunchaku-flux.1-dev/svdq-{args.precision}_r32-flux.1-dev.safetensors"
     )
     pipeline = FluxPipeline.from_pretrained(
         "black-forest-labs/FLUX.1-dev",
@@ -39,7 +39,7 @@ else:
         torch_dtype=torch.bfloat16,
     )
     pipeline = pipeline.to("cuda")
-    pipeline.precision = "int4"
+    pipeline.precision = args.precision
 
 
 def run(image, num_inference_steps: int, guidance_scale: float, seed: int) -> tuple[Image, str]:
