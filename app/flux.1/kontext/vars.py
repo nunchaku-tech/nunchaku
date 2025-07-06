@@ -2,11 +2,26 @@ MAX_SEED = 1000000000
 
 EXAMPLES = [
     [
-        "https://huggingface.co/mit-han-lab/nunchaku-artifacts/resolve/main/ComfyUI-nunchaku/test_data/monalisa.jpg",
-        "Convert the image to a realistic style and the girl is holding a sign that says 'Nunchaku is awesome'",
+        "https://images.pexels.com/photos/15460314/pexels-photo-15460314.jpeg",
+        "Change the color of the woman's dress to red. The background is a beach. "
+        "The woman is holding a sign that says 'Nunchaku is awesome'",
         20,
         2.5,
-        0,
+        23,
+    ],
+    [
+        "https://huggingface.co/mit-han-lab/nunchaku-artifacts/resolve/main/ComfyUI-nunchaku/test_data/logo.png",
+        "Change the logo of 'MIT HAN Lab' to 'MIT Nunchaku' in the same style.",
+        20,
+        2.5,
+        233,
+    ],
+    [
+        "https://huggingface.co/mit-han-lab/nunchaku-artifacts/resolve/main/ComfyUI-nunchaku/test_data/monalisa.jpg",
+        "Convert the image to ghibli style",
+        20,
+        2.5,
+        2333,
     ],
     [
         "https://huggingface.co/mit-han-lab/nunchaku-artifacts/resolve/main/ComfyUI-nunchaku/test_data/mushroom_depth.webp",
@@ -16,27 +31,13 @@ EXAMPLES = [
         "starry night sky adds to the magical atmosphere.",
         20,
         2.5,
-        1,
-    ],
-    [
-        "https://huggingface.co/mit-han-lab/nunchaku-artifacts/resolve/main/ComfyUI-nunchaku/test_data/strawberry.png",
-        "Change the strawberries in the basket to a cute cat.",
-        20,
-        2.5,
-        2,
-    ],
-    [
-        "https://huggingface.co/mit-han-lab/nunchaku-artifacts/resolve/main/ComfyUI-nunchaku/test_data/logo.png",
-        "Change the logo of 'MIT HAN Lab' to 'MIT Nunchaku' in the same style.",
-        20,
-        2.5,
-        3,
+        23333,
     ],
     [
         "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/diffusers/yarn-art-pikachu.png",
         "Make Pikachu hold a sign that says 'Nunchaku is awesome', yarn art style, detailed, vibrant colors",
         20,
         2.5,
-        4,
+        233333,
     ],
 ]

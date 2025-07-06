@@ -91,7 +91,6 @@ with gr.Blocks(css_paths="assets/style.css", title="Nunchaku FLUX.1-Kontext Demo
         device_info = f"Running on {gpu_name} with {gpu_memory:.0f} GiB memory."
     else:
         device_info = "Running on CPU 🥶 This demo does not work on CPU."
-    notice = '<strong>Notice:</strong>&nbsp;We will replace unsafe prompts with a default prompt: "A peaceful world."'
 
     def get_header_str():
 
@@ -108,7 +107,9 @@ with gr.Blocks(css_paths="assets/style.css", title="Nunchaku FLUX.1-Kontext Demo
             )
         else:
             count_info = ""
-        header_str = DESCRIPTION.format(device_info=device_info, notice=notice, count_info=count_info)
+        header_str = DESCRIPTION.format(
+            precision=args.precision.upper(), device_info=device_info, count_info=count_info
+        )
         return header_str
 
     header = gr.HTML(get_header_str())
