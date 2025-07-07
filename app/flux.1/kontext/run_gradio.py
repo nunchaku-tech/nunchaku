@@ -22,10 +22,10 @@ if args.precision == "bf16":
     pipeline = pipeline.to("cuda")
     pipeline.precision = "bf16"
 else:
-    assert args.precision == "int4"
+    assert args.precision in ["int4", "fp4"]
     pipeline_init_kwargs = {}
     transformer = NunchakuFluxTransformer2dModel.from_pretrained(
-        "mit-han-lab/nunchaku-flux.1-kontext-dev/svdq-int4_r32-flux.1-kontext-dev.safetensors"
+        f"mit-han-lab/nunchaku-flux.1-kontext-dev/svdq-{args.precision}_r32-flux.1-kontext-dev.safetensors"
     )
     pipeline_init_kwargs["transformer"] = transformer
     if args.use_qencoder:
@@ -40,7 +40,7 @@ else:
         "black-forest-labs/FLUX.1-Kontext-dev", torch_dtype=torch.bfloat16, **pipeline_init_kwargs
     )
     pipeline = pipeline.to("cuda")
-    pipeline.precision = "int4"
+    pipeline.precision = args.precision
 
 
 def run(image, prompt: str, num_inference_steps: int, guidance_scale: float, seed: int) -> tuple[Image, str]:
@@ -65,17 +65,17 @@ def run(image, prompt: str, num_inference_steps: int, guidance_scale: float, see
         latency_str = f"{latency:.2f}s"
     torch.cuda.empty_cache()
     if args.count_use:
-        if os.path.exists(f"{args.model}-use_count.txt"):
-            with open(f"{args.model}-use_count.txt", "r") as f:
+        if os.path.exists("use_count.txt"):
+            with open("use_count.txt", "r") as f:
                 count = int(f.read())
         else:
             count = 0
         count += 1
         current_time = datetime.now()
         print(f"{current_time}: {count}")
-        with open(f"{args.model}-use_count.txt", "w") as f:
+        with open("use_count.txt", "w") as f:
             f.write(str(count))
-        with open(f"{args.model}-use_record.txt", "a") as f:
+        with open("use_record.txt", "a") as f:
             f.write(f"{current_time}: {count}\n")
     return result_image, latency_str
 
@@ -91,7 +91,6 @@ with gr.Blocks(css_paths="assets/style.css", title="Nunchaku FLUX.1-Kontext Demo
         device_info = f"Running on {gpu_name} with {gpu_memory:.0f} GiB memory."
     else:
         device_info = "Running on CPU 🥶 This demo does not work on CPU."
-    notice = '<strong>Notice:</strong>&nbsp;We will replace unsafe prompts with a default prompt: "A peaceful world."'
 
     def get_header_str():
 
@@ -108,7 +107,9 @@ with gr.Blocks(css_paths="assets/style.css", title="Nunchaku FLUX.1-Kontext Demo
             )
         else:
             count_info = ""
-        header_str = DESCRIPTION.format(device_info=device_info, notice=notice, count_info=count_info)
+        header_str = DESCRIPTION.format(
+            precision=args.precision.upper(), device_info=device_info, count_info=count_info
+        )
         return header_str
 
     header = gr.HTML(get_header_str())

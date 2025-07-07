@@ -778,6 +778,8 @@ std::tuple<Tensor, Tensor> JointTransformerBlock::forward(Tensor hidden_states,
 
 FluxModel::FluxModel(bool use_fp4, bool offload, Tensor::ScalarType dtype, Device device)
     : dtype(dtype), offload(offload) {
+    CUDADeviceContext model_construction_ctx(device.idx);
+
     for (int i = 0; i < 19; i++) {
         transformer_blocks.push_back(
             std::make_unique<JointTransformerBlock>(3072, 24, 3072, false, use_fp4, dtype, device));
