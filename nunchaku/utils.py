@@ -55,12 +55,21 @@ def load_state_dict_in_safetensors(
     path: str | os.PathLike[str],
     device: str | torch.device = "cpu",
     filter_prefix: str = "",
+    del_filter_prefixs: list = [],
     return_metadata: bool = False,
 ) -> dict[str, torch.Tensor] | tuple[dict[str, torch.Tensor], dict[str, str]]:
     state_dict = {}
     with safetensors.safe_open(fetch_or_download(path), framework="pt", device=device) as f:
         metadata = f.metadata()
         for k in f.keys():
+            is_del = False
+            if len(del_filter_prefixs) > 0:      
+                for del_filter_prefix in del_filter_prefixs:
+                    if del_filter_prefix in k:
+                        is_del = True
+                        break
+            if is_del:
+                continue
             if filter_prefix and not k.startswith(filter_prefix):
                 continue
             state_dict[k.removeprefix(filter_prefix)] = f.get_tensor(k)

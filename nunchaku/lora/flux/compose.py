@@ -9,7 +9,9 @@ from .utils import is_nunchaku_format, load_state_dict_in_safetensors
 
 
 def compose_lora(
-    loras: list[tuple[str | dict[str, torch.Tensor], float]], output_path: str | None = None
+    loras: list[tuple[str | dict[str, torch.Tensor], float]], output_path: str | None = None,     
+    filter_prefix: str = "",
+    del_filter_prefixs: list = [],
 ) -> dict[str, torch.Tensor]:
     if len(loras) == 1:
         if is_nunchaku_format(loras[0][0]) and (loras[0][1] - 1) < 1e-5:
@@ -21,7 +23,7 @@ def compose_lora(
     composed = {}
     for lora, strength in loras:
         assert not is_nunchaku_format(lora)
-        lora = to_diffusers(lora)
+        lora = to_diffusers(lora, filter_prefix=filter_prefix, del_filter_prefixs=del_filter_prefixs)
         for k, v in list(lora.items()):
             if v.ndim == 1:
                 previous_tensor = composed.get(k, None)
