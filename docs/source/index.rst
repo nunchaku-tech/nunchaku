@@ -31,8 +31,11 @@ Check out `DeepCompressor <deepcompressor_repo>`_ for the quantization library.
     advanced_features/pulid.rst
 
 .. toctree::
-    :maxdepth: 2
+    :maxdepth: 1
     :caption: Gradio Demos
+    :titlesonly:
+
+    Gradio Demos <https://github.com/mit-han-lab/nunchaku/tree/main/app>
 
 .. toctree::
     :maxdepth: 1
