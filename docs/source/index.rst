@@ -22,6 +22,7 @@ Check out `DeepCompressor <deepcompressor_repo>`_ for the quantization library.
     :caption: Advanced Features
 
     advanced_features/lora.rst
+    advanced_features/kontext.rst
     advanced_features/controlnet.rst
     advanced_features/qencoder.rst
     advanced_features/offload.rst
