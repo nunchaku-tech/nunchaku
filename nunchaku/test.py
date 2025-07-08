@@ -1,12 +1,16 @@
-"""Test script for generating an image using the Nunchaku FLUX.1-schnell.
+"""
+Test script for generating an image using the Nunchaku FLUX.1-schnell.
 
-This script demonstrates how to load a quantized Nunchaku Flux transformer model and
-use it with the Diffusers FluxPipeline to generate an image from a text prompt.
+This script demonstrates how to load a quantized Nunchaku FLUX transformer model and
+use it with the Diffusers :class:`~diffusers.FluxPipeline` to generate an image from a text prompt.
 
-Example:
-    $ python -m nunchaku.test
+**Example usage**
 
-The generated image will be saved as "flux.1-schnell.png" in the current directory.
+.. code-block:: bash
+
+    python -m nunchaku.test
+
+The generated image will be saved as ``flux.1-schnell.png`` in the current directory.
 """
 
 import torch
