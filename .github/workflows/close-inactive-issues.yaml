@@ -69,7 +69,7 @@ jobs:
                           owner,
                           repo,
                           issue_number: issue.number,
-                          body: 'This issue has been automatically closed due to 30-day inactivity. Please feel free to reopen it if needed.'
+                          body: 'This issue has been automatically closed due to 30-day inactivity. Please feel free to reopen it with \`/reopen\` if needed.'
                         });
                         console.log(`Closed issue #${issue.number} due to inactivity.`);
                       } catch (error) {
