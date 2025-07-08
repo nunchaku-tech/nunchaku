@@ -52,8 +52,14 @@ Check out `DeepCompressor <deepcompressor_repo>`_ for the quantization library.
     DeepCompressor <https://github.com/mit-han-lab/deepcompressor>
 
 .. toctree::
+    :maxdepth: 1
+    :caption: Project Structure
+
+.. toctree::
     :maxdepth: 2
     :caption: API Reference
+
+    python_api/nunchaku.rst
 
 .. toctree::
     :maxdepth: 2
