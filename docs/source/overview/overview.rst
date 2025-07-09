@@ -22,7 +22,7 @@ The project consists of three key folders:
 
 **``nunchaku/`` - Main Python Package**
     This is the primary Python package that users interact with. It contains:
-    
+
     - Model implementations for FLUX.1 and SANA
     - Inference pipelines for different use cases
     - LoRA (Low-Rank Adaptation) support for fine-tuning
@@ -32,7 +32,7 @@ The project consists of three key folders:
 
 **``src/`` - C++ Backend Library**
     Houses the high-performance C++ implementation that powers the Python package:
-    
+
     - FLUX.1 and SANA model implementations in C++
     - Linear layer operations and tensor utilities
     - Custom CUDA kernels for quantized operations
@@ -42,7 +42,7 @@ The project consists of three key folders:
 
 **``app/`` - Gradio Demo Applications**
     Interactive web-based demos built with Gradio:
-    
+
     - FLUX.1 demos for different model variants
     - SANA model demonstrations
     - User-friendly interfaces for trying out features
@@ -94,4 +94,4 @@ The build involves:
 3. Wheel generation for distribution
 4. Comprehensive testing
 
-This structure enables efficient development and deployment of high-performance quantized neural network inference while maintaining compatibility with existing ML frameworks. 
+This structure enables efficient development and deployment of high-performance quantized neural network inference while maintaining compatibility with existing ML frameworks.
