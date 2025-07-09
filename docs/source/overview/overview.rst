@@ -16,35 +16,44 @@ Nunchaku combines:
 Directory Structure
 -------------------
 
-**Core Components**
+**Main Components**
 
-.. code-block:: text
+The project consists of three key folders:
 
-    nunchaku/
-    ├── src/                       # C++ implementation
-    │   ├── FluxModel.cpp/h        # FLUX.1 model
-    │   ├── SanaModel.cpp/h        # SANA model
-    │   ├── Linear.cpp/h           # Linear layers
-    │   ├── Tensor.h               # Tensor operations
-    │   ├── kernels/               # CUDA kernels
-    │   └── interop/               # Interoperability
-    ├── nunchaku/                  # Python package
-    │   ├── models/                # Model implementations
-    │   ├── pipeline/              # Inference pipelines
-    │   ├── lora/                  # LoRA support
-    │   └── caching/               # Caching mechanisms
-    ├── examples/                  # Usage examples
-    ├── tests/                     # Test suite
-    ├── docs/                      # Documentation
-    └── third_party/               # External dependencies
+**``nunchaku/`` - Main Python Package**
+    This is the primary Python package that users interact with. It contains:
+    
+    - Model implementations for FLUX.1 and SANA
+    - Inference pipelines for different use cases
+    - LoRA (Low-Rank Adaptation) support for fine-tuning
+    - Caching mechanisms for improved performance
+    - Utility functions and helper modules
+    - The compiled C++ extension (``_C.*.so``)
 
-**Key Directories**
+**``src/`` - C++ Backend Library**
+    Houses the high-performance C++ implementation that powers the Python package:
+    
+    - FLUX.1 and SANA model implementations in C++
+    - Linear layer operations and tensor utilities
+    - Custom CUDA kernels for quantized operations
+    - Memory management and optimization routines
+    - Python-C++ interoperability layer
+    - Serialization and model loading functionality
 
-- ``src/``: C++ backend with CUDA kernels for quantized operations
-- ``nunchaku/``: Python API and model implementations
-- ``examples/``: Ready-to-use examples for different models and features
-- ``tests/``: Comprehensive test suite
-- ``docs/``: Documentation and guides
+**``app/`` - Gradio Demo Applications**
+    Interactive web-based demos built with Gradio:
+    
+    - FLUX.1 demos for different model variants
+    - SANA model demonstrations
+    - User-friendly interfaces for trying out features
+    - Real-time inference examples
+
+**Supporting Directories**
+
+- **``examples/``** - Usage examples and tutorials showing how to use different features
+- **``tests/``** - Comprehensive test suite for validation and quality assurance
+- **``docs/``** - Documentation source files and build configuration
+- **``third_party/``** - External dependencies and submodules
 
 Key Features
 ------------
@@ -71,15 +80,16 @@ Getting Started
 ---------------
 
 1. **Examples**: Start with ``examples/`` for basic usage patterns
-2. **Models**: Explore ``nunchaku/models/`` for implementations
-3. **Documentation**: Read ``docs/source/`` for detailed guides
-4. **Tests**: Check ``tests/`` for validation examples
+2. **Demos**: Try ``app/`` for interactive Gradio demos
+3. **Models**: Explore ``nunchaku/models/`` for implementations
+4. **Documentation**: Read ``docs/source/`` for detailed guides
+5. **Tests**: Check ``tests/`` for validation examples
 
 Build Process
 -------------
 
 The build involves:
-1. C++ compilation with CUDA kernels
+1. C++ compilation with CUDA kernels (``src/`` → ``nunchaku/_C.*.so``)
 2. Python bindings via pybind11
 3. Wheel generation for distribution
 4. Comprehensive testing
