@@ -1,7 +1,29 @@
-"""Utility functions for Nunchaku.
+"""
+Utility functions for Nunchaku.
 
-This module provides helper functions for file hashing, downloading from HuggingFace Hub,
-state dict loading/filtering, hardware detection, and quantization compatibility checks.
+This module provides helper functions for:
+
+- File hashing (SHA-256)
+- Downloading files from the HuggingFace Hub
+- Loading and filtering state dicts from safetensors files
+- Hardware detection (GPU architecture, memory, etc.)
+- Quantization compatibility checks
+
+Functions
+---------
+.. autosummary::
+    :toctree: generated/
+
+    sha256sum
+    fetch_or_download
+    ceil_divide
+    load_state_dict_in_safetensors
+    filter_state_dict
+    get_precision
+    is_turing
+    get_gpu_memory
+    check_hardware_compatibility
+
 """
 
 import hashlib
@@ -15,13 +37,18 @@ from huggingface_hub import hf_hub_download
 
 
 def sha256sum(filepath: str | os.PathLike[str]) -> str:
-    """Compute the SHA-256 checksum of a file.
+    """
+    Compute the SHA-256 checksum of a file.
 
-    Args:
-        filepath (str | os.PathLike[str]): Path to the file.
+    Parameters
+    ----------
+    filepath : str or os.PathLike
+        Path to the file.
 
-    Returns:
-        str: The SHA-256 hexadecimal digest of the file.
+    Returns
+    -------
+    str
+        The SHA-256 hexadecimal digest of the file.
     """
     sha256 = hashlib.sha256()
     with open(filepath, "rb") as f:
@@ -31,16 +58,27 @@ def sha256sum(filepath: str | os.PathLike[str]) -> str:
 
 
 def fetch_or_download(path: str | Path, repo_type: str = "model") -> Path:
-    """Fetch a file from local path or download from HuggingFace Hub if not present.
+    """
+    Fetch a file from a local path or download from HuggingFace Hub if not present.
 
-    The remote path should be in the format: <repo_id>/<filename> or <repo_id>/<subfolder>/<filename>.
+    The remote path should be in the format: ``<repo_id>/<filename>`` or ``<repo_id>/<subfolder>/<filename>``.
 
-    Args:
-        path (str | Path): Local file path or HuggingFace Hub path.
-        repo_type (str, optional): Type of HuggingFace repo. Defaults to "model".
+    Parameters
+    ----------
+    path : str or Path
+        Local file path or HuggingFace Hub path.
+    repo_type : str, optional
+        Type of HuggingFace repo (default: "model").
 
-    Returns:
-        Path: Path to the local file.
+    Returns
+    -------
+    Path
+        Path to the local file.
+
+    Raises
+    ------
+    ValueError
+        If the path is too short to extract repo_id and subfolder.
     """
     path = Path(path)
 
@@ -61,14 +99,20 @@ def fetch_or_download(path: str | Path, repo_type: str = "model") -> Path:
 
 
 def ceil_divide(x: int, divisor: int) -> int:
-    """Compute the ceiling of x divided by divisor.
+    """
+    Compute the ceiling of x divided by divisor.
 
-    Args:
-        x (int): Dividend.
-        divisor (int): Divisor.
+    Parameters
+    ----------
+    x : int
+        Dividend.
+    divisor : int
+        Divisor.
 
-    Returns:
-        int: The smallest integer >= x / divisor.
+    Returns
+    -------
+    int
+        The smallest integer >= x / divisor.
     """
     return (x + divisor - 1) // divisor
 
@@ -79,17 +123,24 @@ def load_state_dict_in_safetensors(
     filter_prefix: str = "",
     return_metadata: bool = False,
 ) -> dict[str, torch.Tensor] | tuple[dict[str, torch.Tensor], dict[str, str]]:
-    """Load a state dict from a safetensors file, optionally filtering by prefix.
+    """
+    Load a state dict from a safetensors file, optionally filtering by prefix.
 
-    Args:
-        path (str | os.PathLike[str]): Path to the safetensors file (local or HuggingFace Hub).
-        device (str | torch.device, optional): Device to load tensors onto. Defaults to "cpu".
-        filter_prefix (str, optional): Only load keys starting with this prefix. Defaults to "" (no filter).
-        return_metadata (bool, optional): Whether to return safetensors metadata. Defaults to False.
+    Parameters
+    ----------
+    path : str or os.PathLike
+        Path to the safetensors file (local or HuggingFace Hub).
+    device : str or torch.device, optional
+        Device to load tensors onto (default: "cpu").
+    filter_prefix : str, optional
+        Only load keys starting with this prefix (default: "", no filter).
+    return_metadata : bool, optional
+        Whether to return safetensors metadata (default: False).
 
-    Returns:
-        dict[str, torch.Tensor] | tuple[dict[str, torch.Tensor], dict[str, str]]:
-            The loaded state dict, and optionally the metadata if return_metadata is True.
+    Returns
+    -------
+    dict[str, torch.Tensor] or tuple[dict[str, torch.Tensor], dict[str, str]]
+        The loaded state dict, and optionally the metadata if ``return_metadata`` is True.
     """
     state_dict = {}
     with safetensors.safe_open(fetch_or_download(path), framework="pt", device=device) as f:
@@ -105,14 +156,20 @@ def load_state_dict_in_safetensors(
 
 
 def filter_state_dict(state_dict: dict[str, torch.Tensor], filter_prefix: str = "") -> dict[str, torch.Tensor]:
-    """Filter a state dict to only include keys starting with a given prefix.
+    """
+    Filter a state dict to only include keys starting with a given prefix.
 
-    Args:
-        state_dict (dict[str, torch.Tensor]): The input state dict.
-        filter_prefix (str, optional): Prefix to filter keys by. Defaults to "" (no filter).
+    Parameters
+    ----------
+    state_dict : dict[str, torch.Tensor]
+        The input state dict.
+    filter_prefix : str, optional
+        Prefix to filter keys by (default: "", no filter).
 
-    Returns:
-        dict[str, torch.Tensor]: Filtered state dict with prefix removed from keys.
+    Returns
+    -------
+    dict[str, torch.Tensor]
+        Filtered state dict with prefix removed from keys.
     """
     return {k.removeprefix(filter_prefix): v for k, v in state_dict.items() if k.startswith(filter_prefix)}
 
@@ -122,18 +179,27 @@ def get_precision(
     device: str | torch.device = "cuda",
     pretrained_model_name_or_path: str | os.PathLike[str] | None = None,
 ) -> str:
-    """Determine the quantization precision to use based on device and model.
+    """
+    Determine the quantization precision to use based on device and model.
 
-    Args:
-        precision (str, optional): "auto", "int4", or "fp4". Defaults to "auto".
-        device (str | torch.device, optional): Device to check. Defaults to "cuda".
-        pretrained_model_name_or_path (str | os.PathLike[str] | None, optional): Model name or path for warning checks.
+    Parameters
+    ----------
+    precision : str, optional
+        "auto", "int4", or "fp4" (default: "auto").
+    device : str or torch.device, optional
+        Device to check (default: "cuda").
+    pretrained_model_name_or_path : str or os.PathLike or None, optional
+        Model name or path for warning checks.
 
-    Returns:
-        str: The selected precision ("int4" or "fp4").
+    Returns
+    -------
+    str
+        The selected precision ("int4" or "fp4").
 
-    Raises:
-        AssertionError: If precision is not one of "auto", "int4", or "fp4".
+    Raises
+    ------
+    AssertionError
+        If precision is not one of "auto", "int4", or "fp4".
     """
     assert precision in ("auto", "int4", "fp4")
     if precision == "auto":
@@ -153,13 +219,18 @@ def get_precision(
 
 
 def is_turing(device: str | torch.device = "cuda") -> bool:
-    """Check if the current GPU is a Turing GPU (compute capability 7.5).
+    """
+    Check if the current GPU is a Turing GPU (compute capability 7.5).
 
-    Args:
-        device (str | torch.device, optional): Device to check. Defaults to "cuda".
+    Parameters
+    ----------
+    device : str or torch.device, optional
+        Device to check (default: "cuda").
 
-    Returns:
-        bool: True if the current GPU is a Turing GPU, False otherwise.
+    Returns
+    -------
+    bool
+        True if the current GPU is a Turing GPU, False otherwise.
     """
     if isinstance(device, str):
         device = torch.device(device)
@@ -170,17 +241,25 @@ def is_turing(device: str | torch.device = "cuda") -> bool:
 
 
 def get_gpu_memory(device: str | torch.device = "cuda", unit: str = "GiB") -> int:
-    """Get the total memory of the current GPU.
+    """
+    Get the total memory of the current GPU.
 
-    Args:
-        device (str | torch.device, optional): Device to check. Defaults to "cuda".
-        unit (str, optional): Unit for memory ("GiB", "MiB", or "B"). Defaults to "GiB".
+    Parameters
+    ----------
+    device : str or torch.device, optional
+        Device to check (default: "cuda").
+    unit : str, optional
+        Unit for memory ("GiB", "MiB", or "B") (default: "GiB").
 
-    Returns:
-        int: GPU memory in the specified unit.
+    Returns
+    -------
+    int
+        GPU memory in the specified unit.
 
-    Raises:
-        AssertionError: If unit is not one of "GiB", "MiB", or "B".
+    Raises
+    ------
+    AssertionError
+        If unit is not one of "GiB", "MiB", or "B".
     """
     if isinstance(device, str):
         device = torch.device(device)
@@ -195,14 +274,20 @@ def get_gpu_memory(device: str | torch.device = "cuda", unit: str = "GiB") -> in
 
 
 def check_hardware_compatibility(quantization_config: dict, device: str | torch.device = "cuda"):
-    """Check if the quantization config is compatible with the current GPU.
+    """
+    Check if the quantization config is compatible with the current GPU.
 
-    Args:
-        quantization_config (dict): Quantization configuration dictionary.
-        device (str | torch.device, optional): Device to check. Defaults to "cuda".
+    Parameters
+    ----------
+    quantization_config : dict
+        Quantization configuration dictionary.
+    device : str or torch.device, optional
+        Device to check (default: "cuda").
 
-    Raises:
-        ValueError: If the quantization config is not compatible with the GPU architecture.
+    Raises
+    ------
+    ValueError
+        If the quantization config is not compatible with the GPU architecture.
     """
     if isinstance(device, str):
         device = torch.device(device)
