@@ -1,7 +1,7 @@
 PuLID
 =====
 
-Nunchaku integrates `PuLID <_pulid>`_, a tuning-free identity customization method for text-to-image generation.
+Nunchaku integrates `PuLID <_pulid_paper>`_, a tuning-free identity customization method for text-to-image generation.
 This feature allows you to generate images that maintain specific identity characteristics from reference photos.
 
 .. literalinclude:: ../../../examples/flux.1-dev-pulid.py
