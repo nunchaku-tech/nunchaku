@@ -71,11 +71,11 @@ def apply_cache_on_transformer(
 ):
     """
     Apply caching to a Flux transformer model.
-    
+
     This function modifies a FluxTransformer2DModel to use cached transformer blocks
     for improved inference performance. It supports both single and double first-block
     caching strategies with configurable similarity thresholds.
-    
+
     Args:
         transformer (FluxTransformer2DModel): The Flux transformer model to apply caching to
         use_double_fb_cache (bool, optional): Whether to use double first-block caching.
@@ -86,29 +86,29 @@ def apply_cache_on_transformer(
             attention blocks. If None, uses residual_diff_threshold. Defaults to None.
         residual_diff_threshold_single (float, optional): Similarity threshold for single-head
             attention blocks. Defaults to 0.1.
-            
+
     Returns:
         FluxTransformer2DModel: The same transformer instance with caching applied
-        
+
     Example:
         Basic caching setup::
-        
+
             transformer = FluxTransformer2DModel.from_pretrained("model_name")
             cached_transformer = apply_cache_on_transformer(
                 transformer,
                 use_double_fb_cache=True,
                 residual_diff_threshold=0.12
             )
-            
+
         Advanced configuration::
-        
+
             cached_transformer = apply_cache_on_transformer(
                 transformer,
                 use_double_fb_cache=True,
                 residual_diff_threshold_multi=0.15,
                 residual_diff_threshold_single=0.08
             )
-            
+
     Note:
         If the transformer is already cached, the function updates the thresholds
         instead of reapplying caching. The caching only activates when a cache
@@ -161,11 +161,11 @@ def apply_cache_on_transformer(
 def apply_cache_on_pipe(pipe: DiffusionPipeline, *, shallow_patch: bool = False, **kwargs):
     """
     Apply caching to a complete Flux diffusion pipeline.
-    
+
     This function modifies a Flux diffusion pipeline to use caching during inference.
     It wraps the pipeline's __call__ method to automatically create and manage cache
     contexts, and optionally applies transformer-level caching.
-    
+
     Args:
         pipe (DiffusionPipeline): The Flux diffusion pipeline to apply caching to
         shallow_patch (bool, optional): If True, only applies pipeline-level caching
@@ -176,33 +176,33 @@ def apply_cache_on_pipe(pipe: DiffusionPipeline, *, shallow_patch: bool = False,
             - residual_diff_threshold (float): Similarity threshold for caching
             - residual_diff_threshold_multi (float): Multi-head attention threshold
             - residual_diff_threshold_single (float): Single-head attention threshold
-            
+
     Returns:
         DiffusionPipeline: The same pipeline instance with caching applied
-        
+
     Example:
         Basic usage::
-        
+
             from diffusers import FluxPipeline
             pipe = FluxPipeline.from_pretrained("black-forest-labs/FLUX.1-dev")
             cached_pipe = apply_cache_on_pipe(pipe)
-            
+
             # Use normally - caching is transparent
             image = cached_pipe(prompt="A beautiful landscape")
-            
+
         Advanced configuration::
-        
+
             cached_pipe = apply_cache_on_pipe(
                 pipe,
                 use_double_fb_cache=True,
                 residual_diff_threshold=0.1,
                 residual_diff_threshold_single=0.05
             )
-            
+
         Shallow patching for testing::
-        
+
             cached_pipe = apply_cache_on_pipe(pipe, shallow_patch=True)
-            
+
     Note:
         The function modifies the pipeline class's __call__ method, affecting all
         instances of the same pipeline class. If the pipeline is already cached,

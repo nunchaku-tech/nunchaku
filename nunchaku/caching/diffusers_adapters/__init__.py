@@ -25,14 +25,14 @@ Example:
 
         # Load any supported pipeline
         pipe = FluxPipeline.from_pretrained("black-forest-labs/FLUX.1-dev")
-        
+
         # Apply caching automatically based on pipeline type
         cached_pipe = apply_cache_on_pipe(
-            pipe, 
+            pipe,
             residual_diff_threshold=0.1,
             use_double_fb_cache=True
         )
-        
+
         # Use the cached pipeline normally
         image = cached_pipe(prompt="A beautiful landscape")
 
@@ -48,12 +48,12 @@ from diffusers import DiffusionPipeline
 def apply_cache_on_pipe(pipe: DiffusionPipeline, *args, **kwargs):
     """
     Apply caching to a diffusers pipeline with automatic type detection.
-    
+
     This function serves as a unified interface for applying Nunchaku caching
     to different types of diffusion pipelines. It automatically detects the
     pipeline type based on the class name and delegates to the appropriate
     caching implementation.
-    
+
     Args:
         pipe (DiffusionPipeline): The diffusers pipeline to apply caching to
         *args: Variable positional arguments passed to the specific caching function
@@ -63,34 +63,34 @@ def apply_cache_on_pipe(pipe: DiffusionPipeline, *args, **kwargs):
             - use_double_fb_cache (bool): Whether to use double first-block caching
             - shallow_patch (bool): Whether to use shallow patching only
             - verbose (bool): Whether to enable verbose caching messages
-            
+
     Returns:
         DiffusionPipeline: The same pipeline instance with caching applied
-        
+
     Raises:
         ValueError: If the pipeline type is not supported (doesn't start with "Flux" or "Sana")
         AssertionError: If the input is not a DiffusionPipeline instance
-        
+
     Example:
         With a Flux pipeline::
-        
+
             from diffusers import FluxPipeline
             pipe = FluxPipeline.from_pretrained("black-forest-labs/FLUX.1-dev")
             cached_pipe = apply_cache_on_pipe(
-                pipe, 
+                pipe,
                 residual_diff_threshold=0.12,
                 use_double_fb_cache=True
             )
-            
+
         With a SANA pipeline::
-        
+
             from diffusers import SanaPipeline
             pipe = SanaPipeline.from_pretrained("Efficient-Large-Model/Sana_600M_512px")
             cached_pipe = apply_cache_on_pipe(
                 pipe,
                 residual_diff_threshold=0.1
             )
-            
+
     Note:
         The function modifies the pipeline in-place and returns the same instance.
         Currently supported pipeline types are those with class names starting
