@@ -1,3 +1,44 @@
+"""
+TeaCache: Temporal Embedding Analysis Caching for Flux Transformers.
+
+This module implements TeaCache, a temporal caching mechanism that optimizes
+transformer model inference by skipping computation when input changes are
+below a threshold. The approach is based on Temporal Embedding Analysis (TEA)
+that tracks the relative L1 distance of modulated inputs across timesteps.
+
+The TeaCache system works by:
+1. Analyzing the modulated input from the first transformer block
+2. Computing a relative L1 distance compared to the previous timestep
+3. Applying a rescaling function to the distance metric
+4. Skipping transformer computation when accumulated distance is below threshold
+5. Reusing previous residual computations for efficiency
+
+Key Components:
+    TeaCache: Context manager for applying temporal caching to transformer models
+    make_teacache_forward: Factory function that creates a cached forward method
+
+The caching strategy is particularly effective for diffusion models during
+inference where consecutive timesteps often have similar inputs, allowing
+significant computational savings without meaningful quality loss.
+
+Example:
+    Basic usage with a Flux transformer::
+
+        from nunchaku.caching.teacache import TeaCache
+        from diffusers import FluxTransformer2DModel
+
+        model = FluxTransformer2DModel.from_pretrained("black-forest-labs/FLUX.1-dev")
+        
+        with TeaCache(model, num_steps=50, rel_l1_thresh=0.6, skip_steps=10):
+            # Model forward passes will use temporal caching
+            for step in range(50):
+                output = model(inputs_for_step)
+
+Note:
+    The rescaling function uses polynomial coefficients optimized for Flux models:
+    [4.98651651e02, -2.83781631e02, 5.58554382e01, -3.82021401e00, 2.64230861e-01]
+"""
+
 from types import MethodType
 from typing import Any, Callable, Optional, Union
 
@@ -16,6 +57,35 @@ logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 
 def make_teacache_forward(num_steps: int = 50, rel_l1_thresh: float = 0.6, skip_steps: int = 0) -> Callable:
+    """
+    Create a cached forward method for Flux transformers using TeaCache.
+    
+    This factory function creates a modified forward method that implements temporal
+    caching based on the relative L1 distance of modulated inputs. The caching
+    decision is made by analyzing the first transformer block's modulated input
+    and comparing it to the previous timestep.
+    
+    Args:
+        num_steps (int, optional): Total number of inference steps. Used to determine
+            when to reset the counter. Defaults to 50.
+        rel_l1_thresh (float, optional): Relative L1 distance threshold for caching.
+            Lower values mean more aggressive caching. Defaults to 0.6.
+        skip_steps (int, optional): Number of initial steps to skip caching.
+            Useful for allowing the model to stabilize. Defaults to 0.
+            
+    Returns:
+        Callable: A cached forward method that can be bound to a transformer model
+        
+    Example:
+        >>> model = FluxTransformer2DModel.from_pretrained("model_name")
+        >>> cached_forward = make_teacache_forward(num_steps=50, rel_l1_thresh=0.6)
+        >>> model.forward = cached_forward.__get__(model, type(model))
+        
+    Note:
+        The rescaling function uses polynomial coefficients optimized for Flux models.
+        The accumulated distance is reset when it exceeds the threshold or at the
+        beginning/end of the inference sequence.
+    """
     def teacache_forward(
         self: Union[FluxTransformer2DModel, NunchakuFluxTransformer2dModel],
         hidden_states: torch.Tensor,
@@ -332,10 +402,51 @@ def make_teacache_forward(num_steps: int = 50, rel_l1_thresh: float = 0.6, skip_
     return teacache_forward
 
 
-# A context manager to add teacache support to a block of code
-# When the context manager is applied, the model passed to the context manager is modified
-# to support teacache
 class TeaCache:
+    """
+    Context manager for applying TeaCache temporal caching to transformer models.
+    
+    This class provides a context manager that temporarily modifies a Flux transformer
+    model to use TeaCache temporal caching. When entering the context, the model's
+    forward method is replaced with a cached version that tracks temporal changes
+    and skips computation when appropriate.
+    
+    Args:
+        model (Union[FluxTransformer2DModel, NunchakuFluxTransformer2dModel]): 
+            The transformer model to apply caching to
+        num_steps (int, optional): Total number of inference steps. Defaults to 50.
+        rel_l1_thresh (float, optional): Relative L1 distance threshold for caching.
+            Lower values enable more aggressive caching. Defaults to 0.6.
+        skip_steps (int, optional): Number of initial steps to skip caching.
+            Useful for model stabilization. Defaults to 0.
+        enabled (bool, optional): Whether caching is enabled. If False, the model
+            behaves normally. Defaults to True.
+            
+    Attributes:
+        model: Reference to the transformer model
+        num_steps (int): Total number of inference steps
+        rel_l1_thresh (float): Caching threshold
+        skip_steps (int): Number of steps to skip caching
+        enabled (bool): Caching enabled flag
+        previous_model_forward: Original forward method (for restoration)
+        
+    Example:
+        Basic usage::
+        
+            with TeaCache(model, num_steps=50, rel_l1_thresh=0.6):
+                for step in range(50):
+                    output = model(inputs[step])
+                    
+        Disabling caching conditionally::
+        
+            with TeaCache(model, enabled=use_caching):
+                # Model will use caching only if use_caching is True
+                output = model(inputs)
+                
+    Note:
+        The context manager automatically restores the original forward method
+        when exiting, ensuring the model can be used normally afterward.
+    """
     def __init__(
         self,
         model: Union[FluxTransformer2DModel, NunchakuFluxTransformer2dModel],
@@ -352,6 +463,19 @@ class TeaCache:
         self.previous_model_forward = self.model.forward
 
     def __enter__(self) -> "TeaCache":
+        """
+        Enter the TeaCache context and apply caching to the model.
+        
+        This method is called when entering the 'with' block. It replaces the
+        model's forward method with a cached version and initializes the
+        necessary state variables for tracking temporal changes.
+        
+        Returns:
+            TeaCache: Self reference for context manager protocol
+            
+        Note:
+            If caching is disabled (enabled=False), the model is left unchanged.
+        """
         if self.enabled:
             # self.model.__class__.forward = make_teacache_forward(self.num_steps, self.rel_l1_thresh, self.skip_steps)  # type: ignore
             self.model.forward = MethodType(
@@ -364,6 +488,21 @@ class TeaCache:
         return self
 
     def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
+        """
+        Exit the TeaCache context and restore the original model.
+        
+        This method is called when exiting the 'with' block. It restores the
+        model's original forward method and cleans up the state variables
+        that were added for caching.
+        
+        Args:
+            exc_type: Exception type (if any occurred)
+            exc_value: Exception value (if any occurred)  
+            traceback: Exception traceback (if any occurred)
+            
+        Note:
+            If caching was disabled (enabled=False), no cleanup is performed.
+        """
         if self.enabled:
             self.model.forward = self.previous_model_forward
             del self.model.cnt

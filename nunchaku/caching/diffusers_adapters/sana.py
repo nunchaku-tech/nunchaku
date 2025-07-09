@@ -1,3 +1,55 @@
+"""
+SANA Pipeline Caching Adapter.
+
+This module provides caching adapters specifically for SANA diffusion pipelines.
+It implements single first-block caching for SANA models, enabling efficient
+inference through intelligent reuse of first transformer block computations.
+
+The SANA adapter uses a simpler caching strategy compared to Flux, focusing
+on single first-block caching with configurable similarity thresholds. This
+approach is optimized for the specific architecture and usage patterns of
+SANA models.
+
+Key Functions:
+    apply_cache_on_transformer: Apply caching directly to a SanaTransformer2DModel
+    apply_cache_on_pipe: Apply caching to a complete SANA pipeline
+
+Caching Features:
+    - Single first-block caching: Caches the first transformer block's output
+    - Configurable similarity thresholds: Adjust caching sensitivity
+    - Context management: Automatic cache setup and cleanup
+    - Batch size limitations: Optimized for batch sizes <= 2 (CFG support)
+
+Example:
+    Apply caching to a SANA transformer::
+
+        from diffusers import SanaTransformer2DModel
+        from nunchaku.caching.diffusers_adapters.sana import apply_cache_on_transformer
+
+        transformer = SanaTransformer2DModel.from_pretrained("model_name")
+        cached_transformer = apply_cache_on_transformer(
+            transformer,
+            residual_diff_threshold=0.12
+        )
+
+    Apply caching to a complete SANA pipeline::
+
+        from diffusers import SanaPipeline
+        from nunchaku.caching.diffusers_adapters.sana import apply_cache_on_pipe
+
+        pipe = SanaPipeline.from_pretrained("Efficient-Large-Model/Sana_600M_512px")
+        cached_pipe = apply_cache_on_pipe(
+            pipe,
+            residual_diff_threshold=0.1
+        )
+
+Note:
+    SANA caching is specifically designed for the SANA architecture and uses
+    mock patching to temporarily replace transformer blocks during inference.
+    The caching is automatically disabled for batch sizes > 2 to ensure
+    compatibility with classifier-free guidance.
+"""
+
 import functools
 import unittest
 
