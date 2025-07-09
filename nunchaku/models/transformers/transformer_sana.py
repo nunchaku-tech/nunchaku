@@ -1,3 +1,20 @@
+"""
+Nunchaku Sana Transformer integration.
+
+This module provides classes and functions for loading, quantizing, and running
+SanaTransformer2DModel models with Nunchaku's custom quantized backend.
+
+Classes
+-------
+- NunchakuSanaTransformerBlocks : Wrapper for quantized transformer blocks.
+- NunchakuSanaTransformer2DModel : Main model class with quantized module injection.
+
+Functions
+---------
+- load_quantized_module : Load quantized weights into a QuantizedSanaModel.
+- inject_quantized_module : Inject quantized module into a transformer model.
+"""
+
 import os
 from pathlib import Path
 from typing import Optional
@@ -18,6 +35,22 @@ SVD_RANK = 32
 
 
 class NunchakuSanaTransformerBlocks(nn.Module):
+    """
+    Wrapper for quantized Sana transformer blocks.
+
+    This module wraps a QuantizedSanaModel and provides forward methods compatible
+    with the expected transformer block interface.
+
+    Parameters
+    ----------
+    m : QuantizedSanaModel
+        The quantized transformer model.
+    dtype : torch.dtype
+        The data type to use for computation.
+    device : str or torch.device
+        The device to run the model on.
+    """
+
     def __init__(self, m: QuantizedSanaModel, dtype: torch.dtype, device: str | torch.device):
         super(NunchakuSanaTransformerBlocks, self).__init__()
         self.m = m
@@ -35,7 +68,33 @@ class NunchakuSanaTransformerBlocks(nn.Module):
         width: Optional[int] = None,
         skip_first_layer: Optional[bool] = False,
     ):
+        """
+        Forward pass through all quantized transformer blocks.
 
+        Parameters
+        ----------
+        hidden_states : torch.Tensor
+            Input hidden states of shape (batch_size, img_tokens, ...).
+        attention_mask : torch.Tensor, optional
+            Not used.
+        encoder_hidden_states : torch.Tensor, optional
+            Encoder hidden states of shape (batch_size, txt_tokens, ...).
+        encoder_attention_mask : torch.Tensor, optional
+            Encoder attention mask of shape (batch_size, 1, txt_tokens).
+        timestep : torch.LongTensor, optional
+            Timestep tensor.
+        height : int, optional
+            Image height.
+        width : int, optional
+            Image width.
+        skip_first_layer : bool, optional
+            Whether to skip the first layer.
+
+        Returns
+        -------
+        torch.Tensor
+            Output tensor after passing through the quantized transformer blocks.
+        """
         batch_size = hidden_states.shape[0]
         img_tokens = hidden_states.shape[1]
         txt_tokens = encoder_hidden_states.shape[1]
@@ -90,6 +149,33 @@ class NunchakuSanaTransformerBlocks(nn.Module):
         height: Optional[int] = None,
         width: Optional[int] = None,
     ):
+        """
+        Forward pass through a specific quantized transformer layer.
+
+        Parameters
+        ----------
+        idx : int
+            Index of the layer to run.
+        hidden_states : torch.Tensor
+            Input hidden states.
+        attention_mask : torch.Tensor, optional
+            Not used.
+        encoder_hidden_states : torch.Tensor, optional
+            Encoder hidden states.
+        encoder_attention_mask : torch.Tensor, optional
+            Encoder attention mask.
+        timestep : torch.LongTensor, optional
+            Timestep tensor.
+        height : int, optional
+            Image height.
+        width : int, optional
+            Image width.
+
+        Returns
+        -------
+        torch.Tensor
+            Output tensor after passing through the specified quantized transformer layer.
+        """
         batch_size = hidden_states.shape[0]
         img_tokens = hidden_states.shape[1]
         txt_tokens = encoder_hidden_states.shape[1]
@@ -134,13 +220,41 @@ class NunchakuSanaTransformerBlocks(nn.Module):
         )
 
     def __del__(self):
+        """
+        Destructor to reset the quantized model and free resources.
+        """
         self.m.reset()
 
 
 class NunchakuSanaTransformer2DModel(SanaTransformer2DModel, NunchakuModelLoaderMixin):
+    """
+    SanaTransformer2DModel with Nunchaku quantized backend support.
+
+    This class extends the base SanaTransformer2DModel to support loading and
+    injecting quantized transformer blocks using Nunchaku's custom backend.
+    """
+
     @classmethod
     @utils.validate_hf_hub_args
     def from_pretrained(cls, pretrained_model_name_or_path: str | os.PathLike[str], **kwargs):
+        """
+        Load a pretrained NunchakuSanaTransformer2DModel from a local file or HuggingFace Hub.
+
+        This method supports both quantized and unquantized checkpoints, and will
+        automatically inject quantized transformer blocks if available.
+
+        Parameters
+        ----------
+        pretrained_model_name_or_path : str or os.PathLike
+            Path to the model checkpoint or HuggingFace Hub model name.
+        **kwargs
+            Additional keyword arguments for model loading.
+
+        Returns
+        -------
+        NunchakuSanaTransformer2DModel or (NunchakuSanaTransformer2DModel, dict)
+            The loaded model, and optionally metadata if ``return_metadata=True``.
+        """
         device = kwargs.get("device", "cuda")
         if isinstance(device, str):
             device = torch.device(device)
@@ -184,6 +298,21 @@ class NunchakuSanaTransformer2DModel(SanaTransformer2DModel, NunchakuModelLoader
             return transformer
 
     def inject_quantized_module(self, m: QuantizedSanaModel, device: str | torch.device = "cuda"):
+        """
+        Inject a quantized transformer module into this model.
+
+        Parameters
+        ----------
+        m : QuantizedSanaModel
+            The quantized transformer module to inject.
+        device : str or torch.device, optional
+            The device to place the module on (default: "cuda").
+
+        Returns
+        -------
+        NunchakuSanaTransformer2DModel
+            The model with the quantized module injected.
+        """
         self.transformer_blocks = torch.nn.ModuleList([NunchakuSanaTransformerBlocks(m, self.dtype, device)])
         return self
 
@@ -195,6 +324,27 @@ def load_quantized_module(
     pag_layers: int | list[int] | None = None,
     use_fp4: bool = False,
 ) -> QuantizedSanaModel:
+    """
+    Load quantized weights into a QuantizedSanaModel.
+
+    Parameters
+    ----------
+    net : SanaTransformer2DModel
+        The base transformer model (for config and dtype).
+    path_or_state_dict : str, os.PathLike, or dict
+        Path to the quantized weights or a state dict.
+    device : str or torch.device, optional
+        Device to load the quantized model on (default: "cuda").
+    pag_layers : int, list of int, or None, optional
+        List of layers to use pag (default: None).
+    use_fp4 : bool, optional
+        Whether to use FP4 quantization (default: False).
+
+    Returns
+    -------
+    QuantizedSanaModel
+        The loaded quantized model.
+    """
     if pag_layers is None:
         pag_layers = []
     elif isinstance(pag_layers, int):
@@ -215,5 +365,22 @@ def load_quantized_module(
 def inject_quantized_module(
     net: SanaTransformer2DModel, m: QuantizedSanaModel, device: torch.device
 ) -> SanaTransformer2DModel:
+    """
+    Inject a quantized transformer module into a SanaTransformer2DModel.
+
+    Parameters
+    ----------
+    net : SanaTransformer2DModel
+        The base transformer model.
+    m : QuantizedSanaModel
+        The quantized transformer module to inject.
+    device : torch.device
+        The device to place the module on.
+
+    Returns
+    -------
+    SanaTransformer2DModel
+        The model with the quantized module injected.
+    """
     net.transformer_blocks = torch.nn.ModuleList([NunchakuSanaTransformerBlocks(m, net.dtype, device)])
     return net

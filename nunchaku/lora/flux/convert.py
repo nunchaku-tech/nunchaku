@@ -1,3 +1,18 @@
+"""
+Command-line interface for converting LoRA weights to Nunchaku format.
+
+This module provides a command-line interface for converting LoRA weights from
+various formats to Nunchaku format. It handles format detection, automatic
+naming, and provides options for specifying quantization paths and output
+locations.
+
+The script supports:
+- Automatic format detection and conversion
+- Flexible output path specification
+- Support for different quantization backends (int4/fp4)
+- Integration with the Nunchaku conversion pipeline
+"""
+
 import argparse
 import os
 

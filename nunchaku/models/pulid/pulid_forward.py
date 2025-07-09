@@ -1,4 +1,21 @@
-# Adapted from https://github.com/ToTheBeginning/PuLID
+"""
+PuLID Forward Pass
+==================
+
+This module provides the forward function for the PuLID (Pure Language-Image Diffusion) transformer block,
+adapted for Nunchaku from the original implementation at https://github.com/ToTheBeginning/PuLID.
+
+The `pulid_forward` function implements the main forward logic for the PuLID transformer, including
+support for time and text conditioning, rotary embeddings, ControlNet integration, and joint attention.
+
+Typical usage involves binding this function as the forward method of a compatible transformer model.
+
+Functions
+---------
+- pulid_forward : Implements the forward pass for the PuLID transformer block.
+
+"""
+
 import logging
 from typing import Any, Dict, Optional, Union
 
@@ -28,30 +45,76 @@ def pulid_forward(
     end_timestep: float | None = None,
 ) -> Union[torch.FloatTensor, Transformer2DModelOutput]:
     """
-    Copied from diffusers.models.flux.transformer_flux.py
+    Forward pass for the PuLID transformer block.
 
-    Args:
-        hidden_states (`torch.FloatTensor` of shape `(batch size, channel, height, width)`):
-            Input `hidden_states`.
-        encoder_hidden_states (`torch.FloatTensor` of shape `(batch size, sequence_len, embed_dims)`):
-            Conditional embeddings (embeddings computed from the input conditions such as prompts) to use.
-        pooled_projections (`torch.FloatTensor` of shape `(batch_size, projection_dim)`): Embeddings projected
-            from the embeddings of input conditions.
-        timestep ( `torch.LongTensor`):
-            Used to indicate denoising step.
-        block_controlnet_hidden_states: (`list` of `torch.Tensor`):
-            A list of tensors that if specified are added to the residuals of transformer blocks.
-        joint_attention_kwargs (`dict`, *optional*):
-            A kwargs dictionary that if specified is passed along to the `AttentionProcessor` as defined under
-            `self.processor` in
-            [diffusers.models.attention_processor](https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/attention_processor.py).
-        return_dict (`bool`, *optional*, defaults to `True`):
-            Whether to return a [`~models.transformer_2d.Transformer2DModelOutput`] instead of a plain
-            tuple.
+    This function implements the main forward logic for the PuLID (Pure Language-Image Diffusion)
+    transformer, supporting time and text conditioning, rotary embeddings, ControlNet integration,
+    and joint attention. It is adapted from
+    `diffusers.models.flux.transformer_flux.py` and the original PuLID repository.
 
-    Returns:
-        If `return_dict` is True, an [`~models.transformer_2d.Transformer2DModelOutput`] is returned, otherwise a
-        `tuple` where the first element is the sample tensor.
+    Parameters
+    ----------
+    self : nn.Module
+        The transformer model instance. This function is intended to be bound as a method.
+    hidden_states : torch.Tensor
+        Input hidden states of shape ``(batch_size, channels, height, width)``.
+    id_embeddings : torch.Tensor, optional
+        Optional ID embeddings for conditioning (default: None).
+    id_weight : torch.Tensor, optional
+        Optional ID weights for conditioning (default: None).
+    encoder_hidden_states : torch.Tensor, optional
+        Conditional embeddings (e.g., from text encoder) of shape ``(batch_size, sequence_len, embed_dim)``.
+    pooled_projections : torch.Tensor, optional
+        Embeddings projected from input conditions, shape ``(batch_size, projection_dim)``.
+    timestep : torch.LongTensor, optional
+        Timestep tensor indicating the denoising step.
+    img_ids : torch.Tensor, optional
+        Image token IDs for rotary embedding.
+    txt_ids : torch.Tensor, optional
+        Text token IDs for rotary embedding.
+    guidance : torch.Tensor, optional
+        Optional guidance tensor for classifier-free guidance or similar.
+    joint_attention_kwargs : dict, optional
+        Additional keyword arguments for joint attention, passed to the attention processor.
+    controlnet_block_samples : Any, optional
+        ControlNet block samples for multi-block conditioning (default: None).
+    controlnet_single_block_samples : Any, optional
+        ControlNet single block samples for single-block conditioning (default: None).
+    return_dict : bool, optional
+        If True (default), returns a :class:`~diffusers.models.modeling_outputs.Transformer2DModelOutput`.
+        If False, returns a tuple containing the output tensor.
+    controlnet_blocks_repeat : bool, optional
+        Whether to repeat ControlNet blocks (default: False).
+    start_timestep : float, optional
+        If specified, disables ID embeddings for timesteps before this value.
+    end_timestep : float, optional
+        If specified, disables ID embeddings for timesteps after this value.
+
+    Returns
+    -------
+    torch.FloatTensor or Transformer2DModelOutput
+        If ``return_dict`` is True, returns a :class:`~diffusers.models.modeling_outputs.Transformer2DModelOutput`
+        with the output sample. Otherwise, returns a tuple containing the output tensor.
+
+    Notes
+    -----
+    - This function expects to be used as the forward method of a compatible transformer model.
+    - The function supports ControlNet and joint attention integration.
+    - Passing 3D tensors for ``txt_ids`` or ``img_ids`` is deprecated and will emit a warning.
+
+    Example
+    -------
+    .. code-block:: python
+
+        output = pulid_forward(
+            model,
+            hidden_states,
+            encoder_hidden_states=encoder_hidden_states,
+            timestep=timestep,
+            img_ids=img_ids,
+            txt_ids=txt_ids,
+            return_dict=True,
+        )
     """
     hidden_states = self.x_embedder(hidden_states)
 
@@ -79,14 +142,8 @@ def pulid_forward(
     encoder_hidden_states = self.context_embedder(encoder_hidden_states)
 
     if txt_ids.ndim == 3:
-        logger.warning(
-            "Passing `txt_ids` 3d torch.Tensor is deprecated.Please remove the batch dimension and pass it as a 2d torch Tensor"
-        )
         txt_ids = txt_ids[0]
     if img_ids.ndim == 3:
-        logger.warning(
-            "Passing `img_ids` 3d torch.Tensor is deprecated.Please remove the batch dimension and pass it as a 2d torch Tensor"
-        )
         img_ids = img_ids[0]
 
     ids = torch.cat((txt_ids, img_ids), dim=0)

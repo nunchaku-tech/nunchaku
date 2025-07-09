@@ -1,5 +1,33 @@
 # -*- coding: utf-8 -*-
-"""TinyChat Quantized Linear Module"""
+"""
+TinyChat Quantized Linear Module
+===============================
+
+This module provides the :class:`W4Linear` quantized linear layer, which implements
+4-bit weight-only quantization for efficient inference, as used in TinyChat and similar
+large language models.
+
+The quantization scheme supports group-wise quantization and is compatible with
+specialized CUDA kernels for high-throughput inference.
+
+Classes
+-------
+- W4Linear : Quantized linear layer with 4-bit weights and group-wise scaling.
+
+Functions
+---------
+- W4Linear.from_linear : Convert a standard nn.Linear to a quantized W4Linear.
+
+Example
+-------
+.. code-block:: python
+
+    from nunchaku.models.text_encoders.linear import W4Linear
+    import torch.nn as nn
+
+    linear = nn.Linear(768, 768)
+    qlinear = W4Linear.from_linear(linear, group_size=128)
+"""
 
 import torch
 import torch.nn as nn
@@ -11,6 +39,47 @@ __all__ = ["W4Linear"]
 
 
 class W4Linear(nn.Module):
+    """
+    4-bit Quantized Linear Layer (TinyChat style).
+
+    This module implements a weight-only 4-bit quantized linear layer with group-wise
+    quantization and optional bias. It is designed for efficient inference using
+    custom CUDA kernels.
+
+    Parameters
+    ----------
+    in_features : int
+        Number of input features.
+    out_features : int
+        Number of output features.
+    bias : bool, optional
+        If True, adds a learnable bias to the output (default: False).
+    group_size : int, optional
+        Number of input channels per quantization group (default: 128).
+        If set to -1, uses the full input dimension as a single group.
+    dtype : torch.dtype, optional
+        Data type for quantization scales and zeros (default: torch.float16).
+    device : str or torch.device, optional
+        Device to place the quantized weights and buffers (default: "cuda").
+
+    Attributes
+    ----------
+    in_features : int
+        Number of input features.
+    out_features : int
+        Number of output features.
+    group_size : int
+        Quantization group size.
+    qweight : torch.Tensor
+        Quantized weight tensor (int16).
+    scales : torch.Tensor
+        Per-group scale tensor.
+    scaled_zeros : torch.Tensor
+        Per-group zero-point tensor (scaled).
+    bias : torch.Tensor or None
+        Optional bias tensor.
+    """
+
     def __init__(
         self,
         in_features: int,
@@ -61,14 +130,43 @@ class W4Linear(nn.Module):
 
     @property
     def weight_bits(self) -> int:
+        """
+        Number of bits per quantized weight.
+
+        Returns
+        -------
+        int
+            Number of bits (always 4).
+        """
         return 4
 
     @property
     def interleave(self) -> int:
+        """
+        Interleave factor for quantized weights.
+
+        Returns
+        -------
+        int
+            Interleave factor (always 4).
+        """
         return 4
 
     @torch.no_grad()
     def forward(self, x):
+        """
+        Forward pass for the quantized linear layer.
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            Input tensor of shape (..., in_features).
+
+        Returns
+        -------
+        torch.Tensor
+            Output tensor of shape (..., out_features).
+        """
         if x.numel() / x.shape[-1] < 8:
             out = gemv_awq(
                 x,
@@ -97,27 +195,33 @@ class W4Linear(nn.Module):
         zero: torch.Tensor | None = None,
         zero_pre_scaled: bool = False,
     ) -> "W4Linear":
-        """Convert a linear layer to a TinyChat 4-bit weight-only quantized linear layer.
+        """
+        Convert a standard nn.Linear to a TinyChat 4-bit quantized W4Linear.
 
-        Args:
-            linear (`nn.Linear`):
-                linear layer to be converted.
-            group_size (`int`):
-                quantization group size.
-            init_only (`bool`, *optional*, defaults to `False`):
-                whether to only initialize the quantized linear layer.
-            weight (`torch.Tensor`, *optional*, defaults to `None`):
-                weight tensor for the quantized linear layer.
-            scale (`torch.Tensor`, *optional*, defaults to `None`):
-                scale tensor for the quantized linear layer.
-            zero (`torch.Tensor`, *optional*, defaults to `None`):
-                zero point tensor for the quantized linear layer.
-            zero_pre_scaled (`bool`, *optional*, defaults to `False`):
-                whether zero point tensor is pre-scaled.
+        This utility creates a quantized version of a given nn.Linear layer, using
+        group-wise quantization and optional precomputed quantization parameters.
 
-        Returns:
-            `W4Linear`:
-                quantized linear layer.
+        Parameters
+        ----------
+        linear : nn.Linear
+            The linear layer to be converted.
+        group_size : int
+            Quantization group size.
+        init_only : bool, optional
+            If True, only initializes the quantized layer without copying weights (default: False).
+        weight : torch.Tensor, optional
+            Precomputed weight tensor for the quantized layer (default: None).
+        scale : torch.Tensor, optional
+            Precomputed scale tensor for the quantized layer (default: None).
+        zero : torch.Tensor, optional
+            Precomputed zero-point tensor for the quantized layer (default: None).
+        zero_pre_scaled : bool, optional
+            Whether the zero-point tensor is pre-scaled (default: False).
+
+        Returns
+        -------
+        W4Linear
+            Quantized linear layer.
         """
         assert isinstance(linear, nn.Linear)
         weight = linear.weight.data if weight is None else weight.data
@@ -167,6 +271,14 @@ class W4Linear(nn.Module):
         return _linear
 
     def extra_repr(self) -> str:
+        """
+        Extra representation for printing and debugging.
+
+        Returns
+        -------
+        str
+            String describing the layer configuration.
+        """
         return "in_features={}, out_features={}, bias={}, weight_bits={}, group_size={}".format(
             self.in_features,
             self.out_features,

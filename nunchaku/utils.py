@@ -1,29 +1,5 @@
 """
 Utility functions for Nunchaku.
-
-This module provides helper functions for:
-
-- File hashing (SHA-256)
-- Downloading files from the HuggingFace Hub
-- Loading and filtering state dicts from safetensors files
-- Hardware detection (GPU architecture, memory, etc.)
-- Quantization compatibility checks
-
-Functions
----------
-.. autosummary::
-    :toctree: generated/
-
-    sha256sum
-    fetch_or_download
-    ceil_divide
-    load_state_dict_in_safetensors
-    filter_state_dict
-    get_precision
-    is_turing
-    get_gpu_memory
-    check_hardware_compatibility
-
 """
 
 import hashlib

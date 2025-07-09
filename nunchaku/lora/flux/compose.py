@@ -1,3 +1,18 @@
+"""
+LoRA composition utilities for Flux models.
+
+This module provides functionality to compose (combine) multiple LoRA weights
+into a single LoRA representation. It supports combining LoRA weights with
+different strengths and handles various layer types including attention layers,
+normalization layers, and MLP layers.
+
+The composition process intelligently handles:
+- QKV projection fusion for attention layers
+- Bias vector composition
+- Rank adaptation for different LoRA components
+- Flux.1-tools LoRA compatibility
+"""
+
 import argparse
 import os
 
@@ -11,6 +26,55 @@ from .utils import is_nunchaku_format, load_state_dict_in_safetensors
 def compose_lora(
     loras: list[tuple[str | dict[str, torch.Tensor], float]], output_path: str | None = None
 ) -> dict[str, torch.Tensor]:
+    """
+    Compose multiple LoRA weights into a single LoRA representation.
+
+    This function combines multiple LoRA weights with specified strengths into a single
+    LoRA weight dictionary. It handles various layer types including attention layers,
+    normalization layers, and MLP layers, with intelligent fusion of QKV projections
+    and proper handling of bias vectors.
+
+    Parameters
+    ----------
+    loras : list[tuple[str | dict[str, torch.Tensor], float]]
+        List of tuples where each tuple contains:
+        - Either a path to a LoRA safetensors file or a dictionary of LoRA weights
+        - A float representing the strength/scale factor for that LoRA
+    output_path : str, optional
+        Path to save the composed LoRA weights as a safetensors file. If None,
+        the weights are not saved to disk (default: None).
+
+    Returns
+    -------
+    dict[str, torch.Tensor]
+        Dictionary containing the composed LoRA weights.
+
+    Notes
+    -----
+    The function performs the following operations:
+    - Converts all input LoRAs to Diffusers format
+    - Handles QKV projection fusion for attention layers
+    - Applies strength scaling to LoRA weights
+    - Combines multiple LoRAs by concatenating along appropriate dimensions
+    - Handles special cases like normalization layers and bias vectors
+    - Supports Flux.1-tools LoRA compatibility for x_embedder layers
+
+    Examples
+    --------
+    >>> # Compose two LoRA weights with different strengths
+    >>> lora_paths = [("lora1.safetensors", 0.8), ("lora2.safetensors", 0.6)]
+    >>> composed = compose_lora(lora_paths, "composed_lora.safetensors")
+    
+    >>> # Compose from weight dictionaries
+    >>> lora_dicts = [({"layer.weight": torch.randn(10, 20)}, 1.0)]
+    >>> composed = compose_lora(lora_dicts)
+
+    Raises
+    ------
+    AssertionError
+        If LoRA weights are in Nunchaku format (must be converted to Diffusers format first)
+        or if tensor shapes are incompatible for composition.
+    """
     if len(loras) == 1:
         if is_nunchaku_format(loras[0][0]) and (loras[0][1] - 1) < 1e-5:
             if isinstance(loras[0][0], str):

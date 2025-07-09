@@ -1,4 +1,27 @@
 # convert the diffusers lora to nunchaku format
+"""
+Nunchaku LoRA format converter for Flux models.
+
+This module provides comprehensive functionality to convert LoRA (Low-Rank Adaptation)
+weights from Diffusers format to Nunchaku format for efficient quantized inference.
+It handles the complex transformations required for different transformer block types
+and supports various layer configurations.
+
+The converter performs the following operations:
+- Converts Diffusers LoRA format to Nunchaku format
+- Handles transformer block-specific conversions
+- Supports both single and double transformer blocks
+- Manages low-rank weight packing and unpacking
+- Handles QKV projection fusion and defusion
+- Supports vector fusion for bias terms
+- Manages AdaNorm layer transformations
+
+Key functions:
+- `to_nunchaku`: Main conversion function from Diffusers to Nunchaku format
+- `convert_to_nunchaku_flux_lowrank_dict`: Core conversion logic
+- `pack_lowrank_weight`/`unpack_lowrank_weight`: Low-rank weight transformations
+- `fuse_vectors`: Vector fusion for bias terms
+"""
 """Convert LoRA weights to Nunchaku format."""
 import logging
 import os
@@ -26,6 +49,31 @@ logger = logging.getLogger(__name__)
 def update_state_dict(
     lhs: dict[str, torch.Tensor], rhs: dict[str, torch.Tensor], prefix: str = ""
 ) -> dict[str, torch.Tensor]:
+    """
+    Update a state dictionary with values from another state dictionary.
+
+    This function merges tensors from the right-hand side dictionary into the
+    left-hand side dictionary, optionally adding a prefix to the keys.
+
+    Parameters
+    ----------
+    lhs : dict[str, torch.Tensor]
+        The target state dictionary to update.
+    rhs : dict[str, torch.Tensor]
+        The source state dictionary containing values to add.
+    prefix : str, optional
+        Prefix to add to keys from rhs when inserting into lhs (default: "").
+
+    Returns
+    -------
+    dict[str, torch.Tensor]
+        The updated left-hand side dictionary.
+
+    Raises
+    ------
+    AssertionError
+        If any key already exists in the target dictionary.
+    """
     for rkey, value in rhs.items():
         lkey = f"{prefix}.{rkey}" if prefix else rkey
         assert lkey not in lhs, f"Key {lkey} already exists in the state dict."
@@ -445,6 +493,55 @@ def to_nunchaku(
     dtype: str | torch.dtype = torch.bfloat16,
     output_path: str | None = None,
 ) -> dict[str, torch.Tensor]:
+    """
+    Convert LoRA weights to Nunchaku format.
+
+    This is the main conversion function that transforms LoRA weights from
+    Diffusers format to Nunchaku format for efficient quantized inference.
+    It handles format detection, conversion, and optional saving to disk.
+
+    Parameters
+    ----------
+    input_lora : str or dict[str, torch.Tensor]
+        Either a path to a safetensors file containing LoRA weights, or a
+        dictionary of LoRA weight tensors in Diffusers format.
+    base_sd : str or dict[str, torch.Tensor]
+        Either a path to a safetensors file containing the base quantized model
+        weights, or a dictionary of base model tensors.
+    dtype : str or torch.dtype, optional
+        Data type for the converted weights. Can be "bfloat16", "float16", or
+        a torch.dtype (default: torch.bfloat16).
+    output_path : str, optional
+        Path to save the converted LoRA weights as a safetensors file. If None,
+        the weights are not saved to disk (default: None).
+
+    Returns
+    -------
+    dict[str, torch.Tensor]
+        Dictionary containing the LoRA weights in Nunchaku format.
+
+    Notes
+    -----
+    The conversion process:
+    1. Checks if weights are already in Nunchaku format
+    2. Converts to Diffusers format if needed
+    3. Loads base model weights for reference
+    4. Performs the core conversion using convert_to_nunchaku_flux_lowrank_dict
+    5. Optionally saves the result to disk
+
+    Examples
+    --------
+    >>> # Convert from file paths
+    >>> nunchaku_weights = to_nunchaku(
+    ...     "lora.safetensors",
+    ...     "base_model.safetensors",
+    ...     dtype="bfloat16",
+    ...     output_path="nunchaku_lora.safetensors"
+    ... )
+
+    >>> # Convert from dictionaries
+    >>> nunchaku_weights = to_nunchaku(lora_dict, base_dict)
+    """
     if isinstance(input_lora, str):
         tensors = load_state_dict_in_safetensors(input_lora, device="cpu")
     else:

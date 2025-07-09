@@ -1,3 +1,14 @@
+"""
+Utility functions and mixins for Nunchaku transformer model loading and tensor manipulation.
+
+This module provides:
+- Logging configuration for Nunchaku transformers.
+- The `NunchakuModelLoaderMixin` class for standardized model loading from safetensors or legacy folders.
+- The `pad_tensor` utility for padding tensors to multiples of a given size.
+
+These utilities are intended for internal use by Nunchaku's transformer backends.
+"""
+
 import json
 import logging
 import os
@@ -20,11 +31,46 @@ logger = logging.getLogger(__name__)
 
 
 class NunchakuModelLoaderMixin:
+    """
+    Mixin class providing standardized model loading utilities for Nunchaku transformer models.
+
+    This mixin offers methods to build models from safetensors files or legacy folder structures,
+    handling configuration, state dict loading, and device placement.
+
+    Methods
+    -------
+    _build_model(pretrained_model_name_or_path, **kwargs)
+        Build a model from a safetensors file, returning the model, state dict, and metadata.
+
+    _build_model_legacy(pretrained_model_name_or_path, **kwargs)
+        Build a model from a legacy folder structure, returning the model and paths to weight files.
+    """
 
     @classmethod
     def _build_model(
         cls, pretrained_model_name_or_path: str | os.PathLike[str], **kwargs
     ) -> tuple[nn.Module, dict[str, torch.Tensor], dict[str, str]]:
+        """
+        Build a transformer model from a safetensors file.
+
+        Parameters
+        ----------
+        pretrained_model_name_or_path : str or os.PathLike
+            Path to the safetensors file containing the model weights and metadata.
+        **kwargs
+            Additional keyword arguments. Recognized: 'torch_dtype'.
+
+        Returns
+        -------
+        tuple
+            (transformer, state_dict, metadata)
+            - transformer : nn.Module
+                The instantiated transformer model (on 'meta' device).
+            - state_dict : dict[str, torch.Tensor]
+                The loaded state dictionary from safetensors.
+            - metadata : dict[str, str]
+                Metadata dictionary from safetensors file.
+        """
         if isinstance(pretrained_model_name_or_path, str):
             pretrained_model_name_or_path = Path(pretrained_model_name_or_path)
         state_dict, metadata = load_state_dict_in_safetensors(pretrained_model_name_or_path, return_metadata=True)
@@ -41,6 +87,31 @@ class NunchakuModelLoaderMixin:
     def _build_model_legacy(
         cls, pretrained_model_name_or_path: str | os.PathLike, **kwargs
     ) -> tuple[nn.Module, str, str]:
+        """
+        Build a transformer model from a legacy folder structure.
+
+        .. warning::
+            This method is deprecated and will be removed in v0.4.
+            Please migrate to safetensors-based model loading.
+
+        Parameters
+        ----------
+        pretrained_model_name_or_path : str or os.PathLike
+            Path to the folder containing model weights.
+        **kwargs
+            Additional keyword arguments for HuggingFace Hub download and config loading.
+
+        Returns
+        -------
+        tuple
+            (transformer, unquantized_part_path, transformer_block_path)
+            - transformer : nn.Module
+                The instantiated transformer model (on 'meta' device).
+            - unquantized_part_path : str
+                Path to the unquantized layers safetensors file.
+            - transformer_block_path : str
+                Path to the transformer blocks safetensors file.
+        """
         logger.warning(
             "Loading models from a folder will be deprecated in v0.4. "
             "Please download the latest safetensors model, or use one of the following tools to "
@@ -109,6 +180,27 @@ class NunchakuModelLoaderMixin:
 
 
 def pad_tensor(tensor: Optional[torch.Tensor], multiples: int, dim: int, fill: Any = 0) -> torch.Tensor | None:
+    """
+    Pad a tensor along a given dimension to the next multiple of a specified value.
+
+    This is useful for ensuring tensor shapes are compatible with hardware or model requirements.
+
+    Parameters
+    ----------
+    tensor : torch.Tensor or None
+        The input tensor to pad. If None, returns None.
+    multiples : int
+        The multiple to pad to. If <= 1, no padding is applied.
+    dim : int
+        The dimension along which to pad.
+    fill : Any, optional
+        The value to use for padding (default: 0).
+
+    Returns
+    -------
+    torch.Tensor or None
+        The padded tensor, or None if input was None.
+    """
     if multiples <= 1:
         return tensor
     if tensor is None:

@@ -1,3 +1,22 @@
+"""
+Weight packing utilities for Nunchaku quantization.
+
+This module provides utilities for packing and unpacking weight tensors for
+efficient GPU computation using Matrix Multiply and Accumulate (MMA) operations.
+It includes base classes for MMA weight packing and Nunchaku-specific implementations.
+
+The module supports:
+- MMA-based weight packing for efficient GPU computation
+- Scale tensor packing for quantization
+- Low-rank weight packing for LoRA operations
+- Micro-scale packing for fine-grained quantization
+- Tensor padding for alignment requirements
+
+Classes:
+- MmaWeightPackerBase: Base class for MMA weight packing operations
+- NunchakuWeightPacker: Nunchaku-specific weight packer implementation
+"""
+
 # Copy the packer from https://github.com/mit-han-lab/deepcompressor/
 import torch
 
@@ -6,6 +25,71 @@ from .utils import pad
 
 
 class MmaWeightPackerBase:
+    """
+    Base class for Matrix Multiply and Accumulate (MMA) weight packing operations.
+
+    This class provides the foundation for packing weight tensors for efficient
+    GPU computation using MMA operations. It handles the calculation of tile sizes,
+    memory layout, and packing parameters based on the quantization bits and
+    warp configuration.
+
+    Parameters
+    ----------
+    bits : int
+        Number of bits for quantization. Must be one of 1, 4, 8, 16, or 32.
+    warp_n : int
+        Warp size in the n dimension for MMA computation.
+    comp_n : int, optional
+        Computation tile size in n dimension. If None, defaults to 16.
+    comp_k : int, optional
+        Computation tile size in k dimension. If None, defaults to 256 // bits.
+
+    Attributes
+    ----------
+    bits : int
+        Number of quantization bits.
+    comp_n : int
+        Smallest tile size in n dimension for MMA computation.
+    comp_k : int
+        Smallest tile size in k dimension for MMA computation.
+    insn_n : int
+        Tile size in n dimension for MMA instruction (always 8).
+    insn_k : int
+        Tile size in k dimension for MMA instruction.
+    num_lanes : int
+        Number of lanes (threads) in a warp (always 32).
+    num_k_lanes : int
+        Number of lanes in k dimension (always 4).
+    num_n_lanes : int
+        Number of lanes in n dimension (always 8).
+    warp_n : int
+        Warp size in n dimension.
+    reg_k : int
+        Number of elements in a register in k dimension.
+    reg_n : int
+        Number of elements in a register in n dimension (always 1).
+    k_pack_size : int
+        Number of elements in a pack in k dimension.
+    n_pack_size : int
+        Number of elements in a pack in n dimension.
+    pack_size : int
+        Total number of elements in a pack.
+    mem_k : int
+        Tile size in k dimension for memory access.
+    mem_n : int
+        Tile size in n dimension for memory access.
+    num_k_packs : int
+        Number of packs in k dimension for memory access.
+    num_n_packs : int
+        Number of packs in n dimension for memory access.
+
+    Raises
+    ------
+    AssertionError
+        If bits is not one of the supported values (1, 4, 8, 16, 32).
+        If tile sizes are not properly divisible.
+        If pack size is not in the valid range [1, 4].
+    """
     def __init__(self, bits: int, warp_n: int, comp_n: int = None, comp_k: int = None):
         self.bits = bits
         assert self.bits in (1, 4, 8, 16, 32), "weight bits should be 1, 4, 8, 16, or 32."
@@ -59,6 +143,32 @@ class MmaWeightPackerBase:
         # endregion
 
     def get_view_shape(self, n: int, k: int) -> tuple[int, int, int, int, int, int, int, int, int, int]:
+        """
+        Calculate the tensor view shape for MMA operations.
+
+        This method computes the shape transformation needed to view a tensor
+        for efficient MMA operations based on the configured tile sizes and
+        packing parameters.
+
+        Parameters
+        ----------
+        n : int
+            Output channel size (must be divisible by mem_n).
+        k : int
+            Input channel size (must be divisible by mem_k).
+
+        Returns
+        -------
+        tuple[int, int, int, int, int, int, int, int, int, int]
+            A 10-element tuple representing the view shape:
+            (n_tiles, num_n_packs, n_pack_size, num_n_lanes, reg_n,
+             k_tiles, num_k_packs, k_pack_size, num_k_lanes, reg_k)
+
+        Raises
+        ------
+        AssertionError
+            If n is not divisible by mem_n or k is not divisible by mem_k.
+        """
         assert n % self.mem_n == 0, "output channel size should be divisible by mem_n."
         assert k % self.mem_k == 0, "input channel size should be divisible by mem_k."
         return (
@@ -76,6 +186,46 @@ class MmaWeightPackerBase:
 
 
 class NunchakuWeightPacker(MmaWeightPackerBase):
+    """
+    Nunchaku-specific weight packer for quantized neural network operations.
+
+    This class extends MmaWeightPackerBase to provide Nunchaku-specific weight
+    packing functionality. It supports packing quantized weights, scales, and
+    low-rank weights for efficient GPU computation.
+
+    Parameters
+    ----------
+    bits : int
+        Number of bits for quantization. Must be one of 1, 4, 8, 16, or 32.
+    warp_n : int, optional
+        Warp size in the n dimension for MMA computation (default: 128).
+
+    Attributes
+    ----------
+    num_k_unrolls : int
+        Number of unrolls in the k dimension (always 2 for Nunchaku).
+
+    Methods
+    -------
+    pack_weight(weight)
+        Pack quantized weight tensors for GPU computation.
+    pack_scale(scale, group_size)
+        Pack scale tensors for quantization.
+    pack_micro_scale(scale, group_size)
+        Pack micro-scale tensors for fine-grained quantization.
+    pack_lowrank_weight(weight, down)
+        Pack low-rank weight tensors for LoRA operations.
+    unpack_lowrank_weight(weight, down)
+        Unpack low-rank weight tensors.
+    check_if_micro_scale(group_size)
+        Check if micro-scale packing should be used.
+    pad_weight(weight)
+        Pad weight tensors to required dimensions.
+    pad_scale(scale, group_size, fill_value)
+        Pad scale tensors to required dimensions.
+    pad_lowrank_weight(weight, down)
+        Pad low-rank weight tensors to required dimensions.
+    """
     def __init__(self, bits: int, warp_n: int = 128):
         super().__init__(bits=bits, warp_n=warp_n)
         self.num_k_unrolls = 2

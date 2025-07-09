@@ -1,5 +1,10 @@
 # -*- coding: utf-8 -*-
-"""TinyChat backend utilities."""
+"""
+TinyChat Quantization Utilities
+==============================
+
+This module provides utility functions for quantized linear layers in the TinyChat backend.
+"""
 
 import torch
 
@@ -7,35 +12,50 @@ __all__ = ["ceil_num_groups", "convert_to_tinychat_w4x16y16_linear_weight"]
 
 
 def ceil_divide(x: int, divisor: int) -> int:
-    """Ceiling division.
+    """
+    Compute the ceiling of integer division.
 
-    Args:
-        x (`int`):
-            dividend.
-        divisor (`int`):
-            divisor.
+    Parameters
+    ----------
+    x : int
+        Dividend.
+    divisor : int
+        Divisor.
 
-    Returns:
-        `int`:
-            ceiling division result.
+    Returns
+    -------
+    int
+        The smallest integer greater than or equal to ``x / divisor``.
     """
     return (x + divisor - 1) // divisor
 
 
 def ceil_num_groups(in_features: int, group_size: int, weight_bits: int = 4) -> int:
-    """Calculate the ceiling number of quantization groups.
+    """
+    Calculate the padded number of quantization groups for TinyChat quantization.
 
-    Args:
-        in_features (`int`):
-            input channel size.
-        group_size (`int`):
-            quantization group size.
-        weight_bits (`int`, *optional*, defaults to `4`):
-            quantized weight bits.
+    This ensures the number of groups is compatible with TinyChat's packing and kernel requirements.
 
-    Returns:
-        `int`:
-            ceiling number of quantization groups.
+    Parameters
+    ----------
+    in_features : int
+        Input channel size (number of input features).
+    group_size : int
+        Quantization group size.
+    weight_bits : int, optional
+        Number of bits per quantized weight (default: 4).
+
+    Returns
+    -------
+    int
+        The padded number of quantization groups.
+
+    Raises
+    ------
+    AssertionError
+        If ``in_features`` is not divisible by ``group_size``, or if ``weight_bits`` is not 4, 2, or 1.
+    NotImplementedError
+        If ``group_size`` is not one of the supported values (>=128, 64, 32).
     """
     assert in_features % group_size == 0, "input channel size should be divisible by group size."
     num_groups = in_features // group_size
@@ -49,7 +69,7 @@ def ceil_num_groups(in_features: int, group_size: int, weight_bits: int = 4) -> 
     elif group_size == 32:
         num_packs_factor = 4
     else:
-        raise NotImplementedError
+        raise NotImplementedError("Unsupported group size for TinyChat quantization.")
     # make sure num_packs is a multiple of num_packs_factor
     num_packs = ceil_divide(num_packs, num_packs_factor) * num_packs_factor
     num_groups = num_packs * pack_size
@@ -57,6 +77,28 @@ def ceil_num_groups(in_features: int, group_size: int, weight_bits: int = 4) -> 
 
 
 def pack_w4(weight: torch.Tensor) -> torch.Tensor:
+    """
+    Pack quantized 4-bit weights into TinyChat's int16 format.
+
+    This function rearranges and packs 4-bit quantized weights (stored as int32) into
+    the format expected by TinyChat CUDA kernels.
+
+    Parameters
+    ----------
+    weight : torch.Tensor
+        Quantized weight tensor of shape (out_features, in_features), dtype int32.
+        The input channel dimension must be divisible by 32.
+
+    Returns
+    -------
+    torch.Tensor
+        Packed weight tensor of dtype int16.
+
+    Raises
+    ------
+    AssertionError
+        If input tensor is not int32 or input channel size is not divisible by 32.
+    """
     assert weight.dtype == torch.int32, f"quantized weight should be torch.int32, but got {weight.dtype}."
     oc, ic = weight.shape
     assert ic % 32 == 0, "input channel size should be divisible by 32."
@@ -74,23 +116,49 @@ def convert_to_tinychat_w4x16y16_linear_weight(
     group_size: int = -1,
     zero_pre_scaled: bool = False,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    """Convert a weight tensor to TinyChat W4-X16-Y16 linear weight format.
+    """
+    Convert a floating-point weight tensor to TinyChat W4-X16-Y16 quantized linear format.
 
-    Args:
-        weight (`torch.Tensor`):
-            weight tensor to be converted.
-        scale (`torch.Tensor`):
-            scale tensor for the weight tensor.
-        zero (`torch.Tensor`):
-            zero point tensor for the weight tensor.
-        group_size (`int`, *optional*, defaults to `-1`):
-            quantization group size.
-        zero_pre_scaled (`bool`, *optional*, defaults to `False`):
-            whether zero point tensor is pre-scaled.
+    This function quantizes the input weights to 4 bits per value, applies group-wise
+    scaling and zero-point, and packs the result into the format expected by TinyChat
+    quantized linear layers.
 
-    Returns:
-        `tuple[torch.Tensor, torch.Tensor, torch.Tensor]`:
-            packed quantized weight tensor, scale tensor, and zero point tensor.
+    Parameters
+    ----------
+    weight : torch.Tensor
+        Floating-point weight tensor of shape (out_features, in_features).
+        Must be of dtype ``torch.float16`` or ``torch.bfloat16``.
+    scale : torch.Tensor
+        Per-group scale tensor (can be broadcastable).
+    zero : torch.Tensor
+        Per-group zero-point tensor (can be broadcastable).
+    group_size : int, optional
+        Quantization group size. If set to -1 (default), uses the full input dimension as a single group.
+    zero_pre_scaled : bool, optional
+        If True, the zero tensor is already scaled by the scale tensor (default: False).
+
+    Returns
+    -------
+    tuple of torch.Tensor
+        - packed_weight : torch.Tensor
+            Packed quantized weight tensor (int16).
+        - packed_scale : torch.Tensor
+            Packed scale tensor (shape: [num_groups, out_features], dtype matches input).
+        - packed_zero : torch.Tensor
+            Packed zero-point tensor (shape: [num_groups, out_features], dtype matches input).
+
+    Raises
+    ------
+    AssertionError
+        If input types or shapes are invalid, or quantized values are out of range.
+
+    Example
+    -------
+    .. code-block:: python
+
+        qweight, qscale, qzero = convert_to_tinychat_w4x16y16_linear_weight(
+            weight, scale, zero, group_size=128
+        )
     """
     dtype, device = weight.dtype, weight.device
     assert dtype in (torch.float16, torch.bfloat16), "currently tinychat only supports fp16 and bf16."
