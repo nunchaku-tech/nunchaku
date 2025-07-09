@@ -64,7 +64,7 @@ def compose_lora(
     >>> # Compose two LoRA weights with different strengths
     >>> lora_paths = [("lora1.safetensors", 0.8), ("lora2.safetensors", 0.6)]
     >>> composed = compose_lora(lora_paths, "composed_lora.safetensors")
-    
+
     >>> # Compose from weight dictionaries
     >>> lora_dicts = [({"layer.weight": torch.randn(10, 20)}, 1.0)]
     >>> composed = compose_lora(lora_dicts)

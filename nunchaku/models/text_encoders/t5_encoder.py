@@ -37,10 +37,7 @@ from .linear import W4Linear
 log_level = os.getenv("LOG_LEVEL", "INFO").upper()
 
 # Configure logging
-logging.basicConfig(
-    level=getattr(logging, log_level, logging.INFO),
-    format="%(asctime)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=getattr(logging, log_level, logging.INFO), format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 

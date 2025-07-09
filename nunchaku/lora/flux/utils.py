@@ -16,7 +16,7 @@ def is_nunchaku_format(lora: str | dict[str, torch.Tensor]) -> bool:
     """
     Check if LoRA weights are in Nunchaku format.
 
-    This function determines whether the provided LoRA weights are already in 
+    This function determines whether the provided LoRA weights are already in
     Nunchaku format by checking for specific key patterns that are characteristic
     of Nunchaku-formatted LoRA weights.
 
@@ -36,7 +36,7 @@ def is_nunchaku_format(lora: str | dict[str, torch.Tensor]) -> bool:
     >>> # Check format from file path
     >>> is_nunchaku_format("path/to/lora.safetensors")
     True
-    
+
     >>> # Check format from weight dictionary
     >>> weights = {"transformer_blocks.0.mlp_fc.weight": torch.randn(128, 256)}
     >>> is_nunchaku_format(weights)

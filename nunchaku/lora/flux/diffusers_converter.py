@@ -60,7 +60,7 @@ def handle_kohya_lora(state_dict: dict[str, torch.Tensor]) -> dict[str, torch.Te
     - `transformer_blocks_` → `transformer_blocks.`
     - `lora_down` → `lora_A`
     - `lora_up` → `lora_B`
-    
+
     And many other component-specific transformations.
 
     Examples
@@ -145,7 +145,7 @@ def to_diffusers(input_lora: str | dict[str, torch.Tensor], output_path: str | N
     --------
     >>> # Convert from file path
     >>> diffusers_weights = to_diffusers("path/to/lora.safetensors")
-    
+
     >>> # Convert from weight dictionary
     >>> weights = {"transformer.layer.lora_A.weight": torch.randn(10, 20)}
     >>> diffusers_weights = to_diffusers(weights, "output.safetensors")

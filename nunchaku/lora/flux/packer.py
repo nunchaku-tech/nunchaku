@@ -90,6 +90,7 @@ class MmaWeightPackerBase:
         If tile sizes are not properly divisible.
         If pack size is not in the valid range [1, 4].
     """
+
     def __init__(self, bits: int, warp_n: int, comp_n: int = None, comp_k: int = None):
         self.bits = bits
         assert self.bits in (1, 4, 8, 16, 32), "weight bits should be 1, 4, 8, 16, or 32."
@@ -226,6 +227,7 @@ class NunchakuWeightPacker(MmaWeightPackerBase):
     pad_lowrank_weight(weight, down)
         Pad low-rank weight tensors to required dimensions.
     """
+
     def __init__(self, bits: int, warp_n: int = 128):
         super().__init__(bits=bits, warp_n=warp_n)
         self.num_k_unrolls = 2

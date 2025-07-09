@@ -1,4 +1,3 @@
-# convert the diffusers lora to nunchaku format
 """
 Nunchaku LoRA format converter for Flux models.
 
@@ -22,7 +21,7 @@ Key functions:
 - `pack_lowrank_weight`/`unpack_lowrank_weight`: Low-rank weight transformations
 - `fuse_vectors`: Vector fusion for bias terms
 """
-"""Convert LoRA weights to Nunchaku format."""
+
 import logging
 import os
 
