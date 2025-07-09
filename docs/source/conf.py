@@ -51,3 +51,6 @@ with open(Path(__file__).parent / "links.rst", encoding="utf-8") as f:
 # html_theme = "sphinxawesome_theme"
 html_theme = "furo"
 html_static_path = ["_static"]
+
+napoleon_google_docstring = False
+napoleon_numpy_docstring = True

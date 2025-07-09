@@ -55,6 +55,8 @@ Check out `DeepCompressor <deepcompressor_repo>`_ for the quantization library.
     :maxdepth: 1
     :caption: Project Structure
 
+    overview/overview.rst
+
 .. toctree::
     :maxdepth: 2
     :caption: API Reference
