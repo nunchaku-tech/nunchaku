@@ -1,53 +1,12 @@
 """
-SANA Pipeline Caching Adapter.
+Adapters for efficient caching in SANA diffusion pipelines.
 
-This module provides caching adapters specifically for SANA diffusion pipelines.
-It implements single first-block caching for SANA models, enabling efficient
-inference through intelligent reuse of first transformer block computations.
+This module enables single first-block caching for SANA models, providing:
 
-The SANA adapter uses a simpler caching strategy compared to Flux, focusing
-on single first-block caching with configurable similarity thresholds. This
-approach is optimized for the specific architecture and usage patterns of
-SANA models.
+- :func:`apply_cache_on_transformer` — Add caching to a ``SanaTransformer2DModel``.
+- :func:`apply_cache_on_pipe` — Add caching to a complete SANA pipeline.
 
-Key Functions:
-    apply_cache_on_transformer: Apply caching directly to a SanaTransformer2DModel
-    apply_cache_on_pipe: Apply caching to a complete SANA pipeline
-
-Caching Features:
-    - Single first-block caching: Caches the first transformer block's output
-    - Configurable similarity thresholds: Adjust caching sensitivity
-    - Context management: Automatic cache setup and cleanup
-    - Batch size limitations: Optimized for batch sizes <= 2 (CFG support)
-
-Example:
-    Apply caching to a SANA transformer::
-
-        from diffusers import SanaTransformer2DModel
-        from nunchaku.caching.diffusers_adapters.sana import apply_cache_on_transformer
-
-        transformer = SanaTransformer2DModel.from_pretrained("model_name")
-        cached_transformer = apply_cache_on_transformer(
-            transformer,
-            residual_diff_threshold=0.12
-        )
-
-    Apply caching to a complete SANA pipeline::
-
-        from diffusers import SanaPipeline
-        from nunchaku.caching.diffusers_adapters.sana import apply_cache_on_pipe
-
-        pipe = SanaPipeline.from_pretrained("Efficient-Large-Model/Sana_600M_512px")
-        cached_pipe = apply_cache_on_pipe(
-            pipe,
-            residual_diff_threshold=0.1
-        )
-
-Note:
-    SANA caching is specifically designed for the SANA architecture and uses
-    mock patching to temporarily replace transformer blocks during inference.
-    The caching is automatically disabled for batch sizes > 2 to ensure
-    compatibility with classifier-free guidance.
+Caching is context-managed and only active within a cache context.
 """
 
 import functools
@@ -60,6 +19,28 @@ from ...caching import utils
 
 
 def apply_cache_on_transformer(transformer: SanaTransformer2DModel, *, residual_diff_threshold=0.12):
+    """
+    Enable caching for a ``SanaTransformer2DModel``.
+
+    This function wraps the transformer to use cached transformer blocks for faster inference.
+    Uses single first-block caching with configurable similarity thresholds.
+
+    Parameters
+    ----------
+    transformer : SanaTransformer2DModel
+        The transformer to modify.
+    residual_diff_threshold : float, optional
+        Similarity threshold for caching (default: 0.12).
+
+    Returns
+    -------
+    SanaTransformer2DModel
+        The transformer with caching enabled.
+
+    Notes
+    -----
+    If already cached, returns the transformer unchanged. Caching is only active within a cache context.
+    """
     if getattr(transformer, "_is_cached", False):
         return transformer
 
@@ -89,6 +70,28 @@ def apply_cache_on_transformer(transformer: SanaTransformer2DModel, *, residual_
 
 
 def apply_cache_on_pipe(pipe: DiffusionPipeline, **kwargs):
+    """
+    Enable caching for a complete SANA diffusion pipeline.
+
+    This function wraps the pipeline's ``__call__`` method to manage cache contexts,
+    and applies transformer-level caching.
+
+    Parameters
+    ----------
+    pipe : DiffusionPipeline
+        The SANA pipeline to modify.
+    **kwargs
+        Passed to :func:`apply_cache_on_transformer` (e.g., ``residual_diff_threshold``).
+
+    Returns
+    -------
+    DiffusionPipeline
+        The pipeline with caching enabled.
+
+    Notes
+    -----
+    The pipeline class's ``__call__`` is patched for all instances.
+    """
     if not getattr(pipe, "_is_cached", False):
         original_call = pipe.__class__.__call__
 

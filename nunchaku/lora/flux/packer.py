@@ -8,9 +8,6 @@ Classes
 ~~~~~~~
 - :class:`MmaWeightPackerBase`
 - :class:`NunchakuWeightPacker`
-
-.. note::
-   Adapted from `deepcompressor <https://github.com/mit-han-lab/deepcompressor/blob/main/deepcompressor/packer.py>`_.
 """
 
 import torch
@@ -172,9 +169,8 @@ class MmaWeightPackerBase:
 
 class NunchakuWeightPacker(MmaWeightPackerBase):
     """
-    Nunchaku-specific weight packer.
-
-    Provide Nunchaku-specific packing of quantized weights, scales, and low-rank weights.
+    Nunchaku-specific weight packer. Provide Nunchaku-specific packing of
+    quantized weights, scales, and low-rank weights.
 
     Parameters
     ----------
