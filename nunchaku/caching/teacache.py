@@ -1,4 +1,6 @@
 """
+This file is deprecated.
+
 TeaCache: Temporal Embedding Analysis Caching for Flux Transformers.
 
 This module implements TeaCache, a temporal caching mechanism that optimizes

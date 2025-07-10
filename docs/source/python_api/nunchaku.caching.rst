@@ -20,5 +20,4 @@ Submodules
 .. toctree::
    :maxdepth: 4
 
-   nunchaku.caching.teacache
    nunchaku.caching.utils
