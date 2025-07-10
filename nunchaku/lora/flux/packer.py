@@ -8,9 +8,10 @@ Classes
 -------
 - MmaWeightPackerBase
 - NunchakuWeightPacker
+
+Copy from https://github.com/mit-han-lab/deepcompressor/blob/main/deepcompressor/packer.py
 """
 
-# Copy the packer from https://github.com/mit-han-lab/deepcompressor/
 import torch
 
 from ...utils import ceil_divide
