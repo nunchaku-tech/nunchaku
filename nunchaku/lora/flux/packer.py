@@ -23,31 +23,61 @@ class MmaWeightPackerBase:
     """
     Base class for Matrix Multiply and Accumulate (MMA) weight packing.
 
-    Provides the foundation for packing weight tensors for efficient GPU computation
-    using MMA operations. Handles tile sizes, memory layout, and packing parameters.
+    Packs weight tensors for efficient GPU computation using MMA operations.
+    Handles tile sizes, memory layout, and packing parameters.
 
     Parameters
     ----------
     bits : int
-        Number of quantization bits. Must be 1, 4, 8, 16, or 32.
+        Quantization bits. Must be 1, 4, 8, 16, or 32.
     warp_n : int
         Warp size in the n dimension.
     comp_n : int, optional
-        Computation tile size in n dimension (default: 16).
+        Computation tile size in n (default: 16).
     comp_k : int, optional
-        Computation tile size in k dimension (default: 256 // bits).
-
-    .. note::
-        See class attributes for details on all computed parameters.
+        Computation tile size in k (default: 256 // bits).
 
     Raises
     ------
     AssertionError
-        If bits is not supported, or tile/pack sizes are invalid.
+        If bits or tile/pack sizes are invalid.
 
     Attributes
     ----------
-    See class attributes for details on all computed parameters.
+    comp_n : int
+        Tile size in n for MMA computation.
+    comp_k : int
+        Tile size in k for MMA computation.
+    insn_n : int
+        MMA instruction tile size in n.
+    insn_k : int
+        MMA instruction tile size in k.
+    num_lanes : int
+        Number of lanes (threads) in a warp.
+    num_k_lanes : int
+        Number of lanes in k.
+    num_n_lanes : int
+        Number of lanes in n.
+    warp_n : int
+        Warp size in n.
+    reg_k : int
+        Elements in a register in k.
+    reg_n : int
+        Elements in a register in n.
+    k_pack_size : int
+        Elements in a pack in k.
+    n_pack_size : int
+        Elements in a pack in n.
+    pack_size : int
+        Elements in a pack accessed by a lane.
+    mem_k : int
+        Tile size in k for one memory access.
+    mem_n : int
+        Tile size in n for one memory access.
+    num_k_packs : int
+        Packs in k for one memory access.
+    num_n_packs : int
+        Packs in n for one memory access.
     """
 
     def __init__(self, bits: int, warp_n: int, comp_n: int = None, comp_k: int = None):
@@ -104,7 +134,7 @@ class MmaWeightPackerBase:
 
     def get_view_shape(self, n: int, k: int) -> tuple[int, int, int, int, int, int, int, int, int, int]:
         """
-        Calculate the tensor view shape for MMA operations.
+        Returns the tensor view shape for MMA operations.
 
         Parameters
         ----------
@@ -142,44 +172,21 @@ class MmaWeightPackerBase:
 
 class NunchakuWeightPacker(MmaWeightPackerBase):
     """
-    Nunchaku-specific weight packer for quantized neural network operations.
+    Nunchaku-specific weight packer.
 
-    Extends :class:`MmaWeightPackerBase` to provide Nunchaku-specific weight
-    packing functionality. Supports packing quantized weights, scales, and
-    low-rank weights for efficient GPU computation.
+    Provide Nunchaku-specific packing of quantized weights, scales, and low-rank weights.
 
     Parameters
     ----------
     bits : int
         Number of quantization bits. Must be 1, 4, 8, 16, or 32.
     warp_n : int, optional
-        Warp size in the n dimension (default: 128).
+        Warp size in the n dimension. Default is 128.
 
     Attributes
     ----------
     num_k_unrolls : int
         Number of unrolls in the k dimension (always 2 for Nunchaku).
-
-    Methods
-    -------
-    pack_weight(weight)
-        Pack quantized weight tensors.
-    pack_scale(scale, group_size)
-        Pack scale tensors for quantization.
-    pack_micro_scale(scale, group_size)
-        Pack micro-scale tensors for fine-grained quantization.
-    pack_lowrank_weight(weight, down)
-        Pack low-rank weight tensors for LoRA.
-    unpack_lowrank_weight(weight, down)
-        Unpack low-rank weight tensors.
-    check_if_micro_scale(group_size)
-        Check if micro-scale packing should be used.
-    pad_weight(weight)
-        Pad weight tensors.
-    pad_scale(scale, group_size, fill_value)
-        Pad scale tensors.
-    pad_lowrank_weight(weight, down)
-        Pad low-rank weight tensors.
     """
 
     def __init__(self, bits: int, warp_n: int = 128):
@@ -187,6 +194,19 @@ class NunchakuWeightPacker(MmaWeightPackerBase):
         self.num_k_unrolls = 2
 
     def pack_weight(self, weight: torch.Tensor) -> torch.Tensor:
+        """
+        Pack quantized weight tensor for Nunchaku MMA.
+
+        Parameters
+        ----------
+        weight : torch.Tensor
+            Quantized weight tensor of dtype torch.int32 and shape (n, k).
+
+        Returns
+        -------
+        torch.Tensor
+            Packed weight tensor of dtype torch.int8.
+        """
         assert weight.dtype == torch.int32, f"quantized weight should be torch.int32, but got {weight.dtype}."
         n, k = weight.shape
         assert n % self.mem_n == 0, f"output channel size ({n}) should be divisible by mem_n ({self.mem_n})."
@@ -228,6 +248,21 @@ class NunchakuWeightPacker(MmaWeightPackerBase):
         return weight.view(dtype=torch.int8).view(n, -1)  # assume little-endian
 
     def pack_scale(self, scale: torch.Tensor, group_size: int) -> torch.Tensor:
+        """
+        Pack scale tensor for Nunchaku MMA.
+
+        Parameters
+        ----------
+        scale : torch.Tensor
+            Scale tensor of dtype torch.float16 or torch.bfloat16.
+        group_size : int
+            Group size for quantization.
+
+        Returns
+        -------
+        torch.Tensor
+            Packed scale tensor.
+        """
         if self.check_if_micro_scale(group_size=group_size):
             return self.pack_micro_scale(scale, group_size=group_size)
         # note: refer to https://docs.nvidia.com/cuda/parallel-thread-execution/index.html#mma-16864-c
@@ -275,6 +310,21 @@ class NunchakuWeightPacker(MmaWeightPackerBase):
         return scale.view(-1) if group_size == -1 else scale.view(-1, n)  # the shape is just used for validation
 
     def pack_micro_scale(self, scale: torch.Tensor, group_size: int) -> torch.Tensor:
+        """
+        Pack micro scale tensor for Nunchaku MMA.
+
+        Parameters
+        ----------
+        scale : torch.Tensor
+            Scale tensor of dtype torch.float16 or torch.bfloat16.
+        group_size : int
+            Group size for quantization (must be 16).
+
+        Returns
+        -------
+        torch.Tensor
+            Packed micro scale tensor.
+        """
         assert scale.dtype in (torch.float16, torch.bfloat16), "currently nunchaku only supports fp16 and bf16."
         assert scale.max() <= 448, "scale should be less than 448."
         assert scale.min() >= -448, "scale should be greater than -448."
@@ -319,12 +369,13 @@ class NunchakuWeightPacker(MmaWeightPackerBase):
         return scale.view(-1, n)  # the shape is just used for validation
 
     def pack_lowrank_weight(self, weight: torch.Tensor, down: bool) -> torch.Tensor:
-        """Pack low-rank weight.
+        """
+        Pack low-rank weight tensor.
 
         Parameters
         ----------
         weight : torch.Tensor
-            Low-rank weight tensor.
+            Low-rank weight tensor of dtype torch.float16 or torch.bfloat16.
         down : bool
             If True, weight is for down projection in low-rank branch.
 
@@ -356,12 +407,13 @@ class NunchakuWeightPacker(MmaWeightPackerBase):
         return weight.view(c, r)
 
     def unpack_lowrank_weight(self, weight: torch.Tensor, down: bool) -> torch.Tensor:
-        """Unpack low-rank weight.
+        """
+        Unpack low-rank weight tensor.
 
         Parameters
         ----------
         weight : torch.Tensor
-            Packed low-rank weight tensor.
+            Packed low-rank weight tensor of dtype torch.float16 or torch.bfloat16.
         down : bool
             If True, weight is for down projection in low-rank branch.
 
@@ -394,13 +446,56 @@ class NunchakuWeightPacker(MmaWeightPackerBase):
         return weight
 
     def check_if_micro_scale(self, group_size: int) -> bool:
+        """
+        Check if micro scale packing is required.
+
+        Parameters
+        ----------
+        group_size : int
+            Group size for quantization.
+
+        Returns
+        -------
+        bool
+            True if micro scale packing is required.
+        """
         return self.insn_k == group_size * 4
 
     def pad_weight(self, weight: torch.Tensor) -> torch.Tensor:
+        """
+        Pad weight tensor to required shape.
+
+        Parameters
+        ----------
+        weight : torch.Tensor
+            Weight tensor of shape (n, k).
+
+        Returns
+        -------
+        torch.Tensor
+            Padded weight tensor.
+        """
         assert weight.ndim == 2, "weight tensor should be 2D."
         return pad(weight, divisor=(self.mem_n, self.mem_k * self.num_k_unrolls), dim=(0, 1))
 
     def pad_scale(self, scale: torch.Tensor, group_size: int, fill_value: float = 0) -> torch.Tensor:
+        """
+        Pad scale tensor to required shape.
+
+        Parameters
+        ----------
+        scale : torch.Tensor
+            Scale tensor.
+        group_size : int
+            Group size for quantization.
+        fill_value : float, optional
+            Value to use for padding. Default is 0.
+
+        Returns
+        -------
+        torch.Tensor
+            Padded scale tensor.
+        """
         if group_size > 0 and scale.numel() > scale.shape[0]:
             scale = scale.view(scale.shape[0], 1, -1, 1)
             if self.check_if_micro_scale(group_size=group_size):
@@ -412,5 +507,20 @@ class NunchakuWeightPacker(MmaWeightPackerBase):
         return scale
 
     def pad_lowrank_weight(self, weight: torch.Tensor, down: bool) -> torch.Tensor:
+        """
+        Pad low-rank weight tensor to required shape.
+
+        Parameters
+        ----------
+        weight : torch.Tensor
+            Low-rank weight tensor.
+        down : bool
+            If True, weight is for down projection in low-rank branch.
+
+        Returns
+        -------
+        torch.Tensor
+            Padded low-rank weight tensor.
+        """
         assert weight.ndim == 2, "weight tensor should be 2D."
         return pad(weight, divisor=self.warp_n, dim=1 if down else 0)
