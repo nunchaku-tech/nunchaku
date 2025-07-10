@@ -3,18 +3,11 @@ Weight packing utilities for Nunchaku quantization.
 
 This module provides utilities for packing and unpacking weight tensors for
 efficient GPU computation using Matrix Multiply and Accumulate (MMA) operations.
-It includes base classes for MMA weight packing and Nunchaku-specific implementations.
 
-The module supports:
-- MMA-based weight packing for efficient GPU computation
-- Scale tensor packing for quantization
-- Low-rank weight packing for LoRA operations
-- Micro-scale packing for fine-grained quantization
-- Tensor padding for alignment requirements
-
-Classes:
-- MmaWeightPackerBase: Base class for MMA weight packing operations
-- NunchakuWeightPacker: Nunchaku-specific weight packer implementation
+Classes
+-------
+- MmaWeightPackerBase
+- NunchakuWeightPacker
 """
 
 # Copy the packer from https://github.com/mit-han-lab/deepcompressor/
@@ -26,32 +19,30 @@ from .utils import pad
 
 class MmaWeightPackerBase:
     """
-    Base class for Matrix Multiply and Accumulate (MMA) weight packing operations.
+    Base class for Matrix Multiply and Accumulate (MMA) weight packing.
 
-    This class provides the foundation for packing weight tensors for efficient
-    GPU computation using MMA operations. It handles the calculation of tile sizes,
-    memory layout, and packing parameters based on the quantization bits and
-    warp configuration.
+    Provides the foundation for packing weight tensors for efficient GPU computation
+    using MMA operations. Handles tile sizes, memory layout, and packing parameters.
 
     Parameters
     ----------
     bits : int
-        Number of bits for quantization. Must be one of 1, 4, 8, 16, or 32.
+        Number of quantization bits. Must be 1, 4, 8, 16, or 32.
     warp_n : int
-        Warp size in the n dimension for MMA computation.
+        Warp size in the n dimension.
     comp_n : int, optional
-        Computation tile size in n dimension. If None, defaults to 16.
+        Computation tile size in n dimension (default: 16).
     comp_k : int, optional
-        Computation tile size in k dimension. If None, defaults to 256 // bits.
+        Computation tile size in k dimension (default: 256 // bits).
 
     Attributes
     ----------
     bits : int
         Number of quantization bits.
     comp_n : int
-        Smallest tile size in n dimension for MMA computation.
+        Tile size in n dimension for MMA computation.
     comp_k : int
-        Smallest tile size in k dimension for MMA computation.
+        Tile size in k dimension for MMA computation.
     insn_n : int
         Tile size in n dimension for MMA instruction (always 8).
     insn_k : int
@@ -65,30 +56,28 @@ class MmaWeightPackerBase:
     warp_n : int
         Warp size in n dimension.
     reg_k : int
-        Number of elements in a register in k dimension.
+        Elements in a register in k dimension.
     reg_n : int
-        Number of elements in a register in n dimension (always 1).
+        Elements in a register in n dimension (always 1).
     k_pack_size : int
-        Number of elements in a pack in k dimension.
+        Elements in a pack in k dimension.
     n_pack_size : int
-        Number of elements in a pack in n dimension.
+        Elements in a pack in n dimension.
     pack_size : int
-        Total number of elements in a pack.
+        Total elements in a pack.
     mem_k : int
         Tile size in k dimension for memory access.
     mem_n : int
         Tile size in n dimension for memory access.
     num_k_packs : int
-        Number of packs in k dimension for memory access.
+        Packs in k dimension for memory access.
     num_n_packs : int
-        Number of packs in n dimension for memory access.
+        Packs in n dimension for memory access.
 
     Raises
     ------
     AssertionError
-        If bits is not one of the supported values (1, 4, 8, 16, 32).
-        If tile sizes are not properly divisible.
-        If pack size is not in the valid range [1, 4].
+        If bits is not supported, or tile/pack sizes are invalid.
     """
 
     def __init__(self, bits: int, warp_n: int, comp_n: int = None, comp_k: int = None):
@@ -147,10 +136,6 @@ class MmaWeightPackerBase:
         """
         Calculate the tensor view shape for MMA operations.
 
-        This method computes the shape transformation needed to view a tensor
-        for efficient MMA operations based on the configured tile sizes and
-        packing parameters.
-
         Parameters
         ----------
         n : int
@@ -160,15 +145,14 @@ class MmaWeightPackerBase:
 
         Returns
         -------
-        tuple[int, int, int, int, int, int, int, int, int, int]
-            A 10-element tuple representing the view shape:
+        tuple of int
             (n_tiles, num_n_packs, n_pack_size, num_n_lanes, reg_n,
              k_tiles, num_k_packs, k_pack_size, num_k_lanes, reg_k)
 
         Raises
         ------
         AssertionError
-            If n is not divisible by mem_n or k is not divisible by mem_k.
+            If n or k is not divisible by mem_n or mem_k.
         """
         assert n % self.mem_n == 0, "output channel size should be divisible by mem_n."
         assert k % self.mem_k == 0, "input channel size should be divisible by mem_k."
@@ -190,16 +174,16 @@ class NunchakuWeightPacker(MmaWeightPackerBase):
     """
     Nunchaku-specific weight packer for quantized neural network operations.
 
-    This class extends MmaWeightPackerBase to provide Nunchaku-specific weight
-    packing functionality. It supports packing quantized weights, scales, and
+    Extends :class:`MmaWeightPackerBase` to provide Nunchaku-specific weight
+    packing functionality. Supports packing quantized weights, scales, and
     low-rank weights for efficient GPU computation.
 
     Parameters
     ----------
     bits : int
-        Number of bits for quantization. Must be one of 1, 4, 8, 16, or 32.
+        Number of quantization bits. Must be 1, 4, 8, 16, or 32.
     warp_n : int, optional
-        Warp size in the n dimension for MMA computation (default: 128).
+        Warp size in the n dimension (default: 128).
 
     Attributes
     ----------
@@ -209,23 +193,23 @@ class NunchakuWeightPacker(MmaWeightPackerBase):
     Methods
     -------
     pack_weight(weight)
-        Pack quantized weight tensors for GPU computation.
+        Pack quantized weight tensors.
     pack_scale(scale, group_size)
         Pack scale tensors for quantization.
     pack_micro_scale(scale, group_size)
         Pack micro-scale tensors for fine-grained quantization.
     pack_lowrank_weight(weight, down)
-        Pack low-rank weight tensors for LoRA operations.
+        Pack low-rank weight tensors for LoRA.
     unpack_lowrank_weight(weight, down)
         Unpack low-rank weight tensors.
     check_if_micro_scale(group_size)
         Check if micro-scale packing should be used.
     pad_weight(weight)
-        Pad weight tensors to required dimensions.
+        Pad weight tensors.
     pad_scale(scale, group_size, fill_value)
-        Pad scale tensors to required dimensions.
+        Pad scale tensors.
     pad_lowrank_weight(weight, down)
-        Pad low-rank weight tensors to required dimensions.
+        Pad low-rank weight tensors.
     """
 
     def __init__(self, bits: int, warp_n: int = 128):
@@ -365,13 +349,19 @@ class NunchakuWeightPacker(MmaWeightPackerBase):
         return scale.view(-1, n)  # the shape is just used for validation
 
     def pack_lowrank_weight(self, weight: torch.Tensor, down: bool) -> torch.Tensor:
-        """Pack Low-Rank Weight.
+        """Pack low-rank weight.
 
-        Args:
-            weight (`torch.Tensor`):
-                low-rank weight tensor.
-            down (`bool`):
-                whether the weight is for down projection in low-rank branch.
+        Parameters
+        ----------
+        weight : torch.Tensor
+            Low-rank weight tensor.
+        down : bool
+            If True, weight is for down projection in low-rank branch.
+
+        Returns
+        -------
+        torch.Tensor
+            Packed low-rank weight tensor.
         """
         assert weight.dtype in (torch.float16, torch.bfloat16), f"Unsupported weight dtype {weight.dtype}."
         reg_n, reg_k = 1, 2  # reg_n is always 1, reg_k is 32 bits // 16 bits = 2
@@ -396,13 +386,19 @@ class NunchakuWeightPacker(MmaWeightPackerBase):
         return weight.view(c, r)
 
     def unpack_lowrank_weight(self, weight: torch.Tensor, down: bool) -> torch.Tensor:
-        """Unpack Low-Rank Weight.
+        """Unpack low-rank weight.
 
-        Args:
-            weight (`torch.Tensor`):
-                low-rank weight tensor.
-            down (`bool`):
-                whether the weight is for down projection in low-rank branch.
+        Parameters
+        ----------
+        weight : torch.Tensor
+            Packed low-rank weight tensor.
+        down : bool
+            If True, weight is for down projection in low-rank branch.
+
+        Returns
+        -------
+        torch.Tensor
+            Unpacked low-rank weight tensor.
         """
         c, r = weight.shape
         assert weight.dtype in (torch.float16, torch.bfloat16), f"Unsupported weight dtype {weight.dtype}."
