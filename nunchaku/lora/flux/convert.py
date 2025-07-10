@@ -1,16 +1,23 @@
 """
-Command-line interface for converting LoRA weights to Nunchaku format.
+CLI tool to convert LoRA weights to Nunchaku format.
 
-This module provides a command-line interface for converting LoRA weights from
-various formats to Nunchaku format. It handles format detection, automatic
-naming, and provides options for specifying quantization paths and output
-locations.
+**Usage:**
 
-The script supports:
-- Automatic format detection and conversion
-- Flexible output path specification
-- Support for different quantization backends (int4/fp4)
-- Integration with the Nunchaku conversion pipeline
+.. code-block:: bash
+
+    python -m nunchaku.lora.flux.convert \\
+        --lora-path composed_lora.safetensors \\
+        --quant-path mit-han-lab/svdq-int4-flux.1-dev/transformer_blocks.safetensors \\
+        --output-root ./converted \\
+        --dtype bfloat16
+
+**Arguments:**
+
+- ``--lora-path``: Path to the LoRA weights safetensor file (required)
+- ``--quant-path``: Path to the quantized model safetensor file (default: ``mit-han-lab/svdq-int4-flux.1-dev/transformer_blocks.safetensors``)
+- ``--output-root``: Root directory for the output safetensor file (default: parent directory of the lora file)
+- ``--lora-name``: Name of the LoRA weights (optional, auto-generated if not provided)
+- ``--dtype``: Data type of the converted weights, either ``bfloat16`` or ``float16`` (default: ``bfloat16``)
 """
 
 import argparse
@@ -24,27 +31,26 @@ if __name__ == "__main__":
     parser.add_argument(
         "--quant-path",
         type=str,
-        help="path to the quantized model safetensor file",
+        help="Path to the quantized model safetensors file.",
         default="mit-han-lab/svdq-int4-flux.1-dev/transformer_blocks.safetensors",
     )
-    parser.add_argument("--lora-path", type=str, required=True, help="path to LoRA weights safetensor file")
-    parser.add_argument("--output-root", type=str, default="", help="root to the output safetensor file")
-    parser.add_argument("--lora-name", type=str, default=None, help="name of the LoRA weights")
+    parser.add_argument("--lora-path", type=str, required=True, help="Path to LoRA weights safetensors file.")
+    parser.add_argument("--output-root", type=str, default="", help="Root directory for output safetensors file.")
+    parser.add_argument("--lora-name", type=str, default=None, help="Name for the output LoRA weights.")
     parser.add_argument(
         "--dtype",
         type=str,
         default="bfloat16",
         choices=["bfloat16", "float16"],
-        help="data type of the converted weights",
+        help="Data type of the converted weights.",
     )
     args = parser.parse_args()
 
     if is_nunchaku_format(args.lora_path):
-        print("Already in nunchaku format, no conversion needed.")
+        print("Already in Nunchaku format, no conversion needed.")
         exit(0)
 
     if not args.output_root:
-        # output to the parent directory of the lora safetensors file
         args.output_root = os.path.dirname(args.lora_path)
     if args.lora_name is None:
         base_name = os.path.basename(args.lora_path)

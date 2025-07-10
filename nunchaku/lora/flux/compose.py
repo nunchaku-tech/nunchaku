@@ -1,16 +1,24 @@
 """
-Compose (merge) multiple LoRA weights into a single LoRA for Flux models.
+Compose multiple LoRA weights into a single LoRA for FLUX models.
 
-Command-line usage::
+This script merges several LoRA safetensors files into one, applying individual strength values to each.
 
-    python -m nunchaku.lora.flux.compose -i lora1.safetensors lora2.safetensors -s 0.8 1 -o composed_lora.safetensors
+**Usage:**
 
-Arguments:
-    - ``-i``, ``--input-paths``: Input LoRA safetensors files.
-    - ``-s``, ``--strengths``: Strength for each LoRA.
-    - ``-o``, ``--output-path``: Output safetensors file.
+.. code-block:: bash
 
-This merges ``lora1.safetensors`` (strength 0.8) and ``lora2.safetensors`` (strength 1.0) into ``composed_lora.safetensors``.
+    python -m nunchaku.lora.flux.compose \\
+        -i lora1.safetensors lora2.safetensors \\
+        -s 0.8 1.0 \\
+        -o composed_lora.safetensors
+
+**Arguments:**
+
+- ``-i``, ``--input-paths``: Input LoRA safetensors files (one or more).
+- ``-s``, ``--strengths``: Strength value for each LoRA (must match number of inputs).
+- ``-o``, ``--output-path``: Output path for the composed LoRA safetensors file.
+
+This will merge ``lora1.safetensors`` (strength 0.8) and ``lora2.safetensors`` (strength 1.0) into ``composed_lora.safetensors``.
 """
 
 import argparse
