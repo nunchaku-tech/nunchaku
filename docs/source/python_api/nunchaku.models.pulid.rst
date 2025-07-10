@@ -5,7 +5,6 @@ nunchaku.models.pulid package
    :members:
    :undoc-members:
    :show-inheritance:
-   :private-members:
 
 Subpackages
 -----------

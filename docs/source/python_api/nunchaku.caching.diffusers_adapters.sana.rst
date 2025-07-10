@@ -5,4 +5,3 @@ nunchaku.caching.diffusers\_adapters.sana module
    :members:
    :undoc-members:
    :show-inheritance:
-   :private-members:

@@ -5,4 +5,3 @@ nunchaku.merge\_safetensors module
    :members:
    :undoc-members:
    :show-inheritance:
-   :private-members:

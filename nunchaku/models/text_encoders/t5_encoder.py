@@ -1,22 +1,25 @@
 """
 Nunchaku T5 Encoder
+===================
 
-This module provides the implementation of the Nunchaku T5 Encoder.
+This module implements the Nunchaku T5 Encoder, an extension of HuggingFace's T5EncoderModel
+with support for memory-efficient low-bit inference.
 
-Classes
--------
-.. autosummary::
-   :toctree: generated/
-   :nosignatures:
-
-   NunchakuT5EncoderModel
+Overview
+--------
+The NunchakuT5EncoderModel class enables loading T5 encoder weights from safetensors files,
+automatically replacing supported linear layers with quantized :class:`~nunchaku.models.text_encoders.linear.W4Linear`
+modules for improved performance and memory efficiency.
 
 Example
 -------
 .. code-block:: python
 
     from nunchaku import NunchakuT5EncoderModel
-    model = NunchakuT5EncoderModel.from_pretrained("mit-han-lab/nunchaku-t5/awq-int4-flux.1-t5xxl.safetensors")
+    model = NunchakuT5EncoderModel.from_pretrained(
+        "mit-han-lab/nunchaku-t5/awq-int4-flux.1-t5xxl.safetensors"
+    )
+
 """
 
 import json
@@ -42,43 +45,56 @@ logger = logging.getLogger(__name__)
 
 class NunchakuT5EncoderModel(T5EncoderModel):
     """
-    Nunchaku T5 Encoder Model.
+    Nunchaku T5 Encoder Model
 
-    This class extends HuggingFace's ``T5EncoderModel`` to support loading quantized weights
-    from safetensors files and replacing linear layers with quantized ``W4Linear`` modules
-    where appropriate.
+    Extends :class:`transformers.T5EncoderModel` to support quantized weights and
+    memory-efficient inference using :class:`~nunchaku.models.text_encoders.linear.W4Linear`.
+
+    This class provides a convenient interface for loading T5 encoder weights from
+    safetensors files, automatically replacing supported linear layers with quantized
+    modules for improved speed and reduced memory usage.
 
     Example
     -------
     .. code-block:: python
 
-        model = NunchakuT5EncoderModel.from_pretrained("mit-han-lab/nunchaku-t5/awq-int4-flux.1-t5xxl.safetensors")
+        model = NunchakuT5EncoderModel.from_pretrained(
+            "mit-han-lab/nunchaku-t5/awq-int4-flux.1-t5xxl.safetensors"
+        )
     """
 
     @classmethod
     def from_pretrained(cls, pretrained_model_name_or_path: str | os.PathLike[str], **kwargs):
         """
-        Load a NunchakuT5EncoderModel from a safetensors file.
+        Load a :class:`NunchakuT5EncoderModel` from a safetensors file.
 
         This method loads the model configuration and weights from a safetensors file,
         initializes the model on the 'meta' device (no memory allocation for weights),
-        and replaces supported linear layers with quantized ``W4Linear`` modules.
+        and replaces supported linear layers with quantized :class:`~nunchaku.models.text_encoders.linear.W4Linear` modules.
 
-        :param pretrained_model_name_or_path: Path to the safetensors file containing the model weights and metadata.
-        :type pretrained_model_name_or_path: str or os.PathLike
-        :param torch_dtype: (optional) Data type for model initialization (default: torch.bfloat16). Need to set this to `torch.float16` for Turing GPUs.
-        :type torch_dtype: torch.dtype, optional
-        :param device: (optional) Device to load the model onto (default: "cuda"). Currently, only "cuda" is supported. If the model is loaded on CPU, we will automatically move it to GPU.
-        :type device: str or torch.device, optional
+        Parameters
+        ----------
+        pretrained_model_name_or_path : str or os.PathLike
+            Path to the safetensors file containing the model weights and metadata.
+        torch_dtype : torch.dtype, optional
+            Data type for model initialization (default: ``torch.bfloat16``).
+            Set to ``torch.float16`` for Turing GPUs.
+        device : str or torch.device, optional
+            Device to load the model onto (default: ``"cuda"``).
+            If the model is loaded on CPU, it will be automatically moved to GPU.
 
-        :return: The loaded and quantized T5 encoder model.
-        :rtype: NunchakuT5EncoderModel
+        Returns
+        -------
+        NunchakuT5EncoderModel
+            The loaded and quantized T5 encoder model.
 
         Example
         -------
         .. code-block:: python
 
-        model = NunchakuT5EncoderModel.from_pretrained("mit-han-lab/nunchaku-t5/awq-int4-flux.1-t5xxl.safetensors")
+            model = NunchakuT5EncoderModel.from_pretrained(
+                "mit-han-lab/nunchaku-t5/awq-int4-flux.1-t5xxl.safetensors"
+            )
         """
         pretrained_model_name_or_path = Path(pretrained_model_name_or_path)
         state_dict, metadata = load_state_dict_in_safetensors(pretrained_model_name_or_path, return_metadata=True)

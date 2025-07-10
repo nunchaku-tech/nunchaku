@@ -5,4 +5,3 @@ nunchaku.caching.diffusers\_adapters.flux module
    :members:
    :undoc-members:
    :show-inheritance:
-   :private-members:

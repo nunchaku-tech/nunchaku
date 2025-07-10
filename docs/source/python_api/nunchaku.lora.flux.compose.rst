@@ -5,4 +5,3 @@ nunchaku.lora.flux.compose module
    :members:
    :undoc-members:
    :show-inheritance:
-   :private-members:

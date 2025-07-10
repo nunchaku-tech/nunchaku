@@ -5,4 +5,3 @@ nunchaku.models.text\_encoders.t5\_encoder module
    :members:
    :undoc-members:
    :show-inheritance:
-   :private-members:

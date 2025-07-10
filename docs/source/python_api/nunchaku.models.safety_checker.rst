@@ -5,4 +5,3 @@ nunchaku.models.safety\_checker module
    :members:
    :undoc-members:
    :show-inheritance:
-   :private-members:

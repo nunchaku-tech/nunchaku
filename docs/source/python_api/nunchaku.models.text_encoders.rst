@@ -5,7 +5,6 @@ nunchaku.models.text\_encoders package
    :members:
    :undoc-members:
    :show-inheritance:
-   :private-members:
 
 Submodules
 ----------

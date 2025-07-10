@@ -5,4 +5,3 @@ nunchaku.models.pulid.eva\_clip.modified\_resnet module
    :members:
    :undoc-members:
    :show-inheritance:
-   :private-members:

@@ -5,4 +5,3 @@ nunchaku.pipeline.pipeline\_flux\_pulid module
    :members:
    :undoc-members:
    :show-inheritance:
-   :private-members:

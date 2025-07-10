@@ -5,4 +5,3 @@ nunchaku.models.text\_encoders.linear module
    :members:
    :undoc-members:
    :show-inheritance:
-   :private-members:

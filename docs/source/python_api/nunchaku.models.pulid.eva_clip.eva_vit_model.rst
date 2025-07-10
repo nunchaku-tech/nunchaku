@@ -5,4 +5,3 @@ nunchaku.models.pulid.eva\_clip.eva\_vit\_model module
    :members:
    :undoc-members:
    :show-inheritance:
-   :private-members:

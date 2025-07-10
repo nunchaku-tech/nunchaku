@@ -5,4 +5,3 @@ nunchaku.models.pulid.pulid\_forward module
    :members:
    :undoc-members:
    :show-inheritance:
-   :private-members:

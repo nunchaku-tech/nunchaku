@@ -5,4 +5,3 @@ nunchaku.models.transformers.transformer\_flux module
    :members:
    :undoc-members:
    :show-inheritance:
-   :private-members:

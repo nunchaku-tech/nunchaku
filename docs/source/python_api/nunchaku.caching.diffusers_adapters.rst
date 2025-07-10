@@ -5,7 +5,6 @@ nunchaku.caching.diffusers\_adapters package
    :members:
    :undoc-members:
    :show-inheritance:
-   :private-members:
 
 Submodules
 ----------

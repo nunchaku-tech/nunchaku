@@ -5,4 +5,3 @@ nunchaku.models.pulid.encoders\_transformer module
    :members:
    :undoc-members:
    :show-inheritance:
-   :private-members:

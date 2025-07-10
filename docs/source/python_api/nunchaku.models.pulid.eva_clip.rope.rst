@@ -5,4 +5,3 @@ nunchaku.models.pulid.eva\_clip.rope module
    :members:
    :undoc-members:
    :show-inheritance:
-   :private-members:

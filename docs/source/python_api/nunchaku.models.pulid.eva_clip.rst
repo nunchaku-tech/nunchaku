@@ -5,7 +5,6 @@ nunchaku.models.pulid.eva\_clip package
    :members:
    :undoc-members:
    :show-inheritance:
-   :private-members:
 
 Submodules
 ----------

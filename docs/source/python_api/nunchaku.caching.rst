@@ -5,7 +5,6 @@ nunchaku.caching package
    :members:
    :undoc-members:
    :show-inheritance:
-   :private-members:
 
 Subpackages
 -----------
