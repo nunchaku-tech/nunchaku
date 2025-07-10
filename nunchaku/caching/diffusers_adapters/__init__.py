@@ -1,5 +1,5 @@
 """
-Pipeline Adapters for First-Block Caching in Nunchaku
+Pipeline adapters for first-block caching in Nunchaku models.
 """
 
 from diffusers import DiffusionPipeline

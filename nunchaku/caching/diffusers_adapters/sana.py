@@ -1,7 +1,7 @@
 """
 Adapters for efficient caching in SANA diffusion pipelines.
 
-This module enables single first-block caching for SANA models, providing:
+This module enables first-block caching for SANA models, providing:
 
 - :func:`apply_cache_on_transformer` — Add caching to a ``SanaTransformer2DModel``.
 - :func:`apply_cache_on_pipe` — Add caching to a complete SANA pipeline.
