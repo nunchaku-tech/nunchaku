@@ -88,7 +88,7 @@ def apply_cache_on_transformer(transformer: SanaTransformer2DModel, *, residual_
     return transformer
 
 
-def apply_cache_on_pipe(pipe: DiffusionPipeline, *, shallow_patch: bool = False, **kwargs):
+def apply_cache_on_pipe(pipe: DiffusionPipeline, **kwargs):
     if not getattr(pipe, "_is_cached", False):
         original_call = pipe.__class__.__call__
 
@@ -100,7 +100,6 @@ def apply_cache_on_pipe(pipe: DiffusionPipeline, *, shallow_patch: bool = False,
         pipe.__class__.__call__ = new_call
         pipe.__class__._is_cached = True
 
-    if not shallow_patch:
-        apply_cache_on_transformer(pipe.transformer, **kwargs)
+    apply_cache_on_transformer(pipe.transformer, **kwargs)
 
     return pipe

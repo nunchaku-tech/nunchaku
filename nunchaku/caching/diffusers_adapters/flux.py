@@ -98,7 +98,7 @@ def apply_cache_on_transformer(
     return transformer
 
 
-def apply_cache_on_pipe(pipe: DiffusionPipeline, *, shallow_patch: bool = False, **kwargs):
+def apply_cache_on_pipe(pipe: DiffusionPipeline, **kwargs):
     """
     Enable caching for a complete Flux diffusion pipeline.
 
@@ -133,8 +133,5 @@ def apply_cache_on_pipe(pipe: DiffusionPipeline, *, shallow_patch: bool = False,
 
         pipe.__class__.__call__ = new_call
         pipe.__class__._is_cached = True
-
-    if not shallow_patch:
-        apply_cache_on_transformer(pipe.transformer, **kwargs)
 
     return pipe

@@ -89,7 +89,7 @@ class CacheContext:
         self.incremental_name_counters.clear()
 
     # @torch.compiler.disable # This is a torchscript feature
-    def get_buffer(self, name=str):
+    def get_buffer(self, name: str) -> Optional[torch.Tensor]:
         """
         Retrieve a cached tensor buffer by name.
 
@@ -105,46 +105,53 @@ class CacheContext:
         """
         return self.buffers.get(name)
 
-    def set_buffer(self, name, buffer):
+    def set_buffer(self, name: str, buffer: torch.Tensor):
         """
         Store a tensor buffer in the cache.
 
-        Args:
-            name (str): The name to associate with the buffer
-            buffer (torch.Tensor): The tensor to cache
+        Parameters
+        ----------
+        name : str
+            The name to associate with the buffer.
+        buffer : torch.Tensor
+            The tensor to cache.
         """
         self.buffers[name] = buffer
 
     def clear_buffers(self):
         """
-        Clear all cached buffers.
+        Clear all cached tensor buffers.
 
-        This removes all stored tensors from the cache, freeing up memory.
+        Removes all stored tensors from the cache.
         """
         self.buffers.clear()
 
 
 @torch.compiler.disable
-def get_buffer(name):
+def get_buffer(name: str) -> torch.Tensor:
     """
     Retrieve a cached tensor buffer from the current cache context.
 
-    This is a convenience function that gets the buffer from the currently active
-    cache context. The cache context must be set before calling this function.
+    Parameters
+    ----------
+    name : str
+        The name of the buffer to retrieve.
 
-    Args:
-        name (str): The name of the buffer to retrieve
+    Returns
+    -------
+    torch.Tensor or None
+        The cached tensor if found, otherwise None.
 
-    Returns:
-        torch.Tensor or None: The cached tensor if found, None otherwise
+    Raises
+    ------
+    AssertionError
+        If no cache context is currently active.
 
-    Raises:
-        AssertionError: If no cache context is currently active
-
-    Example:
-        >>> with cache_context(create_cache_context()):
-        ...     set_buffer("my_tensor", torch.randn(2, 3))
-        ...     cached = get_buffer("my_tensor")
+    Examples
+    --------
+    >>> with cache_context(create_cache_context()):
+    ...     set_buffer("my_tensor", torch.randn(2, 3))
+    ...     cached = get_buffer("my_tensor")
     """
     cache_context = get_current_cache_context()
     assert cache_context is not None, "cache_context must be set before"
@@ -152,24 +159,27 @@ def get_buffer(name):
 
 
 @torch.compiler.disable
-def set_buffer(name, buffer):
+def set_buffer(name: str, buffer: torch.Tensor):
     """
     Store a tensor buffer in the current cache context.
 
-    This is a convenience function that sets the buffer in the currently active
-    cache context. The cache context must be set before calling this function.
+    Parameters
+    ----------
+    name : str
+        The name to associate with the buffer.
+    buffer : torch.Tensor
+        The tensor to cache.
 
-    Args:
-        name (str): The name to associate with the buffer
-        buffer (torch.Tensor): The tensor to cache
+    Raises
+    ------
+    AssertionError
+        If no cache context is currently active.
 
-    Raises:
-        AssertionError: If no cache context is currently active
-
-    Example:
-        >>> with cache_context(create_cache_context()):
-        ...     set_buffer("my_tensor", torch.randn(2, 3))
-        ...     cached = get_buffer("my_tensor")
+    Examples
+    --------
+    >>> with cache_context(create_cache_context()):
+    ...     set_buffer("my_tensor", torch.randn(2, 3))
+    ...     cached = get_buffer("my_tensor")
     """
     cache_context = get_current_cache_context()
     assert cache_context is not None, "cache_context must be set before"
@@ -181,16 +191,19 @@ _current_cache_context = None
 
 def create_cache_context():
     """
-    Create a new cache context for managing cached computations.
+    Create a new :class:`CacheContext` for managing cached computations.
 
-    Returns:
-        CacheContext: A new cache context instance
+    Returns
+    -------
+    CacheContext
+        A new cache context instance.
 
-    Example:
-        >>> context = create_cache_context()
-        >>> with cache_context(context):
-        ...     # Cached operations here
-        ...     pass
+    Examples
+    --------
+    >>> context = create_cache_context()
+    >>> with cache_context(context):
+    ...     # Cached operations here
+    ...     pass
     """
     return CacheContext()
 
