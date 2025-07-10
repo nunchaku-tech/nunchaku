@@ -24,10 +24,9 @@ def apply_cache_on_pipe(pipe: DiffusionPipeline, *args, **kwargs):
         Variable keyword arguments passed to the specific caching function.
         Common arguments include:
 
-            - residual_diff_threshold (float): Similarity threshold for cache validity
-            - use_double_fb_cache (bool): Whether to use double first-block caching
-            - shallow_patch (bool): Whether to use shallow patching only
-            - verbose (bool): Whether to enable verbose caching messages
+            - ``residual_diff_threshold`` (float): Similarity threshold for cache validity
+            - ``use_double_fb_cache`` (bool): Whether to use double first-block caching
+            - ``verbose`` (bool): Whether to enable verbose caching messages
 
     Returns
     -------
@@ -56,11 +55,11 @@ def apply_cache_on_pipe(pipe: DiffusionPipeline, *args, **kwargs):
         cached_pipe = apply_cache_on_pipe(pipeline, residual_diff_threshold=0.12)
 
 
-    Notes
-    -----
-    The function modifies the pipeline in-place and returns the same instance.
-    Currently supported pipeline types are those with class names starting
-    with "Flux" or "Sana".
+    .. note::
+       This function modifies the pipeline in-place and returns the same instance.
+
+    .. warning::
+       Only pipelines with class names starting with ``Flux`` or ``Sana`` are supported.
     """
     assert isinstance(pipe, DiffusionPipeline)
 

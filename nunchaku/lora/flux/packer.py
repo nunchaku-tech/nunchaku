@@ -3,11 +3,6 @@ Weight packing utilities for Nunchaku quantization.
 
 This module provides concise tools for packing and unpacking weight tensors,
 optimized for efficient GPU computation using Matrix Multiply and Accumulate (MMA) operations.
-
-Classes
-~~~~~~~
-- :class:`MmaWeightPackerBase`
-- :class:`NunchakuWeightPacker`
 """
 
 import torch
