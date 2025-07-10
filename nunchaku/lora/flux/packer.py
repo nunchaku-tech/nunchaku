@@ -1,15 +1,16 @@
 """
 Weight packing utilities for Nunchaku quantization.
 
-This module provides utilities for packing and unpacking weight tensors for
-efficient GPU computation using Matrix Multiply and Accumulate (MMA) operations.
+This module provides concise tools for packing and unpacking weight tensors,
+optimized for efficient GPU computation using Matrix Multiply and Accumulate (MMA) operations.
 
 Classes
--------
-- MmaWeightPackerBase
-- NunchakuWeightPacker
+~~~~~~~
+- :class:`MmaWeightPackerBase`
+- :class:`NunchakuWeightPacker`
 
-Copy from https://github.com/mit-han-lab/deepcompressor/blob/main/deepcompressor/packer.py
+.. note::
+   Adapted from `deepcompressor <https://github.com/mit-han-lab/deepcompressor/blob/main/deepcompressor/packer.py>`_.
 """
 
 import torch
@@ -36,49 +37,17 @@ class MmaWeightPackerBase:
     comp_k : int, optional
         Computation tile size in k dimension (default: 256 // bits).
 
-    Attributes
-    ----------
-    bits : int
-        Number of quantization bits.
-    comp_n : int
-        Tile size in n dimension for MMA computation.
-    comp_k : int
-        Tile size in k dimension for MMA computation.
-    insn_n : int
-        Tile size in n dimension for MMA instruction (always 8).
-    insn_k : int
-        Tile size in k dimension for MMA instruction.
-    num_lanes : int
-        Number of lanes (threads) in a warp (always 32).
-    num_k_lanes : int
-        Number of lanes in k dimension (always 4).
-    num_n_lanes : int
-        Number of lanes in n dimension (always 8).
-    warp_n : int
-        Warp size in n dimension.
-    reg_k : int
-        Elements in a register in k dimension.
-    reg_n : int
-        Elements in a register in n dimension (always 1).
-    k_pack_size : int
-        Elements in a pack in k dimension.
-    n_pack_size : int
-        Elements in a pack in n dimension.
-    pack_size : int
-        Total elements in a pack.
-    mem_k : int
-        Tile size in k dimension for memory access.
-    mem_n : int
-        Tile size in n dimension for memory access.
-    num_k_packs : int
-        Packs in k dimension for memory access.
-    num_n_packs : int
-        Packs in n dimension for memory access.
+    .. note::
+        See class attributes for details on all computed parameters.
 
     Raises
     ------
     AssertionError
         If bits is not supported, or tile/pack sizes are invalid.
+
+    Attributes
+    ----------
+    See class attributes for details on all computed parameters.
     """
 
     def __init__(self, bits: int, warp_n: int, comp_n: int = None, comp_k: int = None):
@@ -87,21 +56,21 @@ class MmaWeightPackerBase:
 
         # region compute tile size
         self.comp_n = comp_n if comp_n is not None else 16
-        """smallest tile size in `n` dimension for MMA computation."""
+        # smallest tile size in `n` dimension for MMA computation.
         self.comp_k = comp_k if comp_k is not None else 256 // self.bits
-        """smallest tile size in `k` dimension for MMA computation."""
+        # smallest tile size in `k` dimension for MMA computation.
         # the smallest MMA computation may contain several MMA instructions
         self.insn_n = 8  # mma instruction tile size in `n` dimension
-        """tile size in `n` dimension for MMA instruction."""
+        # tile size in `n` dimension for MMA instruction.
         self.insn_k = self.comp_k
-        """tile size in `k` dimension for MMA instruction."""
+        # tile size in `k` dimension for MMA instruction.
         assert self.insn_k * self.bits in (
             128,
             256,
         ), f"insn_k ({self.insn_k}) * bits ({self.bits}) should be 128 or 256."
         assert self.comp_n % self.insn_n == 0, f"comp_n ({self.comp_n}) should be divisible by insn_n ({self.insn_n})."
         self.num_lanes = 32
-        """there are 32 lanes (or threds) in a warp."""
+        # there are 32 lanes (or threads) in a warp.
         self.num_k_lanes = 4
         self.num_n_lanes = 8
         assert (
@@ -111,26 +80,26 @@ class MmaWeightPackerBase:
         # endregion
         # region memory
         self.reg_k = 32 // self.bits
-        """number of elements in a register in `k` dimension."""
+        # number of elements in a register in `k` dimension.
         self.reg_n = 1
-        """number of elements in a register in `n` dimension (always 1)."""
+        # number of elements in a register in `n` dimension (always 1).
         self.k_pack_size = self.comp_k // (self.num_k_lanes * self.reg_k)
-        """number of elements in a pack in `k` dimension."""
+        # number of elements in a pack in `k` dimension.
         self.n_pack_size = self.comp_n // (self.num_n_lanes * self.reg_n)
-        """number of elements in a pack in `n` dimension."""
+        # number of elements in a pack in `n` dimension.
         self.pack_size = self.k_pack_size * self.n_pack_size
-        """number of elements in a pack accessed by a lane at a time."""
+        # number of elements in a pack accessed by a lane at a time.
         assert 1 <= self.pack_size <= 4, "pack size should be less than or equal to 4."
         assert self.k_pack_size * self.num_k_lanes * self.reg_k == self.comp_k
         assert self.n_pack_size * self.num_n_lanes * self.reg_n == self.comp_n
         self.mem_k = self.comp_k
-        """the tile size in `k` dimension for one tensor memory access."""
+        # the tile size in `k` dimension for one tensor memory access.
         self.mem_n = warp_n
-        """the tile size in `n` dimension for one tensor memory access."""
+        # the tile size in `n` dimension for one tensor memory access.
         self.num_k_packs = self.mem_k // (self.k_pack_size * self.num_k_lanes * self.reg_k)
-        """number of packs in `k` dimension for one tensor memory access."""
+        # number of packs in `k` dimension for one tensor memory access.
         self.num_n_packs = self.mem_n // (self.n_pack_size * self.num_n_lanes * self.reg_n)
-        """number of packs in `n` dimension for one tensor memory access."""
+        # number of packs in `n` dimension for one tensor memory access.
         # endregion
 
     def get_view_shape(self, n: int, k: int) -> tuple[int, int, int, int, int, int, int, int, int, int]:
