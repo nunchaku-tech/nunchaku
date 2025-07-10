@@ -226,22 +226,25 @@ def get_current_cache_context():
 @contextlib.contextmanager
 def cache_context(cache_context):
     """
-    Context manager for setting the active cache context.
+    Context manager to set the active cache context.
 
-    This context manager sets the global cache context for the duration of the
-    with block, then restores the previous context when exiting.
+    Sets the global cache context for the duration of the ``with`` block, restoring the previous context on exit.
 
-    Args:
-        cache_context (CacheContext): The cache context to use
+    Parameters
+    ----------
+    cache_context : CacheContext
+        The cache context to activate.
 
-    Yields:
-        None: The context manager yields nothing
+    Yields
+    ------
+    None
 
-    Example:
-        >>> context = create_cache_context()
-        >>> with cache_context(context):
-        ...     set_buffer("key", torch.tensor([1, 2, 3]))
-        ...     cached = get_buffer("key")
+    Examples
+    --------
+    >>> context = create_cache_context()
+    >>> with cache_context(context):
+    ...     set_buffer("key", torch.tensor([1, 2, 3]))
+    ...     cached = get_buffer("key")
     """
     global _current_cache_context
     old_cache_context = _current_cache_context
@@ -253,26 +256,29 @@ def cache_context(cache_context):
 
 
 @torch.compiler.disable
-def are_two_tensors_similar(t1, t2, *, threshold, parallelized=False):
+def are_two_tensors_similar(t1: torch.Tensor, t2: torch.Tensor, *, threshold: float, parallelized: bool = False):
     """
     Check if two tensors are similar based on relative L1 distance.
 
-    Computes the relative L1 distance between two tensors and compares it to a threshold.
-    The relative distance is calculated as ``mean(abs(t1 - t2)) / mean(abs(t1))``.
+    The relative distance is computed as
+    ``mean(abs(t1 - t2)) / mean(abs(t1))`` and compared to ``threshold``.
 
-    Args:
-        t1 (torch.Tensor): First tensor for comparison
-        t2 (torch.Tensor): Second tensor for comparison
-        threshold (float): Similarity threshold. Tensors are considered similar if
-            relative distance < threshold
-        parallelized (bool, optional): Whether computation is parallelized.
-            Currently unused. Defaults to False.
+    Parameters
+    ----------
+    t1 : torch.Tensor
+        First tensor.
+    t2 : torch.Tensor
+        Second tensor.
+    threshold : float
+        Similarity threshold. Tensors are similar if relative distance < threshold.
+    parallelized : bool, optional
+        Unused. For API compatibility.
 
-    Returns:
-        tuple[bool, float]: A tuple containing:
-
-        - bool: True if tensors are similar (diff < threshold), False otherwise
-        - float: The computed relative L1 distance
+    Returns
+    -------
+    tuple of (bool, float)
+        - bool: True if tensors are similar, False otherwise.
+        - float: The computed relative L1 distance.
     """
     mean_diff = (t1 - t2).abs().mean()
     mean_t1 = t1.abs().mean()
@@ -283,42 +289,33 @@ def are_two_tensors_similar(t1, t2, *, threshold, parallelized=False):
 @torch.compiler.disable
 def apply_prev_hidden_states_residual(
     hidden_states: torch.Tensor,
-    encoder_hidden_states: torch.Tensor = None,
+    encoder_hidden_states: torch.Tensor | None = None,
     mode: str = "multi",
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     """
-    Apply previously cached residual states to current hidden states.
+    Apply cached residuals to hidden states.
 
-    This function retrieves cached residual computations and applies them to the current
-    hidden states, avoiding the need to recompute transformer blocks when the cache
-    is valid.
+    Parameters
+    ----------
+    hidden_states : torch.Tensor
+        Current hidden states.
+    encoder_hidden_states : torch.Tensor, optional
+        Encoder hidden states (required for ``mode="multi"``).
+    mode : {"multi", "single"}, default: "multi"
+        Whether to apply residuals for Flux double blocks or single blocks.
 
-    Args:
-        hidden_states (torch.Tensor): Current hidden states to apply residuals to
-        encoder_hidden_states (torch.Tensor, optional): Encoder hidden states.
-            Required for "multi" mode. Defaults to None.
-        mode (str, optional): Caching mode, either "multi" or "single".
-            Defaults to "multi".
+    Returns
+    -------
+    tuple or torch.Tensor
+        - If ``mode="multi"``: (updated_hidden_states, updated_encoder_hidden_states)
+        - If ``mode="single"``: updated_hidden_states
 
-    Returns:
-        Tuple[torch.Tensor, torch.Tensor]: A tuple containing:
-
-        - torch.Tensor: Updated hidden states with residuals applied
-        - torch.Tensor: Updated encoder hidden states (for "multi" mode) or
-          original hidden states (for "single" mode)
-
-    Raises:
-        AssertionError: If required cached residuals are not found
-        ValueError: If mode is not "multi" or "single"
-
-    Example:
-        >>> # In multi mode
-        >>> hidden_states = torch.randn(2, 256, 512)
-        >>> encoder_states = torch.randn(2, 128, 512)
-        >>> # Assume residuals are cached
-        >>> updated_h, updated_e = apply_prev_hidden_states_residual(
-        ...     hidden_states, encoder_states, mode="multi"
-        ... )
+    Raises
+    ------
+    AssertionError
+        If required cached residuals are not found.
+    ValueError
+        If mode is not "multi" or "single".
     """
     if mode == "multi":
         hidden_states_residual = get_buffer("multi_hidden_states_residual")
@@ -353,36 +350,29 @@ def get_can_use_cache(
     first_hidden_states_residual: torch.Tensor, threshold: float, parallelized: bool = False, mode: str = "multi"
 ):
     """
-    Determine if cached computations can be used based on residual similarity.
+    Check if cached computations can be reused based on residual similarity.
 
-    Compares the current first hidden states residual with the previously cached
-    residual to determine if the cache is still valid. If the residuals are similar
-    enough (below threshold), cached computations can be reused.
+    Parameters
+    ----------
+    first_hidden_states_residual : torch.Tensor
+        Current first block residual.
+    threshold : float
+        Similarity threshold for cache validity.
+    parallelized : bool, optional
+        Whether computation is parallelized. Default is False.
+    mode : {"multi", "single"}, optional
+        Caching mode. Default is "multi".
 
-    Args:
-        first_hidden_states_residual (torch.Tensor): Current first block residual
-        threshold (float): Similarity threshold for cache validity
-        parallelized (bool, optional): Whether computation is parallelized.
-            Defaults to False.
-        mode (str, optional): Caching mode, either "multi" or "single".
-            Defaults to "multi".
+    Returns
+    -------
+    tuple of (bool, float)
+        - bool: True if cache can be used (residuals are similar), False otherwise.
+        - float: The computed similarity difference, or threshold if no cache exists.
 
-    Returns:
-        tuple[bool, float]: A tuple containing:
-
-        - bool: True if cache can be used (residuals are similar), False otherwise
-        - float: The computed similarity difference, or threshold if no cache exists
-
-    Raises:
-        ValueError: If mode is not "multi" or "single"
-
-    Example:
-        >>> residual = torch.randn(2, 256, 512)
-        >>> can_use, diff = get_can_use_cache(residual, threshold=0.1)
-        >>> if can_use:
-        ...     print(f"Cache hit! Difference: {diff:.4f}")
-        ... else:
-        ...     print(f"Cache miss. Difference: {diff:.4f}")
+    Raises
+    ------
+    ValueError
+        If mode is not "multi" or "single".
     """
     if mode == "multi":
         buffer_name = "first_multi_hidden_states_residual"
@@ -418,47 +408,40 @@ def check_and_apply_cache(
     remaining_kwargs,
 ) -> Tuple[torch.Tensor, Optional[torch.Tensor], float]:
     """
-    Main caching logic: check if cache can be used and apply accordingly.
+    Check and apply cache based on residual similarity.
 
-    This function implements the core caching decision logic. It checks if the cache
-    can be used based on residual similarity, and either applies cached computations
-    or computes new values and caches them for future use.
+    This function determines whether cached results can be used by comparing the
+    first block residuals. If the cache is valid, it applies cached computations;
+    otherwise, it computes new values and updates the cache.
 
-    Args:
-        first_residual (torch.Tensor): First block residual for similarity comparison
-        hidden_states (torch.Tensor): Current hidden states
-        encoder_hidden_states (torch.Tensor, optional): Encoder hidden states.
-            Required for "multi" mode. Defaults to None.
-        threshold (float): Similarity threshold for cache validity
-        parallelized (bool): Whether computation is parallelized
-        mode (str): Caching mode, either "multi" or "single"
-        verbose (bool): Whether to print caching status messages
-        call_remaining_fn (callable): Function to call remaining transformer blocks
-        remaining_kwargs (dict): Additional keyword arguments for call_remaining_fn
+    Parameters
+    ----------
+    first_residual : torch.Tensor
+        First block residual for similarity comparison.
+    hidden_states : torch.Tensor
+        Current hidden states.
+    encoder_hidden_states : torch.Tensor, optional
+        Encoder hidden states (required for "multi" mode).
+    threshold : float
+        Similarity threshold for cache validity.
+    parallelized : bool
+        Whether computation is parallelized.
+    mode : {"multi", "single"}
+        Caching mode.
+    verbose : bool
+        Whether to print caching status messages.
+    call_remaining_fn : callable
+        Function to call remaining transformer blocks.
+    remaining_kwargs : dict
+        Additional keyword arguments for `call_remaining_fn`.
 
-    Returns:
-        Tuple[torch.Tensor, Optional[torch.Tensor], float]: A tuple containing:
-
-        - torch.Tensor: Updated hidden states
-        - torch.Tensor or None: Updated encoder hidden states (for "multi" mode)
-        - float: Current threshold value
-
-    Example:
-        >>> def remaining_fn(hidden_states, **kwargs):
-        ...     # Process remaining transformer blocks
-        ...     return processed_states
-        >>>
-        >>> updated_h, updated_e, new_threshold = check_and_apply_cache(
-        ...     first_residual=residual,
-        ...     hidden_states=hidden_states,
-        ...     encoder_hidden_states=encoder_states,
-        ...     threshold=0.1,
-        ...     parallelized=False,
-        ...     mode="multi",
-        ...     verbose=True,
-        ...     call_remaining_fn=remaining_fn,
-        ...     remaining_kwargs={}
-        ... )
+    Returns
+    -------
+    tuple
+        (updated_hidden_states, updated_encoder_hidden_states, threshold)
+        - updated_hidden_states (torch.Tensor)
+        - updated_encoder_hidden_states (torch.Tensor or None)
+        - threshold (float)
     """
     can_use_cache, diff = get_can_use_cache(
         first_residual,
@@ -506,34 +489,27 @@ def check_and_apply_cache(
 
 class SanaCachedTransformerBlocks(nn.Module):
     """
-    Cached transformer blocks implementation for SANA models.
+    Caching wrapper for SANA transformer blocks.
 
-    This class wraps SANA transformer blocks to enable caching of first-block
-    computations. It implements a single-block caching strategy where the first
-    transformer block's residual is cached and reused when input similarity
-    is above the threshold.
+    Parameters
+    ----------
+    transformer : nn.Module
+        The original SANA transformer model to wrap.
+    residual_diff_threshold : float
+        Similarity threshold for cache validity.
+    verbose : bool, optional
+        Print caching status messages (default: False).
 
-    Args:
-        transformer (nn.Module): The original transformer model to wrap
-        residual_diff_threshold (float): Similarity threshold for cache validity
-        verbose (bool, optional): Whether to print caching status messages.
-            Defaults to False.
-
-    Attributes:
-        transformer (nn.Module): Reference to the original transformer
-        transformer_blocks (nn.ModuleList): The transformer blocks to cache
-        residual_diff_threshold (float): Current similarity threshold
-        verbose (bool): Verbosity flag for debugging
-
-    Example:
-        >>> from diffusers import SanaTransformer2DModel
-        >>> transformer = SanaTransformer2DModel.from_pretrained("model_name")
-        >>> cached_blocks = SanaCachedTransformerBlocks(
-        ...     transformer=transformer,
-        ...     residual_diff_threshold=0.1,
-        ...     verbose=True
-        ... )
-        >>> # Use cached_blocks in place of original transformer blocks
+    Attributes
+    ----------
+    transformer : nn.Module
+        Reference to the original transformer.
+    transformer_blocks : nn.ModuleList
+        The transformer blocks to cache.
+    residual_diff_threshold : float
+        Current similarity threshold.
+    verbose : bool
+        Verbosity flag.
     """
 
     def __init__(
@@ -562,34 +538,18 @@ class SanaCachedTransformerBlocks(nn.Module):
         """
         Forward pass with caching for SANA transformer blocks.
 
-        This method implements the cached forward pass for SANA models. It computes
-        the first transformer block and checks if the residual is similar enough to
-        the cached version to reuse previous computations.
+        See also
+        --------
+        nunchaku.models.transformers.transformer_sana.NunchakuSanaTransformerBlocks.forward
 
-        Args:
-            hidden_states (torch.Tensor): Input hidden states
-            attention_mask (torch.Tensor): Attention mask for the input
-            encoder_hidden_states (torch.Tensor): Encoder hidden states
-            encoder_attention_mask (torch.Tensor, optional): Encoder attention mask.
-                Defaults to None.
-            timestep (torch.Tensor, optional): Timestep tensor for conditioning.
-                Defaults to None.
-            post_patch_height (int, optional): Height after patch embedding.
-                Defaults to None.
-            post_patch_width (int, optional): Width after patch embedding.
-                Defaults to None.
-
-        Returns:
-            torch.Tensor: Processed hidden states from transformer blocks
-
-        Note:
-            If batch size > 2 or residual_diff_threshold <= 0, caching is disabled
-            and the original forward pass is used.
+        Notes
+        -----
+        If batch size > 2 or residual_diff_threshold <= 0, caching is disabled for now.
         """
         batch_size = hidden_states.shape[0]
         if self.residual_diff_threshold <= 0.0 or batch_size > 2:
             if batch_size > 2:
-                print("Batch size > 2 (for SANA CFG)" " currently not supported")
+                print("Batch size > 2 (for SANA CFG) currently not supported")
 
             first_transformer_block = self.transformer_blocks[0]
             hidden_states = first_transformer_block(
@@ -663,30 +623,33 @@ class SanaCachedTransformerBlocks(nn.Module):
         post_patch_width=None,
     ):
         """
-        Process remaining transformer blocks after the first block.
+        Call remaining SANA transformer blocks.
 
-        This method is called when the cache is invalid and remaining transformer
-        blocks need to be computed. It skips the first layer and processes the
-        remaining blocks to generate the final output.
+        Called when the cache is invalid. Skips the first layer and processes
+        the remaining blocks.
 
-        Args:
-            hidden_states (torch.Tensor): Hidden states from the first block
-            attention_mask (torch.Tensor): Attention mask for the input
-            encoder_hidden_states (torch.Tensor): Encoder hidden states
-            encoder_attention_mask (torch.Tensor, optional): Encoder attention mask.
-                Defaults to None.
-            timestep (torch.Tensor, optional): Timestep tensor for conditioning.
-                Defaults to None.
-            post_patch_height (int, optional): Height after patch embedding.
-                Defaults to None.
-            post_patch_width (int, optional): Width after patch embedding.
-                Defaults to None.
+        Parameters
+        ----------
+        hidden_states : torch.Tensor
+            Hidden states from the first block.
+        attention_mask : torch.Tensor
+            Attention mask for the input.
+        encoder_hidden_states : torch.Tensor
+            Encoder hidden states.
+        encoder_attention_mask : torch.Tensor, optional
+            Encoder attention mask (default: None).
+        timestep : torch.Tensor, optional
+            Timestep tensor for conditioning (default: None).
+        post_patch_height : int, optional
+            Height after patch embedding (default: None).
+        post_patch_width : int, optional
+            Width after patch embedding (default: None).
 
-        Returns:
-            tuple[torch.Tensor, torch.Tensor]: A tuple containing:
-
-            - torch.Tensor: Final hidden states after processing all blocks
-            - torch.Tensor: Residual difference for caching
+        Returns
+        -------
+        tuple[torch.Tensor, torch.Tensor]
+            - Final hidden states after processing all blocks.
+            - Residual difference for caching.
         """
         first_transformer_block = self.transformer_blocks[0]
         original_hidden_states = hidden_states
@@ -707,52 +670,51 @@ class SanaCachedTransformerBlocks(nn.Module):
 
 class FluxCachedTransformerBlocks(nn.Module):
     """
-    Cached transformer blocks implementation for Flux models.
+    Caching wrapper for Flux transformer blocks.
 
-    This class wraps Flux transformer blocks to enable advanced caching strategies
-    including single and double first-block caching. It supports both multi-head
-    attention and single-head attention transformer blocks with independent
-    caching thresholds.
+    Parameters
+    ----------
+    transformer : nn.Module
+        The original Flux transformer model.
+    use_double_fb_cache : bool, optional
+        Cache both double and single transformer blocks (default: True).
+    residual_diff_threshold_multi : float
+        Similarity threshold for double blocks.
+    residual_diff_threshold_single : float
+        Similarity threshold for single blocks.
+    return_hidden_states_first : bool, optional
+        If True, return hidden states first (default: True).
+    return_hidden_states_only : bool, optional
+        If True, return only hidden states (default: False).
+    verbose : bool, optional
+        Print caching status messages (default: False).
 
-    Args:
-        transformer (nn.Module): The original Flux transformer model to wrap
-        use_double_fb_cache (bool, optional): Whether to use double first-block caching.
-            If True, caches both multi and single transformer blocks. Defaults to True.
-        residual_diff_threshold_multi (float): Similarity threshold for multi-head
-            attention blocks cache validity
-        residual_diff_threshold_single (float): Similarity threshold for single-head
-            attention blocks cache validity
-        return_hidden_states_first (bool, optional): Whether to return hidden states
-            first in the output tuple. Defaults to True.
-        return_hidden_states_only (bool, optional): Whether to return only hidden
-            states (not encoder states). Defaults to False.
-        verbose (bool, optional): Whether to print caching status messages.
-            Defaults to False.
-
-    Attributes:
-        transformer (nn.Module): Reference to the original transformer
-        transformer_blocks (nn.ModuleList): Multi-head attention transformer blocks
-        single_transformer_blocks (nn.ModuleList): Single-head attention transformer blocks
-        use_double_fb_cache (bool): Double first-block caching flag
-        residual_diff_threshold_multi (float): Multi-block similarity threshold
-        residual_diff_threshold_single (float): Single-block similarity threshold
-        return_hidden_states_first (bool): Output order flag
-        return_hidden_states_only (bool): Output type flag
-        verbose (bool): Verbosity flag for debugging
-        m: Model interface for optimized operations
-        dtype (torch.dtype): Data type for computations
-        device (torch.device): Device for computations
-
-    Example:
-        >>> from diffusers import FluxTransformer2DModel
-        >>> transformer = FluxTransformer2DModel.from_pretrained("model_name")
-        >>> cached_blocks = FluxCachedTransformerBlocks(
-        ...     transformer=transformer,
-        ...     use_double_fb_cache=True,
-        ...     residual_diff_threshold_multi=0.12,
-        ...     residual_diff_threshold_single=0.09,
-        ...     verbose=True
-        ... )
+    Attributes
+    ----------
+    transformer : nn.Module
+        Reference to the original transformer.
+    transformer_blocks : nn.ModuleList
+        Double transformer blocks.
+    single_transformer_blocks : nn.ModuleList
+        Single transformer blocks.
+    use_double_fb_cache : bool
+        Whether both block types are cached.
+    residual_diff_threshold_multi : float
+        Threshold for double blocks.
+    residual_diff_threshold_single : float
+        Threshold for single blocks.
+    return_hidden_states_first : bool
+        Output order flag.
+    return_hidden_states_only : bool
+        Output type flag.
+    verbose : bool
+        Verbosity flag.
+    m : object
+        Nunchaku C model interface.
+    dtype : torch.dtype
+        Computation data type.
+    device : torch.device
+        Computation device.
     """
 
     def __init__(
@@ -786,28 +748,11 @@ class FluxCachedTransformerBlocks(nn.Module):
     @staticmethod
     def pack_rotemb(rotemb: torch.Tensor) -> torch.Tensor:
         """
-        Pack rotary embedding tensor for optimized GPU computation.
+        Packs rotary embeddings for efficient computation.
 
-        This method reshapes and permutes the rotary embedding tensor to match
-        the optimal memory layout for GPU matrix multiplication operations,
-        specifically for 16x8 MMA (Matrix Multiply-Accumulate) operations.
-
-        Args:
-            rotemb (torch.Tensor): Input rotary embedding tensor of shape
-                (B, M, D//2, 1, 2) where B is batch size, M is sequence length,
-                and D is the embedding dimension.
-
-        Returns:
-            torch.Tensor: Packed rotary embedding tensor of shape (B, M, D)
-
-        Raises:
-            AssertionError: If input tensor doesn't meet the required shape or
-                dimension constraints (M % 16 == 0, D % 8 == 0, dtype == float32)
-
-        Note:
-            This function is optimized for CUDA GPU execution and follows
-            the NVIDIA PTX MMA 16x8x16 format for FP32 accumulation.
-            Reference: https://docs.nvidia.com/cuda/parallel-thread-execution/#mma-16816-c
+        See also
+        --------
+        nunchaku.models.transformers.transformer_flux.NunchakuFluxTransformerBlocks.pack_rotemb
         """
         assert rotemb.dtype == torch.float32
         B = rotemb.shape[0]
@@ -833,22 +778,22 @@ class FluxCachedTransformerBlocks(nn.Module):
         """
         Update caching configuration parameters.
 
-        This method allows dynamic updating of the caching thresholds and
-        double caching behavior during runtime.
+        Parameters
+        ----------
+        use_double_fb_cache : bool, optional
+            Use double first-block caching. Default is True.
+        residual_diff_threshold_multi : float, optional
+            Similarity threshold for Flux double blocks. Default is 0.12.
+        residual_diff_threshold_single : float, optional
+            Similarity threshold for Flux single blocks (used if
+            ``use_double_fb_cache`` is False). Default is 0.09.
 
-        Args:
-            use_double_fb_cache (bool, optional): Whether to use double first-block
-                caching. Defaults to True.
-            residual_diff_threshold_multi (float, optional): New similarity threshold
-                for multi-head attention blocks. Defaults to 0.12.
-            residual_diff_threshold_single (float, optional): New similarity threshold
-                for single-head attention blocks. Defaults to 0.09.
-
-        Example:
-            >>> cached_blocks.update_residual_diff_threshold(
-            ...     use_double_fb_cache=False,
-            ...     residual_diff_threshold_multi=0.15
-            ... )
+        Examples
+        --------
+        >>> cached_blocks.update_residual_diff_threshold(
+        ...     use_double_fb_cache=False,
+        ...     residual_diff_threshold_multi=0.15
+        ... )
         """
         self.use_double_fb_cache = use_double_fb_cache
         self.residual_diff_threshold_multi = residual_diff_threshold_multi
@@ -868,35 +813,13 @@ class FluxCachedTransformerBlocks(nn.Module):
         """
         Forward pass with advanced caching for Flux transformer blocks.
 
-        This method implements the cached forward pass for Flux models with support
-        for both single and double first-block caching strategies. It handles both
-        multi-head and single-head attention blocks with independent caching.
+        See also
+        --------
+        nunchaku.models.transformers.transformer_flux.NunchakuFluxTransformerBlocks.forward
 
-        Args:
-            hidden_states (torch.Tensor): Input hidden states tensor
-            temb (torch.Tensor): Time embedding tensor
-            encoder_hidden_states (torch.Tensor): Encoder hidden states tensor
-            image_rotary_emb (torch.Tensor): Rotary position embedding for images
-            joint_attention_kwargs (dict, optional): Additional attention parameters.
-                Defaults to None.
-            controlnet_block_samples (list, optional): ControlNet block samples.
-                Defaults to None.
-            controlnet_single_block_samples (list, optional): ControlNet single block
-                samples. Defaults to None.
-            skip_first_layer (bool, optional): Whether to skip the first layer.
-                Defaults to False.
-
-        Returns:
-            torch.Tensor or tuple: Depending on configuration:
-
-            - If return_hidden_states_only=True: hidden_states only
-            - If return_hidden_states_first=True: (hidden_states, encoder_hidden_states)
-            - Otherwise: (encoder_hidden_states, hidden_states)
-
-        Note:
-            If batch_size > 1 or residual_diff_threshold_multi < 0, caching is disabled
-            and the original forward pass is used. The method supports both single
-            and double first-block caching depending on use_double_fb_cache flag.
+        Notes
+        -----
+        If batch size > 2 or residual_diff_threshold <= 0, caching is disabled for now.
         """
         batch_size = hidden_states.shape[0]
         txt_tokens = encoder_hidden_states.shape[1]
@@ -1066,27 +989,41 @@ class FluxCachedTransformerBlocks(nn.Module):
         txt_tokens=None,
     ):
         """
-        Process remaining blocks using single first-block cache strategy.
+        Call remaining Flux transformer blocks.
 
-        This method processes all remaining transformer blocks when using single
-        first-block caching (not double caching). It handles both multi-head and
-        single-head attention blocks in sequence.
+        Parameters
+        ----------
+        hidden_states : torch.Tensor
+            Input hidden states.
+        temb : torch.Tensor
+            Time embedding tensor.
+        encoder_hidden_states : torch.Tensor
+            Encoder hidden states.
+        rotary_emb_img : torch.Tensor
+            Image rotary embeddings.
+        rotary_emb_txt : torch.Tensor
+            Text rotary embeddings.
+        rotary_emb_single : torch.Tensor
+            Single-head rotary embeddings.
+        controlnet_block_samples : list, optional
+            ControlNet block samples.
+        controlnet_single_block_samples : list, optional
+            ControlNet single block samples.
+        skip_first_layer : bool, optional
+            Whether to skip the first layer. Default is True.
+        txt_tokens : int, optional
+            Number of text tokens.
 
-        Args:
-            hidden_states (torch.Tensor): Input hidden states
-            temb (torch.Tensor): Time embedding tensor
-            encoder_hidden_states (torch.Tensor): Encoder hidden states
-            rotary_emb_img (torch.Tensor): Image rotary embeddings
-            rotary_emb_txt (torch.Tensor): Text rotary embeddings
-            rotary_emb_single (torch.Tensor): Single-head rotary embeddings
-            controlnet_block_samples (list, optional): ControlNet block samples
-            controlnet_single_block_samples (list, optional): ControlNet single block samples
-            skip_first_layer (bool, optional): Whether to skip first layer. Defaults to True.
-            txt_tokens (int, optional): Number of text tokens
-
-        Returns:
-            tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-                (hidden_states, encoder_hidden_states, hidden_states_residual, enc_residual)
+        Returns
+        -------
+        hidden_states : torch.Tensor
+            Updated hidden states.
+        encoder_hidden_states : torch.Tensor
+            Updated encoder hidden states.
+        hidden_states_residual : torch.Tensor
+            Residual of hidden states.
+        enc_residual : torch.Tensor
+            Residual of encoder hidden states.
         """
         original_dtype = hidden_states.dtype
         original_device = hidden_states.device
@@ -1131,27 +1068,41 @@ class FluxCachedTransformerBlocks(nn.Module):
         txt_tokens=None,
     ):
         """
-        Process remaining multi-head attention transformer blocks.
+        Call remaining Flux double blocks.
 
-        This method processes the remaining multi-head attention blocks when using
-        double first-block caching strategy. It's called after the first block
-        cache decision.
+        Parameters
+        ----------
+        hidden_states : torch.Tensor
+            Input hidden states.
+        temb : torch.Tensor
+            Time embedding tensor.
+        encoder_hidden_states : torch.Tensor
+            Encoder hidden states.
+        rotary_emb_img : torch.Tensor
+            Image rotary embeddings.
+        rotary_emb_txt : torch.Tensor
+            Text rotary embeddings.
+        rotary_emb_single : torch.Tensor
+            Single-head rotary embeddings.
+        controlnet_block_samples : list, optional
+            ControlNet block samples.
+        controlnet_single_block_samples : list, optional
+            ControlNet single block samples.
+        skip_first_layer : bool, optional
+            Whether to skip the first layer. Default is False.
+        txt_tokens : int, optional
+            Number of text tokens.
 
-        Args:
-            hidden_states (torch.Tensor): Input hidden states
-            temb (torch.Tensor): Time embedding tensor
-            encoder_hidden_states (torch.Tensor): Encoder hidden states
-            rotary_emb_img (torch.Tensor): Image rotary embeddings
-            rotary_emb_txt (torch.Tensor): Text rotary embeddings
-            rotary_emb_single (torch.Tensor): Single-head rotary embeddings
-            controlnet_block_samples (list, optional): ControlNet block samples
-            controlnet_single_block_samples (list, optional): ControlNet single block samples
-            skip_first_layer (bool, optional): Whether to skip first layer. Defaults to False.
-            txt_tokens (int, optional): Number of text tokens
-
-        Returns:
-            tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-                (hidden_states, encoder_hidden_states, hidden_states_residual, enc_residual)
+        Returns
+        -------
+        hidden_states : torch.Tensor
+            Updated hidden states.
+        encoder_hidden_states : torch.Tensor
+            Updated encoder hidden states.
+        hidden_states_residual : torch.Tensor
+            Residual of hidden states.
+        enc_residual : torch.Tensor
+            Residual of encoder hidden states.
         """
         start_idx = 1
         original_hidden_states = hidden_states.clone()
@@ -1190,26 +1141,37 @@ class FluxCachedTransformerBlocks(nn.Module):
         txt_tokens=None,
     ):
         """
-        Process remaining single-head attention transformer blocks.
+        Call remaining Flux single blocks.
 
-        This method processes the remaining single-head attention blocks in the
-        double first-block caching strategy. It's called after the multi-head
-        blocks have been processed.
+        Parameters
+        ----------
+        hidden_states : torch.Tensor
+            Input hidden states (concatenated).
+        temb : torch.Tensor
+            Time embedding tensor.
+        encoder_hidden_states : torch.Tensor
+            Encoder hidden states (unused).
+        rotary_emb_img : torch.Tensor
+            Image rotary embeddings (unused).
+        rotary_emb_txt : torch.Tensor
+            Text rotary embeddings (unused).
+        rotary_emb_single : torch.Tensor
+            Single-head rotary embeddings.
+        controlnet_block_samples : list, optional
+            ControlNet block samples (unused).
+        controlnet_single_block_samples : list, optional
+            ControlNet single block samples (unused).
+        skip_first_layer : bool, optional
+            Whether to skip the first layer. Default is False.
+        txt_tokens : int, optional
+            Number of text tokens (unused).
 
-        Args:
-            hidden_states (torch.Tensor): Input hidden states (concatenated)
-            temb (torch.Tensor): Time embedding tensor
-            encoder_hidden_states (torch.Tensor): Encoder hidden states (unused in single blocks)
-            rotary_emb_img (torch.Tensor): Image rotary embeddings (unused in single blocks)
-            rotary_emb_txt (torch.Tensor): Text rotary embeddings (unused in single blocks)
-            rotary_emb_single (torch.Tensor): Single-head rotary embeddings
-            controlnet_block_samples (list, optional): ControlNet block samples (unused)
-            controlnet_single_block_samples (list, optional): ControlNet single block samples (unused)
-            skip_first_layer (bool, optional): Whether to skip first layer. Defaults to False.
-            txt_tokens (int, optional): Number of text tokens (unused)
-
-        Returns:
-            tuple[torch.Tensor, torch.Tensor]: (hidden_states, hidden_states_residual)
+        Returns
+        -------
+        hidden_states : torch.Tensor
+            Updated hidden states.
+        hidden_states_residual : torch.Tensor
+            Residual of hidden states.
         """
         start_idx = 1
         original_hidden_states = hidden_states.clone()
