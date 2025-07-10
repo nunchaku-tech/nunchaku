@@ -1,37 +1,33 @@
 """
-Core Caching Utilities for Transformer Models.
+Caching utilities for transformer models.
 
-This module provides the foundational caching infrastructure for optimizing transformer
-model inference through intelligent reuse of previous computations. It implements
-first-block caching strategies that can significantly reduce computation time when
-input variations are minimal.
+Implements first-block caching to accelerate transformer inference by reusing computations
+when input changes are minimal. Supports SANA and Flux architectures.
 
-The module contains implementations for both SANA and Flux transformer architectures,
-with support for single and double first-block caching strategies.
+Main Classes
+------------
+- :class:`CacheContext` : Manages cache buffers and incremental naming.
+- :class:`SanaCachedTransformerBlocks` : Cached transformer blocks for SANA models.
+- :class:`FluxCachedTransformerBlocks` : Cached transformer blocks for Flux models.
 
-Key Classes:
-    CacheContext: Manages cache buffers and incremental naming for cache operations
-    SanaCachedTransformerBlocks: Cached transformer blocks implementation for SANA models
-    FluxCachedTransformerBlocks: Cached transformer blocks implementation for Flux models
+Key Functions
+-------------
+- :func:`get_buffer`, :func:`set_buffer` : Cache buffer management.
+- :func:`cache_context` : Context manager for cache operations.
+- :func:`are_two_tensors_similar` : Tensor similarity check.
+- :func:`apply_prev_hidden_states_residual` : Applies cached residuals.
+- :func:`get_can_use_cache` : Checks cache usability.
+- :func:`check_and_apply_cache` : Main cache logic.
 
-Key Functions:
-    get_buffer/set_buffer: Low-level cache buffer management functions
-    cache_context: Context manager for cache operations
-    are_two_tensors_similar: Utility for comparing tensor similarity
-    apply_prev_hidden_states_residual: Applies cached residual computations
-    get_can_use_cache: Determines if cache can be used based on similarity thresholds
-    check_and_apply_cache: Main cache decision and application logic
+Caching Strategy
+----------------
+1. Compute the first transformer block.
+2. Compare the residual with the cached residual.
+3. If similar, reuse cached results for the remaining blocks; otherwise, recompute and update cache.
 
-Caching Strategy:
-    The caching system works by:
-    1. Computing the first transformer block normally
-    2. Comparing the residual with the previous cached residual
-    3. If similarity is above threshold, reuse cached computations
-    4. Otherwise, compute remaining blocks and cache the results
-
-Note:
-    This caching functionality is largely adapted from the ParaAttention project
-    (https://github.com/chengzeyi/ParaAttention/src/para_attn/first_block_cache/).
+.. note::
+   Adapted from ParaAttention:
+   https://github.com/chengzeyi/ParaAttention/src/para_attn/first_block_cache/
 """
 
 import contextlib
@@ -51,28 +47,14 @@ num_single_transformer_blocks = 38  # FIXME
 @dataclasses.dataclass
 class CacheContext:
     """
-    Context manager for cache operations and buffer management.
+    Manages cache buffers and incremental naming for transformer model inference.
 
-    This class maintains cache buffers and provides utilities for managing incremental
-    naming of cache entries. It serves as the central storage for cached computations
-    during transformer model inference.
-
-    Attributes:
-        buffers (Dict[str, torch.Tensor]): Dictionary storing cached tensor buffers
-        incremental_name_counters (DefaultDict[str, int]): Counters for generating
-            unique incremental names for cache entries
-
-    Example:
-        Basic usage::
-
-            context = CacheContext()
-            context.set_buffer("hidden_states", tensor)
-            cached_tensor = context.get_buffer("hidden_states")
-
-        With incremental naming::
-
-            name1 = context.get_incremental_name("layer")  # "layer_0"
-            name2 = context.get_incremental_name("layer")  # "layer_1"
+    Attributes
+    ----------
+    buffers : Dict[str, torch.Tensor]
+        Stores cached tensor buffers.
+    incremental_name_counters : DefaultDict[str, int]
+        Counters for generating unique incremental cache entry names.
     """
 
     buffers: Dict[str, torch.Tensor] = dataclasses.field(default_factory=dict)
@@ -80,21 +62,17 @@ class CacheContext:
 
     def get_incremental_name(self, name=None):
         """
-        Generate an incremental name for cache entries.
+        Generate an incremental cache entry name.
 
-        Args:
-            name (str, optional): Base name for the counter. If None, uses "default".
-                Defaults to None.
+        Parameters
+        ----------
+        name : str, optional
+            Base name for the counter. If None, uses "default".
 
-        Returns:
-            str: Incremental name in format "{name}_{counter}"
-
-        Example:
-            >>> context = CacheContext()
-            >>> context.get_incremental_name("layer")
-            'layer_0'
-            >>> context.get_incremental_name("layer")
-            'layer_1'
+        Returns
+        -------
+        str
+            Incremental name in the format ``"{name}_{counter}"``.
         """
         if name is None:
             name = "default"
@@ -104,10 +82,9 @@ class CacheContext:
 
     def reset_incremental_name(self):
         """
-        Reset all incremental name counters to zero.
+        Reset all incremental name counters.
 
-        This clears all name counters, causing the next call to get_incremental_name
-        to start from index 0 again.
+        After calling this, :meth:`get_incremental_name` will start from 0 for each name.
         """
         self.incremental_name_counters.clear()
 
@@ -116,11 +93,15 @@ class CacheContext:
         """
         Retrieve a cached tensor buffer by name.
 
-        Args:
-            name (str): The name of the buffer to retrieve
+        Parameters
+        ----------
+        name : str
+            Name of the buffer to retrieve.
 
-        Returns:
-            torch.Tensor or None: The cached tensor if found, None otherwise
+        Returns
+        -------
+        torch.Tensor or None
+            The cached tensor if found, otherwise None.
         """
         return self.buffers.get(name)
 
@@ -264,7 +245,7 @@ def are_two_tensors_similar(t1, t2, *, threshold, parallelized=False):
     Check if two tensors are similar based on relative L1 distance.
 
     Computes the relative L1 distance between two tensors and compares it to a threshold.
-    The relative distance is calculated as mean(|t1 - t2|) / mean(|t1|).
+    The relative distance is calculated as ``mean(abs(t1 - t2)) / mean(abs(t1))``.
 
     Args:
         t1 (torch.Tensor): First tensor for comparison
@@ -276,14 +257,9 @@ def are_two_tensors_similar(t1, t2, *, threshold, parallelized=False):
 
     Returns:
         tuple[bool, float]: A tuple containing:
-            - bool: True if tensors are similar (diff < threshold), False otherwise
-            - float: The computed relative L1 distance
 
-    Example:
-        >>> t1 = torch.randn(2, 3)
-        >>> t2 = t1 + 0.01 * torch.randn(2, 3)  # Small perturbation
-        >>> similar, diff = are_two_tensors_similar(t1, t2, threshold=0.1)
-        >>> print(f"Similar: {similar}, Diff: {diff:.4f}")
+        - bool: True if tensors are similar (diff < threshold), False otherwise
+        - float: The computed relative L1 distance
     """
     mean_diff = (t1 - t2).abs().mean()
     mean_t1 = t1.abs().mean()
@@ -313,9 +289,10 @@ def apply_prev_hidden_states_residual(
 
     Returns:
         Tuple[torch.Tensor, torch.Tensor]: A tuple containing:
-            - torch.Tensor: Updated hidden states with residuals applied
-            - torch.Tensor: Updated encoder hidden states (for "multi" mode) or
-              original hidden states (for "single" mode)
+
+        - torch.Tensor: Updated hidden states with residuals applied
+        - torch.Tensor: Updated encoder hidden states (for "multi" mode) or
+          original hidden states (for "single" mode)
 
     Raises:
         AssertionError: If required cached residuals are not found
@@ -379,8 +356,9 @@ def get_can_use_cache(
 
     Returns:
         tuple[bool, float]: A tuple containing:
-            - bool: True if cache can be used (residuals are similar), False otherwise
-            - float: The computed similarity difference, or threshold if no cache exists
+
+        - bool: True if cache can be used (residuals are similar), False otherwise
+        - float: The computed similarity difference, or threshold if no cache exists
 
     Raises:
         ValueError: If mode is not "multi" or "single"
@@ -447,9 +425,10 @@ def check_and_apply_cache(
 
     Returns:
         Tuple[torch.Tensor, Optional[torch.Tensor], float]: A tuple containing:
-            - torch.Tensor: Updated hidden states
-            - torch.Tensor or None: Updated encoder hidden states (for "multi" mode)
-            - float: Current threshold value
+
+        - torch.Tensor: Updated hidden states
+        - torch.Tensor or None: Updated encoder hidden states (for "multi" mode)
+        - float: Current threshold value
 
     Example:
         >>> def remaining_fn(hidden_states, **kwargs):
@@ -692,8 +671,9 @@ class SanaCachedTransformerBlocks(nn.Module):
 
         Returns:
             tuple[torch.Tensor, torch.Tensor]: A tuple containing:
-                - torch.Tensor: Final hidden states after processing all blocks
-                - torch.Tensor: Residual difference for caching
+
+            - torch.Tensor: Final hidden states after processing all blocks
+            - torch.Tensor: Residual difference for caching
         """
         first_transformer_block = self.transformer_blocks[0]
         original_hidden_states = hidden_states
@@ -895,9 +875,10 @@ class FluxCachedTransformerBlocks(nn.Module):
 
         Returns:
             torch.Tensor or tuple: Depending on configuration:
-                - If return_hidden_states_only=True: hidden_states only
-                - If return_hidden_states_first=True: (hidden_states, encoder_hidden_states)
-                - Otherwise: (encoder_hidden_states, hidden_states)
+
+            - If return_hidden_states_only=True: hidden_states only
+            - If return_hidden_states_first=True: (hidden_states, encoder_hidden_states)
+            - Otherwise: (encoder_hidden_states, hidden_states)
 
         Note:
             If batch_size > 1 or residual_diff_threshold_multi < 0, caching is disabled

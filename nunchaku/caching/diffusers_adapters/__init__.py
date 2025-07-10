@@ -47,24 +47,14 @@ def apply_cache_on_pipe(pipe: DiffusionPipeline, *args, **kwargs):
 
     .. code-block:: python
 
-        from diffusers import FluxPipeline
-        pipe = FluxPipeline.from_pretrained("black-forest-labs/FLUX.1-dev")
-        cached_pipe = apply_cache_on_pipe(
-            pipe,
-            residual_diff_threshold=0.12,
-            use_double_fb_cache=True
+        transformer = NunchakuFluxTransformer2dModel.from_pretrained(
+            f"mit-han-lab/nunchaku-flux.1-dev/svdq-fp4_r32-flux.1-dev.safetensors"
         )
+        pipeline = FluxPipeline.from_pretrained(
+            "black-forest-labs/FLUX.1-dev", transformer=transformer, torch_dtype=torch.bfloat16
+        ).to("cuda")
+        cached_pipe = apply_cache_on_pipe(pipeline, residual_diff_threshold=0.12)
 
-    With a SANA pipeline:
-
-    .. code-block:: python
-
-        from diffusers import SanaPipeline
-        pipe = SanaPipeline.from_pretrained("Efficient-Large-Model/Sana_600M_512px")
-        cached_pipe = apply_cache_on_pipe(
-            pipe,
-            residual_diff_threshold=0.1
-        )
 
     Notes
     -----
