@@ -1,19 +1,9 @@
 """
-PuLID Forward Pass
-==================
+This module implements the PuLID forward function for the :class:`nunchaku.models.transformers.NunchakuFluxTransformer2dModel`,
 
-This module provides the forward function for the PuLID (Pure Language-Image Diffusion) transformer block,
-adapted for Nunchaku from the original implementation at https://github.com/ToTheBeginning/PuLID.
-
-The `pulid_forward` function implements the main forward logic for the PuLID transformer, including
-support for time and text conditioning, rotary embeddings, ControlNet integration, and joint attention.
-
-Typical usage involves binding this function as the forward method of a compatible transformer model.
-
-Functions
----------
-- pulid_forward : Implements the forward pass for the PuLID transformer block.
-
+.. note::
+    This module is adapted from the original PuLID repository:
+    https://github.com/ToTheBeginning/PuLID
 """
 
 import logging
@@ -45,23 +35,23 @@ def pulid_forward(
     end_timestep: float | None = None,
 ) -> Union[torch.FloatTensor, Transformer2DModelOutput]:
     """
-    Forward pass for the PuLID transformer block.
+    Implements the forward pass for the PuLID transformer block.
 
-    This function implements the main forward logic for the PuLID (Pure Language-Image Diffusion)
-    transformer, supporting time and text conditioning, rotary embeddings, ControlNet integration,
+    This function supports time and text conditioning, rotary embeddings, ControlNet integration,
     and joint attention. It is adapted from
-    `diffusers.models.flux.transformer_flux.py` and the original PuLID repository.
+    ``diffusers.models.flux.transformer_flux.py`` and the original PuLID repository.
 
     Parameters
     ----------
     self : nn.Module
-        The transformer model instance. This function is intended to be bound as a method.
+        The :class:`nunchaku.models.transformers.NunchakuFluxTransformer2dModel` instance.
+        This function is intended to be bound as a method.
     hidden_states : torch.Tensor
         Input hidden states of shape ``(batch_size, channels, height, width)``.
     id_embeddings : torch.Tensor, optional
-        Optional ID embeddings for conditioning (default: None).
+        Optional PuLID ID embeddings for conditioning (default: None).
     id_weight : torch.Tensor, optional
-        Optional ID weights for conditioning (default: None).
+        Optional PuLID ID weights for conditioning (default: None).
     encoder_hidden_states : torch.Tensor, optional
         Conditional embeddings (e.g., from text encoder) of shape ``(batch_size, sequence_len, embed_dim)``.
     pooled_projections : torch.Tensor, optional
@@ -95,26 +85,6 @@ def pulid_forward(
     torch.FloatTensor or Transformer2DModelOutput
         If ``return_dict`` is True, returns a :class:`~diffusers.models.modeling_outputs.Transformer2DModelOutput`
         with the output sample. Otherwise, returns a tuple containing the output tensor.
-
-    Notes
-    -----
-    - This function expects to be used as the forward method of a compatible transformer model.
-    - The function supports ControlNet and joint attention integration.
-    - Passing 3D tensors for ``txt_ids`` or ``img_ids`` is deprecated and will emit a warning.
-
-    Example
-    -------
-    .. code-block:: python
-
-        output = pulid_forward(
-            model,
-            hidden_states,
-            encoder_hidden_states=encoder_hidden_states,
-            timestep=timestep,
-            img_ids=img_ids,
-            txt_ids=txt_ids,
-            return_dict=True,
-        )
     """
     hidden_states = self.x_embedder(hidden_states)
 

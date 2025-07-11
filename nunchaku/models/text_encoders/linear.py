@@ -1,32 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-TinyChat Quantized Linear Module
-===============================
-
 This module provides the :class:`W4Linear` quantized linear layer, which implements
-4-bit weight-only quantization for efficient inference, as used in TinyChat and similar
-large language models.
-
-The quantization scheme supports group-wise quantization and is compatible with
-specialized CUDA kernels for high-throughput inference.
-
-Classes
--------
-- W4Linear : Quantized linear layer with 4-bit weights and group-wise scaling.
-
-Functions
----------
-- W4Linear.from_linear : Convert a standard nn.Linear to a quantized W4Linear.
-
-Example
--------
-.. code-block:: python
-
-    from nunchaku.models.text_encoders.linear import W4Linear
-    import torch.nn as nn
-
-    linear = nn.Linear(768, 768)
-    qlinear = W4Linear.from_linear(linear, group_size=128)
+4-bit weight-only quantization for efficient inference.
 """
 
 import torch
@@ -40,11 +15,7 @@ __all__ = ["W4Linear"]
 
 class W4Linear(nn.Module):
     """
-    4-bit Quantized Linear Layer (TinyChat style).
-
-    This module implements a weight-only 4-bit quantized linear layer with group-wise
-    quantization and optional bias. It is designed for efficient inference using
-    custom CUDA kernels.
+    4-bit quantized linear layer with group-wise quantization.
 
     Parameters
     ----------
@@ -53,23 +24,20 @@ class W4Linear(nn.Module):
     out_features : int
         Number of output features.
     bias : bool, optional
-        If True, adds a learnable bias to the output (default: False).
+        If True, adds a learnable bias (default: False).
     group_size : int, optional
         Number of input channels per quantization group (default: 128).
-        If set to -1, uses the full input dimension as a single group.
+        If -1, uses the full input dimension as a single group.
     dtype : torch.dtype, optional
         Data type for quantization scales and zeros (default: torch.float16).
     device : str or torch.device, optional
-        Device to place the quantized weights and buffers (default: "cuda").
+        Device for weights and buffers (default: "cuda").
 
     Attributes
     ----------
     in_features : int
-        Number of input features.
     out_features : int
-        Number of output features.
     group_size : int
-        Quantization group size.
     qweight : torch.Tensor
         Quantized weight tensor (int16).
     scales : torch.Tensor
@@ -131,31 +99,21 @@ class W4Linear(nn.Module):
     @property
     def weight_bits(self) -> int:
         """
-        Number of bits per quantized weight.
-
-        Returns
-        -------
-        int
-            Number of bits (always 4).
+        Number of bits per quantized weight (always 4).
         """
         return 4
 
     @property
     def interleave(self) -> int:
         """
-        Interleave factor for quantized weights.
-
-        Returns
-        -------
-        int
-            Interleave factor (always 4).
+        Interleave factor for quantized weights (always 4).
         """
         return 4
 
     @torch.no_grad()
     def forward(self, x):
         """
-        Forward pass for the quantized linear layer.
+        Forward pass.
 
         Parameters
         ----------
@@ -196,25 +154,22 @@ class W4Linear(nn.Module):
         zero_pre_scaled: bool = False,
     ) -> "W4Linear":
         """
-        Convert a standard nn.Linear to a TinyChat 4-bit quantized W4Linear.
-
-        This utility creates a quantized version of a given nn.Linear layer, using
-        group-wise quantization and optional precomputed quantization parameters.
+        Convert a standard nn.Linear to a quantized W4Linear.
 
         Parameters
         ----------
         linear : nn.Linear
-            The linear layer to be converted.
+            The linear layer to convert.
         group_size : int
             Quantization group size.
         init_only : bool, optional
-            If True, only initializes the quantized layer without copying weights (default: False).
+            If True, only initializes the quantized layer (default: False).
         weight : torch.Tensor, optional
-            Precomputed weight tensor for the quantized layer (default: None).
+            Precomputed quantized weight (default: None).
         scale : torch.Tensor, optional
-            Precomputed scale tensor for the quantized layer (default: None).
+            Precomputed scale tensor (default: None).
         zero : torch.Tensor, optional
-            Precomputed zero-point tensor for the quantized layer (default: None).
+            Precomputed zero-point tensor (default: None).
         zero_pre_scaled : bool, optional
             Whether the zero-point tensor is pre-scaled (default: False).
 
@@ -272,12 +227,7 @@ class W4Linear(nn.Module):
 
     def extra_repr(self) -> str:
         """
-        Extra representation for printing and debugging.
-
-        Returns
-        -------
-        str
-            String describing the layer configuration.
+        Returns a string describing the layer configuration.
         """
         return "in_features={}, out_features={}, bias={}, weight_bits={}, group_size={}".format(
             self.in_features,

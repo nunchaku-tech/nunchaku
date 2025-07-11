@@ -1,18 +1,6 @@
 """
-Nunchaku Sana Transformer integration.
-
-This module provides classes and functions for loading, quantizing, and running
-SanaTransformer2DModel models with Nunchaku's custom quantized backend.
-
-Classes
--------
-- NunchakuSanaTransformerBlocks : Wrapper for quantized transformer blocks.
-- NunchakuSanaTransformer2DModel : Main model class with quantized module injection.
-
-Functions
----------
-- load_quantized_module : Load quantized weights into a QuantizedSanaModel.
-- inject_quantized_module : Inject quantized module into a transformer model.
+Implements the :class:`NunchakuSanaTransformer2DModel`,
+a quantized Sana transformer for Diffusers with efficient inference support.
 """
 
 import os

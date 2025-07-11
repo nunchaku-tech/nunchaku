@@ -1,11 +1,6 @@
 nunchaku package
 ================
 
-.. automodule:: nunchaku
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 Subpackages
 -----------
 

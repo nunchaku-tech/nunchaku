@@ -1,11 +1,6 @@
 nunchaku.pipeline package
 =========================
 
-.. automodule:: nunchaku.pipeline
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 Submodules
 ----------
 

@@ -1,25 +1,7 @@
 """
-Nunchaku T5 Encoder
-===================
-
-This module implements the Nunchaku T5 Encoder, an extension of HuggingFace's T5EncoderModel
-with support for memory-efficient low-bit inference.
-
-Overview
---------
 The NunchakuT5EncoderModel class enables loading T5 encoder weights from safetensors files,
 automatically replacing supported linear layers with quantized :class:`~nunchaku.models.text_encoders.linear.W4Linear`
 modules for improved performance and memory efficiency.
-
-Example
--------
-.. code-block:: python
-
-    from nunchaku import NunchakuT5EncoderModel
-    model = NunchakuT5EncoderModel.from_pretrained(
-        "mit-han-lab/nunchaku-t5/awq-int4-flux.1-t5xxl.safetensors"
-    )
-
 """
 
 import json

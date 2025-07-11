@@ -105,8 +105,6 @@ instance/
 docs/_build/
 docs/build/
 docs/doxygen/
-docs/source/python_autogen/
-docs/source/c_api/
 
 # PyBuilder
 .pybuilder/

@@ -105,7 +105,7 @@ class NunchakuFluxTransformerBlocks(nn.Module):
         skip_first_layer=False,
     ):
         """
-        Forward pass for the quantized transformer blocks. 
+        Forward pass for the quantized transformer blocks.
         It will call the forward method of ``m`` on the C backend.
 
         Parameters

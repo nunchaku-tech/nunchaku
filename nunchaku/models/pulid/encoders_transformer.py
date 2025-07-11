@@ -1,12 +1,32 @@
-# Adapted from https://github.com/ToTheBeginning/PuLID
+"""
+This module implements the encoders for PuLID.
+
+.. note::
+    This module is adapted from https://github.com/ToTheBeginning/PuLID.
+"""
+
 import math
 
 import torch
 from torch import nn
 
 
-# FFN
 def FeedForward(dim, mult=4):
+    """
+    Feed-forward network (FFN) block with LayerNorm and GELU activation.
+
+    Parameters
+    ----------
+    dim : int
+        Input and output feature dimension.
+    mult : int, optional
+        Expansion multiplier for the hidden dimension (default: 4).
+
+    Returns
+    -------
+    nn.Sequential
+        A sequential FFN block: LayerNorm -> Linear -> GELU -> Linear.
+    """
     inner_dim = int(dim * mult)
     return nn.Sequential(
         nn.LayerNorm(dim),
@@ -17,17 +37,44 @@ def FeedForward(dim, mult=4):
 
 
 def reshape_tensor(x, heads):
+    """
+    Reshape a tensor for multi-head attention.
+
+    Parameters
+    ----------
+    x : torch.Tensor
+        Input tensor of shape (batch_size, seq_len, width).
+    heads : int
+        Number of attention heads.
+
+    Returns
+    -------
+    torch.Tensor
+        Reshaped tensor of shape (batch_size, heads, seq_len, dim_per_head).
+    """
     bs, length, width = x.shape
-    # (bs, length, width) --> (bs, length, n_heads, dim_per_head)
     x = x.view(bs, length, heads, -1)
-    # (bs, length, n_heads, dim_per_head) --> (bs, n_heads, length, dim_per_head)
     x = x.transpose(1, 2)
-    # (bs, n_heads, length, dim_per_head) --> (bs*n_heads, length, dim_per_head)
     x = x.reshape(bs, heads, length, -1)
     return x
 
 
 class PerceiverAttentionCA(nn.Module):
+    """
+    Perceiver-style cross-attention module.
+
+    Parameters
+    ----------
+    dim : int, optional
+        Input feature dimension for queries (default: 3072).
+    dim_head : int, optional
+        Dimension per attention head (default: 128).
+    heads : int, optional
+        Number of attention heads (default: 16).
+    kv_dim : int, optional
+        Input feature dimension for keys/values (default: 2048).
+    """
+
     def __init__(self, *, dim=3072, dim_head=128, heads=16, kv_dim=2048):
         super().__init__()
         self.scale = dim_head**-0.5
@@ -44,11 +91,19 @@ class PerceiverAttentionCA(nn.Module):
 
     def forward(self, x, latents):
         """
-        Args:
-            x (torch.Tensor): image features
-                shape (b, n1, D)
-            latent (torch.Tensor): latent features
-                shape (b, n2, D)
+        Forward pass for cross-attention.
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            Image features of shape (batch_size, n1, D).
+        latents : torch.Tensor
+            Latent features of shape (batch_size, n2, D).
+
+        Returns
+        -------
+        torch.Tensor
+            Output tensor of shape (batch_size, n2, D).
         """
         x = self.norm1(x)
         latents = self.norm2(latents)
@@ -64,7 +119,7 @@ class PerceiverAttentionCA(nn.Module):
 
         # attention
         scale = 1 / math.sqrt(math.sqrt(self.dim_head))
-        weight = (q * scale) @ (k * scale).transpose(-2, -1)  # More stable with f16 than dividing afterwards
+        weight = (q * scale) @ (k * scale).transpose(-2, -1)
         weight = torch.softmax(weight.float(), dim=-1).type(weight.dtype)
         out = weight @ v
 
@@ -74,6 +129,21 @@ class PerceiverAttentionCA(nn.Module):
 
 
 class PerceiverAttention(nn.Module):
+    """
+    Perceiver-style self-attention module with optional cross-attention.
+
+    Parameters
+    ----------
+    dim : int
+        Input feature dimension for queries.
+    dim_head : int, optional
+        Dimension per attention head (default: 64).
+    heads : int, optional
+        Number of attention heads (default: 8).
+    kv_dim : int, optional
+        Input feature dimension for keys/values (default: None).
+    """
+
     def __init__(self, *, dim, dim_head=64, heads=8, kv_dim=None):
         super().__init__()
         self.scale = dim_head**-0.5
@@ -90,11 +160,19 @@ class PerceiverAttention(nn.Module):
 
     def forward(self, x, latents):
         """
-        Args:
-            x (torch.Tensor): image features
-                shape (b, n1, D)
-            latent (torch.Tensor): latent features
-                shape (b, n2, D)
+        Forward pass for (cross-)attention.
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            Image features of shape (batch_size, n1, D).
+        latents : torch.Tensor
+            Latent features of shape (batch_size, n2, D).
+
+        Returns
+        -------
+        torch.Tensor
+            Output tensor of shape (batch_size, n2, D).
         """
         x = self.norm1(x)
         latents = self.norm2(latents)
@@ -111,7 +189,7 @@ class PerceiverAttention(nn.Module):
 
         # attention
         scale = 1 / math.sqrt(math.sqrt(self.dim_head))
-        weight = (q * scale) @ (k * scale).transpose(-2, -1)  # More stable with f16 than dividing afterwards
+        weight = (q * scale) @ (k * scale).transpose(-2, -1)
         weight = torch.softmax(weight.float(), dim=-1).type(weight.dtype)
         out = weight @ v
 
@@ -122,11 +200,34 @@ class PerceiverAttention(nn.Module):
 
 class IDFormer(nn.Module):
     """
-    - perceiver resampler like arch (compared with previous MLP-like arch)
-    - we concat id embedding (generated by arcface) and query tokens as latents
-    - latents will attend each other and interact with vit features through cross-attention
-    - vit features are multi-scaled and inserted into IDFormer in order, currently, each scale corresponds to two
-      IDFormer layers
+    IDFormer: Perceiver-style transformer encoder for identity and vision features.
+
+    This module fuses identity embeddings (e.g., from ArcFace) and multi-scale ViT features
+    using a stack of PerceiverAttention and FeedForward layers.
+
+    The architecture:
+      - Concatenates ID embedding tokens and query tokens as latents.
+      - Latents attend to each other and interact with ViT features via cross-attention.
+      - Multi-scale ViT features are inserted in order, each scale processed by a block of layers.
+
+    Parameters
+    ----------
+    dim : int, optional
+        Embedding dimension for all tokens (default: 1024).
+    depth : int, optional
+        Total number of transformer layers (must be divisible by 5, default: 10).
+    dim_head : int, optional
+        Dimension per attention head (default: 64).
+    heads : int, optional
+        Number of attention heads (default: 16).
+    num_id_token : int, optional
+        Number of ID embedding tokens (default: 5).
+    num_queries : int, optional
+        Number of query tokens (default: 32).
+    output_dim : int, optional
+        Output projection dimension (default: 2048).
+    ff_mult : int, optional
+        Feed-forward expansion multiplier (default: 4).
     """
 
     def __init__(
@@ -189,6 +290,21 @@ class IDFormer(nn.Module):
         )
 
     def forward(self, x, y):
+        """
+        Forward pass for IDFormer.
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            ID embedding tensor of shape (batch_size, 1280) or (batch_size, N, 1280).
+        y : list of torch.Tensor
+            List of 5 ViT feature tensors, each of shape (batch_size, feature_dim).
+
+        Returns
+        -------
+        torch.Tensor
+            Output tensor of shape (batch_size, num_queries, output_dim).
+        """
         latents = self.latents.repeat(x.size(0), 1, 1)
 
         num_duotu = x.shape[1] if x.ndim == 3 else 1

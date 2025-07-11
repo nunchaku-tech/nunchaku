@@ -1,3 +1,9 @@
+"""
+This module provides the PuLID FluxPipeline for personalized image generation with identity preservation.
+It integrates face analysis, alignment, and embedding extraction using InsightFace and FaceXLib, and injects
+identity embeddings into a Flux transformer pipeline.
+"""
+
 # Adapted from https://github.com/ToTheBeginning/PuLID/blob/main/pulid/pipeline.py
 import gc
 import logging
@@ -11,9 +17,8 @@ import numpy as np
 import torch
 from diffusers import FluxPipeline
 from diffusers.image_processor import PipelineImageInput
-from diffusers.pipelines.flux.pipeline_flux import EXAMPLE_DOC_STRING, calculate_shift, retrieve_timesteps
+from diffusers.pipelines.flux.pipeline_flux import calculate_shift, retrieve_timesteps
 from diffusers.pipelines.flux.pipeline_output import FluxPipelineOutput
-from diffusers.utils import replace_example_docstring
 from facexlib.parsing import init_parsing_model
 from facexlib.utils.face_restoration_helper import FaceRestoreHelper
 from huggingface_hub import snapshot_download
@@ -39,6 +44,19 @@ logger = logging.getLogger(__name__)
 
 
 def check_antelopev2_dir(antelopev2_dirpath: str | os.PathLike[str]) -> bool:
+    """
+    Check if the given directory contains all required AntelopeV2 ONNX model files with correct SHA256 hashes.
+
+    Parameters
+    ----------
+    antelopev2_dirpath : str or os.PathLike
+        Path to the directory containing AntelopeV2 ONNX models.
+
+    Returns
+    -------
+    bool
+        True if all required files exist and have correct hashes, False otherwise.
+    """
     antelopev2_dirpath = Path(antelopev2_dirpath)
     required_files = {
         "1k3d68.onnx": "df5c06b8a0c12e422b2ed8947b8869faa4105387f199c477af038aa01f9a45cc",
@@ -64,6 +82,53 @@ def check_antelopev2_dir(antelopev2_dirpath: str | os.PathLike[str]) -> bool:
 
 
 class PuLIDPipeline(nn.Module):
+    """
+    PyTorch module for extracting identity embeddings using PuLID, InsightFace, and EVA-CLIP.
+
+    This class handles face detection, alignment, parsing, and embedding extraction for use in personalized
+    diffusion pipelines.
+
+    Parameters
+    ----------
+    dit : NunchakuFluxTransformer2dModel
+        The transformer model to inject PuLID attention modules into.
+    device : str or torch.device
+        Device to run the pipeline on.
+    weight_dtype : str or torch.dtype, optional
+        Data type for model weights (default: torch.bfloat16).
+    onnx_provider : str, optional
+        ONNX runtime provider, "gpu" or "cpu" (default: "gpu").
+    pulid_path : str or os.PathLike, optional
+        Path to PuLID weights in safetensors format.
+    eva_clip_path : str or os.PathLike, optional
+        Path to EVA-CLIP weights.
+    insightface_dirpath : str or os.PathLike or None, optional
+        Path to InsightFace models directory.
+    facexlib_dirpath : str or os.PathLike or None, optional
+        Path to FaceXLib models directory.
+
+    Attributes
+    ----------
+    pulid_encoder : IDFormer
+        The IDFormer encoder for identity embedding.
+    pulid_ca : nn.ModuleList
+        List of PerceiverAttentionCA modules injected into the transformer.
+    face_helper : FaceRestoreHelper
+        Helper for face alignment and parsing.
+    clip_vision_model : nn.Module
+        EVA-CLIP visual backbone.
+    eva_transform_mean : tuple
+        Mean for image normalization.
+    eva_transform_std : tuple
+        Std for image normalization.
+    app : FaceAnalysis
+        InsightFace face analysis application.
+    handler_ante : insightface.model_zoo.model_zoo.Model
+        InsightFace embedding model.
+    debug_img_list : list
+        List of debug images (for visualization).
+    """
+
     def __init__(
         self,
         dit: NunchakuFluxTransformer2dModel,
@@ -177,6 +242,19 @@ class PuLIDPipeline(nn.Module):
         self.debug_img_list = []
 
     def to_gray(self, img):
+        """
+        Convert an image tensor to grayscale (3 channels).
+
+        Parameters
+        ----------
+        img : torch.Tensor
+            Image tensor of shape (B, 3, H, W).
+
+        Returns
+        -------
+        torch.Tensor
+            Grayscale image tensor of shape (B, 3, H, W).
+        """
         x = 0.299 * img[:, 0:1] + 0.587 * img[:, 1:2] + 0.114 * img[:, 2:3]
         x = x.repeat(1, 3, 1, 1)
         return x
@@ -184,8 +262,21 @@ class PuLIDPipeline(nn.Module):
     @torch.no_grad()
     def get_id_embedding(self, image, cal_uncond=False):
         """
-        Args:
-            image: numpy rgb image, range [0, 255]
+        Extract identity embedding from an RGB image.
+
+        Parameters
+        ----------
+        image : np.ndarray
+            Input RGB image as a numpy array, range [0, 255].
+        cal_uncond : bool, optional
+            If True, also compute unconditional embedding (default: False).
+
+        Returns
+        -------
+        id_embedding : torch.Tensor
+            Identity embedding tensor.
+        uncond_id_embedding : torch.Tensor or None
+            Unconditional embedding tensor if cal_uncond is True, else None.
         """
         self.face_helper.clean_all()
         self.debug_img_list = []
@@ -260,6 +351,41 @@ class PuLIDPipeline(nn.Module):
 
 
 class PuLIDFluxPipeline(FluxPipeline):
+    """
+    FluxPipeline with PuLID identity embedding support.
+
+    This pipeline extends the standard FluxPipeline to support personalized image generation using
+    identity embeddings extracted from a reference image. It injects the PuLID identity encoder into
+    the transformer and supports all standard FluxPipeline features.
+
+    Parameters
+    ----------
+    scheduler : SchedulerMixin
+        Scheduler for diffusion process.
+    vae : AutoencoderKL
+        Variational autoencoder for image encoding/decoding.
+    text_encoder : PreTrainedModel
+        Text encoder for prompt embeddings.
+    tokenizer : PreTrainedTokenizer
+        Tokenizer for text encoder.
+    text_encoder_2 : PreTrainedModel
+        Second text encoder (optional).
+    tokenizer_2 : PreTrainedTokenizer
+        Second tokenizer (optional).
+    transformer : NunchakuFluxTransformer2dModel
+        Transformer model for denoising.
+    image_encoder : nn.Module, optional
+        Image encoder for IP-Adapter (default: None).
+    feature_extractor : nn.Module, optional
+        Feature extractor for images (default: None).
+    pulid_device : str, optional
+        Device for PuLID pipeline (default: "cuda").
+    weight_dtype : torch.dtype, optional
+        Data type for model weights (default: torch.bfloat16).
+    onnx_provider : str, optional
+        ONNX runtime provider (default: "gpu").
+    """
+
     def __init__(
         self,
         scheduler,
@@ -301,7 +427,6 @@ class PuLIDFluxPipeline(FluxPipeline):
         )
 
     @torch.no_grad()
-    @replace_example_docstring(EXAMPLE_DOC_STRING)
     def __call__(
         self,
         prompt: Union[str, List[str]] = None,
@@ -337,101 +462,77 @@ class PuLIDFluxPipeline(FluxPipeline):
     ):
         r"""
         Function invoked when calling the pipeline for generation.
-        Args:
-            prompt (`str` or `List[str]`, *optional*):
-                The prompt or prompts to guide the image generation. If not defined, one has to pass `prompt_embeds`.
-                instead.
-            prompt_2 (`str` or `List[str]`, *optional*):
-                The prompt or prompts to be sent to `tokenizer_2` and `text_encoder_2`. If not defined, `prompt` is
-                will be used instead.
-            negative_prompt (`str` or `List[str]`, *optional*):
-                The prompt or prompts not to guide the image generation. If not defined, one has to pass
-                `negative_prompt_embeds` instead. Ignored when not using guidance (i.e., ignored if `true_cfg_scale` is
-                not greater than `1`).
-            negative_prompt_2 (`str` or `List[str]`, *optional*):
-                The prompt or prompts not to guide the image generation to be sent to `tokenizer_2` and
-                `text_encoder_2`. If not defined, `negative_prompt` is used in all the text-encoders.
-            true_cfg_scale (`float`, *optional*, defaults to 1.0):
-                When > 1.0 and a provided `negative_prompt`, enables true classifier-free guidance.
-            height (`int`, *optional*, defaults to self.unet.config.sample_size * self.vae_scale_factor):
-                The height in pixels of the generated image. This is set to 1024 by default for the best results.
-            width (`int`, *optional*, defaults to self.unet.config.sample_size * self.vae_scale_factor):
-                The width in pixels of the generated image. This is set to 1024 by default for the best results.
-            num_inference_steps (`int`, *optional*, defaults to 50):
-                The number of denoising steps. More denoising steps usually lead to a higher quality image at the
-                expense of slower inference.
-            sigmas (`List[float]`, *optional*):
-                Custom sigmas to use for the denoising process with schedulers which support a `sigmas` argument in
-                their `set_timesteps` method. If not defined, the default behavior when `num_inference_steps` is passed
-                will be used.
-            guidance_scale (`float`, *optional*, defaults to 3.5):
-                Guidance scale as defined in [Classifier-Free Diffusion Guidance](https://arxiv.org/abs/2207.12598).
-                `guidance_scale` is defined as `w` of equation 2. of [Imagen
-                Paper](https://arxiv.org/pdf/2205.11487.pdf). Guidance scale is enabled by setting `guidance_scale >
-                1`. Higher guidance scale encourages to generate images that are closely linked to the text `prompt`,
-                usually at the expense of lower image quality.
-            num_images_per_prompt (`int`, *optional*, defaults to 1):
-                The number of images to generate per prompt.
-            generator (`torch.Generator` or `List[torch.Generator]`, *optional*):
-                One or a list of [torch generator(s)](https://pytorch.org/docs/stable/generated/torch.Generator.html)
-                to make generation deterministic.
-            latents (`torch.FloatTensor`, *optional*):
-                Pre-generated noisy latents, sampled from a Gaussian distribution, to be used as inputs for image
-                generation. Can be used to tweak the same generation with different prompts. If not provided, a latents
-                tensor will ge generated by sampling using the supplied random `generator`.
-            prompt_embeds (`torch.FloatTensor`, *optional*):
-                Pre-generated text embeddings. Can be used to easily tweak text inputs, *e.g.* prompt weighting. If not
-                provided, text embeddings will be generated from `prompt` input argument.
-            pooled_prompt_embeds (`torch.FloatTensor`, *optional*):
-                Pre-generated pooled text embeddings. Can be used to easily tweak text inputs, *e.g.* prompt weighting.
-                If not provided, pooled text embeddings will be generated from `prompt` input argument.
-            ip_adapter_image: (`PipelineImageInput`, *optional*): Optional image input to work with IP Adapters.
-            ip_adapter_image_embeds (`List[torch.Tensor]`, *optional*):
-                Pre-generated image embeddings for IP-Adapter. It should be a list of length same as number of
-                IP-adapters. Each element should be a tensor of shape `(batch_size, num_images, emb_dim)`. If not
-                provided, embeddings are computed from the `ip_adapter_image` input argument.
-            negative_ip_adapter_image:
-                (`PipelineImageInput`, *optional*): Optional image input to work with IP Adapters.
-            negative_ip_adapter_image_embeds (`List[torch.Tensor]`, *optional*):
-                Pre-generated image embeddings for IP-Adapter. It should be a list of length same as number of
-                IP-adapters. Each element should be a tensor of shape `(batch_size, num_images, emb_dim)`. If not
-                provided, embeddings are computed from the `ip_adapter_image` input argument.
-            negative_prompt_embeds (`torch.FloatTensor`, *optional*):
-                Pre-generated negative text embeddings. Can be used to easily tweak text inputs, *e.g.* prompt
-                weighting. If not provided, negative_prompt_embeds will be generated from `negative_prompt` input
-                argument.
-            negative_pooled_prompt_embeds (`torch.FloatTensor`, *optional*):
-                Pre-generated negative pooled text embeddings. Can be used to easily tweak text inputs, *e.g.* prompt
-                weighting. If not provided, pooled negative_prompt_embeds will be generated from `negative_prompt`
-                input argument.
-            output_type (`str`, *optional*, defaults to `"pil"`):
-                The output format of the generate image. Choose between
-                [PIL](https://pillow.readthedocs.io/en/stable/): `PIL.Image.Image` or `np.array`.
-            return_dict (`bool`, *optional*, defaults to `True`):
-                Whether or not to return a [`~pipelines.flux.FluxPipelineOutput`] instead of a plain tuple.
-            joint_attention_kwargs (`dict`, *optional*):
-                A kwargs dictionary that if specified is passed along to the `AttentionProcessor` as defined under
-                `self.processor` in
-                [diffusers.models.attention_processor](https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/attention_processor.py).
-            callback_on_step_end (`Callable`, *optional*):
-                A function that calls at the end of each denoising steps during the inference. The function is called
-                with the following arguments: `callback_on_step_end(self: DiffusionPipeline, step: int, timestep: int,
-                callback_kwargs: Dict)`. `callback_kwargs` will include a list of all tensors as specified by
-                `callback_on_step_end_tensor_inputs`.
-            callback_on_step_end_tensor_inputs (`List`, *optional*):
-                The list of tensor inputs for the `callback_on_step_end` function. The tensors specified in the list
-                will be passed as `callback_kwargs` argument. You will only be able to include variables listed in the
-                `._callback_tensor_inputs` attribute of your pipeline class.
-            max_sequence_length (`int` defaults to 512): Maximum sequence length to use with the `prompt`.
 
-        Examples:
+        See the parent class :class:`diffusers.FluxPipeline` for full documentation.
 
-        Returns:
-            [`~pipelines.flux.FluxPipelineOutput`] or `tuple`: [`~pipelines.flux.FluxPipelineOutput`] if `return_dict`
-            is True, otherwise a `tuple`. When returning a tuple, the first element is a list with the generated
-            images.
+        Parameters
+        ----------
+        prompt : str or List[str], optional
+            The prompt(s) to guide image generation.
+        prompt_2 : str or List[str], optional
+            Second prompt(s) for dual-encoder pipelines.
+        negative_prompt : str or List[str], optional
+            Negative prompt(s) to avoid in generation.
+        negative_prompt_2 : str or List[str], optional
+            Second negative prompt(s) for dual-encoder pipelines.
+        true_cfg_scale : float, optional
+            True classifier-free guidance scale.
+        height : int, optional
+            Output image height.
+        width : int, optional
+            Output image width.
+        num_inference_steps : int, optional
+            Number of denoising steps.
+        sigmas : List[float], optional
+            Custom sigmas for the scheduler.
+        guidance_scale : float, optional
+            Classifier-free guidance scale.
+        num_images_per_prompt : int, optional
+            Number of images per prompt.
+        generator : torch.Generator or List[torch.Generator], optional
+            Random generator(s) for reproducibility.
+        latents : torch.FloatTensor, optional
+            Pre-generated latents.
+        prompt_embeds : torch.FloatTensor, optional
+            Pre-generated prompt embeddings.
+        pooled_prompt_embeds : torch.FloatTensor, optional
+            Pre-generated pooled prompt embeddings.
+        ip_adapter_image : PipelineImageInput, optional
+            Image input for IP-Adapter.
+        id_image : PIL.Image.Image or np.ndarray, optional
+            Reference image for identity embedding.
+        id_weight : float, optional
+            Weight for identity embedding.
+        start_step : int, optional
+            Step to start from (for advanced use).
+        ip_adapter_image_embeds : List[torch.Tensor], optional
+            Precomputed IP-Adapter image embeddings.
+        negative_ip_adapter_image : PipelineImageInput, optional
+            Negative image input for IP-Adapter.
+        negative_ip_adapter_image_embeds : List[torch.Tensor], optional
+            Precomputed negative IP-Adapter image embeddings.
+        negative_prompt_embeds : torch.FloatTensor, optional
+            Precomputed negative prompt embeddings.
+        negative_pooled_prompt_embeds : torch.FloatTensor, optional
+            Precomputed negative pooled prompt embeddings.
+        output_type : str, optional
+            Output format ("pil" or "np").
+        return_dict : bool, optional
+            Whether to return a dict or tuple.
+        joint_attention_kwargs : dict, optional
+            Additional kwargs for joint attention.
+        callback_on_step_end : Callable, optional
+            Callback at the end of each denoising step.
+        callback_on_step_end_tensor_inputs : List[str], optional
+            List of tensor names for callback.
+        max_sequence_length : int, optional
+            Maximum sequence length for prompts.
+
+        Returns
+        -------
+        FluxPipelineOutput or tuple
+            Output images and additional info.
         """
-
         height = height or self.default_sample_size * self.vae_scale_factor
         width = width or self.default_sample_size * self.vae_scale_factor
 

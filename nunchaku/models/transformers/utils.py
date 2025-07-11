@@ -1,12 +1,5 @@
 """
-Utility functions and mixins for Nunchaku transformer model loading and tensor manipulation.
-
-This module provides:
-- Logging configuration for Nunchaku transformers.
-- The `NunchakuModelLoaderMixin` class for standardized model loading from safetensors or legacy folders.
-- The `pad_tensor` utility for padding tensors to multiples of a given size.
-
-These utilities are intended for internal use by Nunchaku's transformer backends.
+Utilities for Nunchaku transformer model loading.
 """
 
 import json
@@ -32,18 +25,12 @@ logger = logging.getLogger(__name__)
 
 class NunchakuModelLoaderMixin:
     """
-    Mixin class providing standardized model loading utilities for Nunchaku transformer models.
+    Mixin for standardized model loading in Nunchaku transformer models.
 
-    This mixin offers methods to build models from safetensors files or legacy folder structures,
-    handling configuration, state dict loading, and device placement.
+    Provides:
 
-    Methods
-    -------
-    _build_model(pretrained_model_name_or_path, **kwargs)
-        Build a model from a safetensors file, returning the model, state dict, and metadata.
-
-    _build_model_legacy(pretrained_model_name_or_path, **kwargs)
-        Build a model from a legacy folder structure, returning the model and paths to weight files.
+    - :meth:`_build_model`: Load model from a safetensors file.
+    - :meth:`_build_model_legacy`: Load model from a legacy folder structure (deprecated).
     """
 
     @classmethod
@@ -56,26 +43,19 @@ class NunchakuModelLoaderMixin:
         Parameters
         ----------
         pretrained_model_name_or_path : str or os.PathLike
-            Path to the safetensors file containing the model weights and metadata.
+            Path to the safetensors file.
         **kwargs
-            Additional keyword arguments. Recognized: 'torch_dtype'.
+            Additional keyword arguments (e.g., ``torch_dtype``).
 
         Returns
         -------
         tuple
             (transformer, state_dict, metadata)
-            - transformer : nn.Module
-                The instantiated transformer model (on 'meta' device).
-            - state_dict : dict[str, torch.Tensor]
-                The loaded state dictionary from safetensors.
-            - metadata : dict[str, str]
-                Metadata dictionary from safetensors file.
         """
         if isinstance(pretrained_model_name_or_path, str):
             pretrained_model_name_or_path = Path(pretrained_model_name_or_path)
         state_dict, metadata = load_state_dict_in_safetensors(pretrained_model_name_or_path, return_metadata=True)
 
-        # Load the config file
         config = json.loads(metadata["config"])
 
         with torch.device("meta"):
@@ -105,12 +85,6 @@ class NunchakuModelLoaderMixin:
         -------
         tuple
             (transformer, unquantized_part_path, transformer_block_path)
-            - transformer : nn.Module
-                The instantiated transformer model (on 'meta' device).
-            - unquantized_part_path : str
-                Path to the unquantized layers safetensors file.
-            - transformer_block_path : str
-                Path to the transformer blocks safetensors file.
         """
         logger.warning(
             "Loading models from a folder will be deprecated in v0.4. "
@@ -183,18 +157,16 @@ def pad_tensor(tensor: Optional[torch.Tensor], multiples: int, dim: int, fill: A
     """
     Pad a tensor along a given dimension to the next multiple of a specified value.
 
-    This is useful for ensuring tensor shapes are compatible with hardware or model requirements.
-
     Parameters
     ----------
     tensor : torch.Tensor or None
-        The input tensor to pad. If None, returns None.
+        Input tensor. If None, returns None.
     multiples : int
-        The multiple to pad to. If <= 1, no padding is applied.
+        Pad to this multiple. If <= 1, no padding is applied.
     dim : int
-        The dimension along which to pad.
+        Dimension along which to pad.
     fill : Any, optional
-        The value to use for padding (default: 0).
+        Value to use for padding (default: 0).
 
     Returns
     -------

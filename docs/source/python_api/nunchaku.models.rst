@@ -1,11 +1,6 @@
 nunchaku.models package
 =======================
 
-.. automodule:: nunchaku.models
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 Subpackages
 -----------
 

@@ -1,7 +1,7 @@
 """
 CLI tool to convert LoRA weights to Nunchaku format.
 
-**Usage:**
+**Example Usage:**
 
 .. code-block:: bash
 

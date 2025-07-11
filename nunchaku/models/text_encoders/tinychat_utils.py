@@ -1,8 +1,5 @@
 # -*- coding: utf-8 -*-
 """
-TinyChat Quantization Utilities
-==============================
-
 This module provides utility functions for quantized linear layers in the TinyChat backend.
 """
 
