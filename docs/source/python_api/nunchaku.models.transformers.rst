@@ -1,11 +1,6 @@
 nunchaku.models.transformers package
 ====================================
 
-.. automodule:: nunchaku.models.transformers
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 Submodules
 ----------
 

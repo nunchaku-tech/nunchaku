@@ -1,10 +1,13 @@
 """
 This module provides the PuLID FluxPipeline for personalized image generation with identity preservation.
+
 It integrates face analysis, alignment, and embedding extraction using InsightFace and FaceXLib, and injects
 identity embeddings into a Flux transformer pipeline.
+
+.. note::
+   This module is adapted from https://github.com/ToTheBeginning/PuLID/blob/main/pulid/pipeline.py
 """
 
-# Adapted from https://github.com/ToTheBeginning/PuLID/blob/main/pulid/pipeline.py
 import gc
 import logging
 import os
@@ -460,7 +463,7 @@ class PuLIDFluxPipeline(FluxPipeline):
         callback_on_step_end_tensor_inputs: List[str] = ["latents"],
         max_sequence_length: int = 512,
     ):
-        r"""
+        """
         Function invoked when calling the pipeline for generation.
 
         See the parent class :class:`diffusers.FluxPipeline` for full documentation.
