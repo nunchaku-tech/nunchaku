@@ -1,15 +1,6 @@
 """
-Diffusers LoRA converter for Flux models.
-
-This module provides functionality to convert LoRA weights from various formats
-(including Kohya format) to Diffusers format that can be used with the Diffusers
-library. It handles format detection, key renaming, and tensor conversion.
-
-The converter supports:
-- Kohya LoRA format conversion
-- FP8 to BF16 tensor conversion
-- Alpha scaling integration
-- Safetensors file I/O
+This module implements the functions to convert FLUX LoRA weights from various formats
+to the Diffusers format, which will later be converted to Nunchaku format.
 """
 
 import argparse
@@ -33,43 +24,17 @@ logger = logging.getLogger(__name__)
 
 def handle_kohya_lora(state_dict: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
     """
-    Convert Kohya LoRA format to standard Diffusers format.
-
-    This function detects if the input state dict is in Kohya format and converts
-    it to standard Diffusers format by renaming keys and adjusting the structure.
-    Kohya format uses different naming conventions for transformer blocks and
-    layer components.
+    Convert Kohya LoRA format keys to Diffusers format.
 
     Parameters
     ----------
     state_dict : dict[str, torch.Tensor]
-        Dictionary containing LoRA weights in potentially Kohya format.
+        LoRA weights, possibly in Kohya format.
 
     Returns
     -------
     dict[str, torch.Tensor]
-        Dictionary with LoRA weights converted to standard Diffusers format.
-
-    Notes
-    -----
-    The function performs the following key transformations:
-    - `lora_transformer_` → `transformer.`
-    - `norm_out_` → `norm_out.`
-    - `time_text_embed_` → `time_text_embed.`
-    - `single_transformer_blocks_` → `single_transformer_blocks.`
-    - `transformer_blocks_` → `transformer_blocks.`
-    - `lora_down` → `lora_A`
-    - `lora_up` → `lora_B`
-
-    And many other component-specific transformations.
-
-    Examples
-    --------
-    >>> # Convert Kohya format state dict
-    >>> kohya_dict = {"lora_transformer_norm_out_weight": torch.randn(10, 20)}
-    >>> converted = handle_kohya_lora(kohya_dict)
-    >>> print(list(converted.keys()))
-    ['transformer.norm_out.weight']
+        LoRA weights in Diffusers format.
     """
     # first check if the state_dict is in the kohya format
     # like: https://civitai.com/models/1118358?modelVersionId=1256866
@@ -111,49 +76,19 @@ def handle_kohya_lora(state_dict: dict[str, torch.Tensor]) -> dict[str, torch.Te
 
 def to_diffusers(input_lora: str | dict[str, torch.Tensor], output_path: str | None = None) -> dict[str, torch.Tensor]:
     """
-    Convert LoRA weights to Diffusers format.
-
-    This function takes LoRA weights in various formats and converts them to
-    Diffusers format. It handles Kohya format conversion, FP8 to BF16 tensor
-    conversion, PEFT state dict conversion, and alpha scaling integration.
+    Convert LoRA weights to Diffusers format, which will later be converted to Nunchaku format.
 
     Parameters
     ----------
     input_lora : str or dict[str, torch.Tensor]
-        Either a path to a safetensors file containing LoRA weights, or a dictionary
-        of LoRA weight tensors.
+        Path to a safetensors file or a LoRA weight dictionary.
     output_path : str, optional
-        Path to save the converted LoRA weights as a safetensors file. If None,
-        the weights are not saved to disk (default: None).
+        If given, save the converted weights to this path.
 
     Returns
     -------
     dict[str, torch.Tensor]
-        Dictionary containing the LoRA weights in Diffusers format.
-
-    Notes
-    -----
-    The conversion process includes:
-    1. Loading tensors from file or using provided dictionary
-    2. Handling Kohya format conversion if detected
-    3. Converting FP8 tensors to BF16 for compatibility
-    4. Processing through FluxLoraLoaderMixin for proper format
-    5. Converting to PEFT format using Diffusers utilities
-    6. Applying alpha scaling if present in the original weights
-
-    Examples
-    --------
-    >>> # Convert from file path
-    >>> diffusers_weights = to_diffusers("path/to/lora.safetensors")
-
-    >>> # Convert from weight dictionary
-    >>> weights = {"transformer.layer.lora_A.weight": torch.randn(10, 20)}
-    >>> diffusers_weights = to_diffusers(weights, "output.safetensors")
-
-    Raises
-    ------
-    AssertionError
-        If expected keys are not found in the state dict after conversion.
+        LoRA weights in Diffusers format.
     """
     if isinstance(input_lora, str):
         tensors = load_state_dict_in_safetensors(input_lora, device="cpu")
@@ -162,7 +97,7 @@ def to_diffusers(input_lora: str | dict[str, torch.Tensor], output_path: str | N
 
     tensors = handle_kohya_lora(tensors)
 
-    ### convert the FP8 tensors to BF16
+    # Convert FP8 tensors to BF16
     for k, v in tensors.items():
         if v.dtype not in [torch.float64, torch.float32, torch.bfloat16, torch.float16]:
             tensors[k] = v.to(torch.bfloat16)
