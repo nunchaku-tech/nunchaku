@@ -18,6 +18,10 @@ CLI tool to convert LoRA weights to Nunchaku format.
 - ``--output-root``: Root directory for the output safetensor file (default: parent directory of the lora file)
 - ``--lora-name``: Name of the LoRA weights (optional, auto-generated if not provided)
 - ``--dtype``: Data type of the converted weights, either ``bfloat16`` or ``float16`` (default: ``bfloat16``)
+
+**Main Function**
+
+:func:`nunchaku.lora.flux.nunchaku_converter.to_nunchaku`
 """
 
 import argparse

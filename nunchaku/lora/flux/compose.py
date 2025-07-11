@@ -3,7 +3,7 @@ Compose multiple LoRA weights into a single LoRA for FLUX models.
 
 This script merges several LoRA safetensors files into one, applying individual strength values to each.
 
-**Usage:**
+**Example Usage:**
 
 .. code-block:: bash
 
@@ -19,6 +19,10 @@ This script merges several LoRA safetensors files into one, applying individual 
 - ``-o``, ``--output-path``: Output path for the composed LoRA safetensors file.
 
 This will merge ``lora1.safetensors`` (strength 0.8) and ``lora2.safetensors`` (strength 1.0) into ``composed_lora.safetensors``.
+
+**Main Function**
+
+:func:`compose_lora`
 """
 
 import argparse

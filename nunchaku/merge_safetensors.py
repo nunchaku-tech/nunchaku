@@ -1,9 +1,7 @@
 """
 Merge split safetensors model files into a single safetensors file.
 
-This script combines the ``unquantized_layers.safetensors`` and ``transformer_blocks.safetensors``
-files (and associated config files) from a local directory or a HuggingFace Hub repository
-into a single safetensors file with appropriate metadata.
+
 
 **Example usage**
 
@@ -16,10 +14,9 @@ into a single safetensors file with appropriate metadata.
 - ``-i``, ``--input-path`` (Path): Path to the model directory or HuggingFace repo.
 - ``-o``, ``--output-path`` (Path): Path to save the merged safetensors file.
 
-**Returns**
-
-The merged safetensors file at the specified output path, containing the full model
-and metadata including ``config``, ``comfy_config``, ``model_class``, and ``quantization_config``.
+It will combine the ``unquantized_layers.safetensors`` and ``transformer_blocks.safetensors``
+files (and associated config files) from a local directory or a HuggingFace Hub repository
+into a single safetensors file with appropriate metadata.
 
 **Main Function**
 
