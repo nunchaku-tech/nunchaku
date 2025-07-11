@@ -1,21 +1,5 @@
 """
-Nunchaku FLUX Transformer Model for Diffusers
-=============================================
-
-This module provides the NunchakuFluxTransformer2dModel, a quantized transformer model
-compatible with the Diffusers library, designed for efficient inference and LoRA support.
-
-Classes and Functions
----------------------
-- NunchakuFluxTransformerBlocks: Quantized transformer block wrapper.
-- NunchakuFluxTransformer2dModel: Main model class for Nunchaku FLUX.
-- EmbedND: Multi-dimensional rotary embedding.
-- rope: Rotary positional embedding function.
-- load_quantized_module: Utility to load quantized model weights.
-
-This file also provides LoRA support, hardware compatibility checks, and utilities for
-injecting quantized modules and updating LoRA parameters.
-
+Implements the :class:`NunchakuFluxTransformer2dModel`, a quantized transformer for Diffusers with efficient inference and LoRA support.
 """
 
 import json
@@ -121,7 +105,8 @@ class NunchakuFluxTransformerBlocks(nn.Module):
         skip_first_layer=False,
     ):
         """
-        Forward pass for the quantized transformer blocks.
+        Forward pass for the quantized transformer blocks. 
+        It will call the forward method of ``m`` on the C backend.
 
         Parameters
         ----------
@@ -228,7 +213,7 @@ class NunchakuFluxTransformerBlocks(nn.Module):
         controlnet_single_block_samples=None,
     ):
         """
-        Forward pass for a specific transformer layer.
+        Forward pass for a specific transformer layer in ``m``.
 
         Parameters
         ----------
@@ -336,7 +321,7 @@ class NunchakuFluxTransformerBlocks(nn.Module):
         idx: int = 0,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """
-        Runs the norm_one_forward operation on the quantized model.
+        Runs the norm_one_forward for a specific layer in ``m``.
 
         Parameters
         ----------
@@ -678,6 +663,7 @@ class NunchakuFluxTransformer2dModel(FluxTransformer2DModel, NunchakuModelLoader
     def _expand_module(self, module_name: str, new_shape: tuple[int, int]):
         """
         Expands a linear module to a new shape for LoRA compatibility.
+        Mostly for FLUX.1-tools LoRA which changes the input channels.
 
         Parameters
         ----------
@@ -844,6 +830,8 @@ class NunchakuFluxTransformer2dModel(FluxTransformer2DModel, NunchakuModelLoader
         ----------
         strength : float, optional
             LoRA scaling strength (default: 1).
+
+        Note: This function will change the strength of all the LoRAs. So only use it when you only have a single LoRA.
         """
         block = self.transformer_blocks[0]
         assert isinstance(block, NunchakuFluxTransformerBlocks)
@@ -857,6 +845,7 @@ class NunchakuFluxTransformer2dModel(FluxTransformer2DModel, NunchakuModelLoader
     def reset_x_embedder(self):
         """
         Resets the x_embedder module if the input channel count has changed.
+        This is used for removing the effect of FLUX.1-tools LoRA which changes the input channels.
         """
         # if change the model in channels, we need to update the x_embedder
         if self._original_in_channels != self.config.in_channels:
