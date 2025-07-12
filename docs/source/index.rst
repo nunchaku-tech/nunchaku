@@ -12,12 +12,6 @@ Check out `DeepCompressor <deepcompressor_repo>`_ for the quantization library.
    installation/setup_windows.rst
 
 .. toctree::
-    :maxdepth: 2
-    :caption: Basic Usage
-
-    basic_usage/basic_usage.rst
-
-.. toctree::
     :maxdepth: 1
     :caption: Usage Tutorials
 

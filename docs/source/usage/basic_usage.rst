@@ -21,12 +21,12 @@ Nunchaku provides the same API as `Diffusers <diffusers_repo_>`_, so you can use
          :linenos:
 
 The key difference when using Nunchaku is replacing the standard ``FluxTransformer2dModel`` 
-with ``NunchakuFluxTransformer2dModel``. The ``NunchakuFluxTransformer2dModel.from_pretrained`` 
+with :class:`~nunchaku.models.transformers.transformer_flux.NunchakuFluxTransformer2dModel`. The :meth:`~nunchaku.models.transformers.transformer_flux.NunchakuFluxTransformer2dModel.from_pretrained` 
 method loads quantized models and accepts either Hugging Face remote file paths or local file paths.
 
 .. note::
 
-   The ``get_precision()`` function automatically detects whether your GPU supports INT4 or FP4 quantization. 
+   The :func:`~nunchaku.utils.get_precision` function automatically detects whether your GPU supports INT4 or FP4 quantization. 
    Use FP4 models for Blackwell GPUs (RTX 50-series) and INT4 models for other architectures.
 
 .. note::

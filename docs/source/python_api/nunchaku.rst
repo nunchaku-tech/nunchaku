@@ -12,6 +12,7 @@ Subpackages
    nunchaku.lora
    nunchaku.pipeline
    nunchaku.caching
+   nunchaku.utils
 
 Utility Scripts
 ---------------
