@@ -58,8 +58,10 @@ Check out `DeepCompressor <deepcompressor_repo>`_ for the quantization library.
     python_api/nunchaku.rst
 
 .. toctree::
-    :maxdepth: 2
-    :caption: FAQ
+    :maxdepth: 1
+    :caption: Frequently Asked Questions (FAQ)
+
+    faq/faq.rst
 
 .. toctree::
     :maxdepth: 2
