@@ -29,6 +29,7 @@ extensions = [
     "sphinx.ext.autosectionlabel",
     "sphinx.ext.intersphinx",
     "sphinx_tabs.tabs",
+    "sphinx.ext.extlinks",
     "myst_parser",
     "sphinx_copybutton",
     "sphinxcontrib.mermaid",
@@ -54,3 +55,8 @@ html_static_path = ["_static"]
 
 napoleon_google_docstring = False
 napoleon_numpy_docstring = True
+
+extlinks = {
+    "nunchaku-issue": ("https://github.com/mit-han-lab/nunchaku/issues/%s", "nunchaku#%s"),
+    "comfyui-issue": ("https://github.com/mit-han-lab/ComfyUI-nunchaku/issues/%s", "ComfyUI-nunchaku#%s"),
+}

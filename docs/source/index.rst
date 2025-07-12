@@ -61,8 +61,11 @@ Check out `DeepCompressor <deepcompressor_repo>`_ for the quantization library.
     :maxdepth: 1
     :caption: Frequently Asked Questions (FAQ)
 
-    faq/faq.rst
+    faq/model.rst
+    faq/usage.rst
 
 .. toctree::
     :maxdepth: 2
     :caption: Developer Guidance
+
+    developer/contribution_guide.rst
