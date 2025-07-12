@@ -1,5 +1,5 @@
-nunchaku.caching.utils module
-=============================
+nunchaku.caching.utils
+======================
 
 .. automodule:: nunchaku.caching.utils
    :members:

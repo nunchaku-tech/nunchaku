@@ -1,13 +1,10 @@
-nunchaku.caching.diffusers\_adapters package
-============================================
+nunchaku.caching.diffusers\_adapters
+====================================
 
 .. automodule:: nunchaku.caching.diffusers_adapters
    :members:
    :undoc-members:
    :show-inheritance:
-
-Submodules
-----------
 
 .. toctree::
    :maxdepth: 4

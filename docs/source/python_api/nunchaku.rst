@@ -1,5 +1,6 @@
-nunchaku package
-================
+nunchaku
+========
+
 
 Subpackages
 -----------
@@ -7,16 +8,16 @@ Subpackages
 .. toctree::
    :maxdepth: 4
 
-   nunchaku.caching
-   nunchaku.lora
    nunchaku.models
+   nunchaku.lora
    nunchaku.pipeline
+   nunchaku.caching
 
-Submodules
-----------
+Utility Scripts
+---------------
 
 .. toctree::
-   :maxdepth: 4
+   :maxdepth: 1
 
    nunchaku.merge_safetensors
    nunchaku.test

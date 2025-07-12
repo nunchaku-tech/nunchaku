@@ -1,8 +1,5 @@
-nunchaku.models.transformers package
-====================================
-
-Submodules
-----------
+nunchaku.models.transformers
+============================
 
 .. toctree::
    :maxdepth: 4

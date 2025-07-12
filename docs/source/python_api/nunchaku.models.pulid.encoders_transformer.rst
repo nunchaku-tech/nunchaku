@@ -1,5 +1,5 @@
-nunchaku.models.pulid.encoders\_transformer module
-==================================================
+nunchaku.models.pulid.encoders\_transformer
+===========================================
 
 .. automodule:: nunchaku.models.pulid.encoders_transformer
    :members:

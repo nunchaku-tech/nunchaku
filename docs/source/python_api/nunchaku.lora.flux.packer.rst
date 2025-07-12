@@ -1,5 +1,5 @@
-nunchaku.lora.flux.packer module
-================================
+nunchaku.lora.flux.packer
+=========================
 
 .. automodule:: nunchaku.lora.flux.packer
    :members:

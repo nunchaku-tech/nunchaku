@@ -1,5 +1,5 @@
-nunchaku.models.text\_encoders.linear module
-============================================
+nunchaku.models.text\_encoders.linear
+=====================================
 
 .. automodule:: nunchaku.models.text_encoders.linear
    :members:

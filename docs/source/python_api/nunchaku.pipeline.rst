@@ -1,8 +1,5 @@
-nunchaku.pipeline package
-=========================
-
-Submodules
-----------
+nunchaku.pipeline
+=================
 
 .. toctree::
    :maxdepth: 4

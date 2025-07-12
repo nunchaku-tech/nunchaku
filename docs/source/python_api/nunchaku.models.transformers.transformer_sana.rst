@@ -1,5 +1,5 @@
-nunchaku.models.transformers.transformer\_sana module
-=====================================================
+nunchaku.models.transformers.transformer\_sana
+==============================================
 
 .. automodule:: nunchaku.models.transformers.transformer_sana
    :members:

@@ -1,5 +1,5 @@
-nunchaku.lora.flux.utils module
-===============================
+nunchaku.lora.flux.utils
+========================
 
 .. automodule:: nunchaku.lora.flux.utils
    :members:

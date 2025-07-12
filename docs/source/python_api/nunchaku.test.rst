@@ -1,5 +1,5 @@
-nunchaku.test module
-====================
+nunchaku.test
+=============
 
 .. automodule:: nunchaku.test
    :members:

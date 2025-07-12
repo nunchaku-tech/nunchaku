@@ -1,5 +1,5 @@
-nunchaku.caching.diffusers\_adapters.sana module
-================================================
+nunchaku.caching.diffusers\_adapters.sana
+=========================================
 
 .. automodule:: nunchaku.caching.diffusers_adapters.sana
    :members:

@@ -1,5 +1,5 @@
-nunchaku.models.pulid.utils module
-==================================
+nunchaku.models.pulid.utils
+===========================
 
 .. automodule:: nunchaku.models.pulid.utils
    :members:

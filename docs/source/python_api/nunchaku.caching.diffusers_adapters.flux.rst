@@ -1,5 +1,5 @@
-nunchaku.caching.diffusers\_adapters.flux module
-================================================
+nunchaku.caching.diffusers\_adapters.flux
+=========================================
 
 .. automodule:: nunchaku.caching.diffusers_adapters.flux
    :members:

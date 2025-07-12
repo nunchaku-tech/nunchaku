@@ -1,5 +1,5 @@
-nunchaku.lora.flux.nunchaku\_converter module
-=============================================
+nunchaku.lora.flux.nunchaku\_converter
+======================================
 
 .. automodule:: nunchaku.lora.flux.nunchaku_converter
    :members:

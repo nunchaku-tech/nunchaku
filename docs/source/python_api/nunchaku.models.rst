@@ -1,20 +1,10 @@
-nunchaku.models package
-=======================
-
-Subpackages
------------
+nunchaku.models
+===============
 
 .. toctree::
    :maxdepth: 4
 
-   nunchaku.models.pulid
-   nunchaku.models.text_encoders
    nunchaku.models.transformers
-
-Submodules
-----------
-
-.. toctree::
-   :maxdepth: 4
-
+   nunchaku.models.text_encoders
+   nunchaku.models.pulid
    nunchaku.models.safety_checker

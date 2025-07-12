@@ -1,5 +1,5 @@
-nunchaku.models.transformers.utils module
-=========================================
+nunchaku.models.transformers.utils
+==================================
 
 .. automodule:: nunchaku.models.transformers.utils
    :members:

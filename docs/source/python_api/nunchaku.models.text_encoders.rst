@@ -1,13 +1,5 @@
-nunchaku.models.text\_encoders package
-======================================
-
-.. automodule:: nunchaku.models.text_encoders
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-Submodules
-----------
+nunchaku.models.text\_encoders
+==============================
 
 .. toctree::
    :maxdepth: 4

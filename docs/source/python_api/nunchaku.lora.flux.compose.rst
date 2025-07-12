@@ -1,5 +1,5 @@
-nunchaku.lora.flux.compose module
-=================================
+nunchaku.lora.flux.compose
+==========================
 
 .. automodule:: nunchaku.lora.flux.compose
    :members:

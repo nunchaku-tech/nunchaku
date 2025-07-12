@@ -4,14 +4,14 @@ Caching utilities for transformer models.
 Implements first-block caching to accelerate transformer inference by reusing computations
 when input changes are minimal. Supports SANA and Flux architectures.
 
-Main Classes
-------------
+**Main Classes**
+
 - :class:`CacheContext` : Manages cache buffers and incremental naming.
 - :class:`SanaCachedTransformerBlocks` : Cached transformer blocks for SANA models.
 - :class:`FluxCachedTransformerBlocks` : Cached transformer blocks for Flux models.
 
-Key Functions
--------------
+**Key Functions**
+
 - :func:`get_buffer`, :func:`set_buffer` : Cache buffer management.
 - :func:`cache_context` : Context manager for cache operations.
 - :func:`are_two_tensors_similar` : Tensor similarity check.
@@ -19,8 +19,8 @@ Key Functions
 - :func:`get_can_use_cache` : Checks cache usability.
 - :func:`check_and_apply_cache` : Main cache logic.
 
-Caching Strategy
-----------------
+**Caching Strategy**
+
 1. Compute the first transformer block.
 2. Compare the residual with the cached residual.
 3. If similar, reuse cached results for the remaining blocks; otherwise, recompute and update cache.

@@ -1,5 +1,5 @@
-nunchaku.models.pulid.pulid\_forward module
-===========================================
+nunchaku.models.pulid.pulid\_forward
+====================================
 
 .. automodule:: nunchaku.models.pulid.pulid_forward
    :members:

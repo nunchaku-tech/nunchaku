@@ -1,5 +1,5 @@
-nunchaku.merge\_safetensors module
-==================================
+nunchaku.merge\_safetensors
+===========================
 
 .. automodule:: nunchaku.merge_safetensors
    :members:

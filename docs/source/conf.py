@@ -54,5 +54,3 @@ html_static_path = ["_static"]
 
 napoleon_google_docstring = False
 napoleon_numpy_docstring = True
-
-suppress_warnings = ["autosectionlabel.*"]

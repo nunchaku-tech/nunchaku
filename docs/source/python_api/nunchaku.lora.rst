@@ -1,13 +1,5 @@
-nunchaku.lora package
-=====================
-
-.. automodule:: nunchaku.lora
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-Subpackages
------------
+nunchaku.lora
+=============
 
 .. toctree::
    :maxdepth: 4
