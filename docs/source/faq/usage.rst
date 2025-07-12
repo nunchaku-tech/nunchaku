@@ -16,7 +16,7 @@ If you encounter out-of-memory errors or notice that model loading is unusually 
 Why do the same seeds produce slightly different images with Nunchaku?
 ----------------------------------------------------------------------
 
-This behavior is due to minor precision noise introduced by the GPU’s accumulation order. 
+This behavior is due to minor precision noise introduced by the GPU’s accumulation order.
 Because modern GPUs execute operations out of order for better performance, small variations in output can occur, even with the same seed.
 Enforcing strict accumulation order would reduce this variability but significantly hurt performance, so we do not plan to change this behavior.
 

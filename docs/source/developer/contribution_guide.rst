@@ -3,9 +3,9 @@
 Contribution Guide
 ==================
 
-Welcome to **Nunchaku**! We appreciate your interest in contributing. 
-This guide outlines how to set up your environment, run tests, and submit a Pull Request (PR). 
-Whether you're fixing a minor bug or implementing a major feature, we encourage you to 
+Welcome to **Nunchaku**! We appreciate your interest in contributing.
+This guide outlines how to set up your environment, run tests, and submit a Pull Request (PR).
+Whether you're fixing a minor bug or implementing a major feature, we encourage you to
 follow these steps for a smooth and efficient contribution process.
 
 🚀 Setting Up & Building from Source
@@ -63,7 +63,7 @@ Running the Tests
 
 .. note::
 
-   ``$YOUR_HF_TOKEN`` refers to your Hugging Face access token, required to download models and datasets. 
+   ``$YOUR_HF_TOKEN`` refers to your Hugging Face access token, required to download models and datasets.
    You can create one at https://huggingface.co/settings/tokens.
    If you've already logged in using ``huggingface-cli login``,
    you can skip setting this environment variable.
