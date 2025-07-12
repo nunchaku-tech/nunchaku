@@ -48,9 +48,7 @@ with open(Path(__file__).parent / "links.rst", encoding="utf-8") as f:
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-# html_permalinks_icon = "<span>#</span>"
-# html_theme = "sphinxawesome_theme"
-html_theme = "furo"
+html_theme = "sphinx_book_theme"
 html_static_path = ["_static"]
 
 napoleon_google_docstring = False

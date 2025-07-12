@@ -1,5 +1,5 @@
-Basic Usage Tutorial
-====================
+Basic Usage
+===========
 
 The following is a minimal script for running 4-bit `FLUX.1 <flux_repo_>`_ using Nunchaku.
 Nunchaku provides the same API as `Diffusers <diffusers_repo_>`_, so you can use it in a familiar way.
@@ -20,11 +20,16 @@ Nunchaku provides the same API as `Diffusers <diffusers_repo_>`_, so you can use
          :caption: Running FLUX.1-dev on Turing GPUs (`examples/flux.1-dev-turing.py <https://github.com/mit-han-lab/nunchaku/blob/main/examples/flux.1-dev-turing.py>`__)
          :linenos:
 
-The key difference when using Nunchaku is replacing the standard ``FluxTransformer2dModel`` with ``NunchakuFluxTransformer2dModel``. The ``NunchakuFluxTransformer2dModel.from_pretrained`` method loads quantized models and accepts either Hugging Face remote file paths or local file paths.
+The key difference when using Nunchaku is replacing the standard ``FluxTransformer2dModel`` 
+with :class:`~nunchaku.models.transformers.NunchakuFluxTransformer2dModel`.
+The :meth:`~nunchaku.models.transformers.NunchakuFluxTransformer2dModel.from_pretrained` 
+method loads quantized models and accepts either Hugging Face remote file paths or local file paths.
 
 .. note::
 
-   The ``get_precision()`` function automatically detects whether your GPU supports INT4 or FP4 quantization. Use FP4 models for Blackwell GPUs (RTX 50-series) and INT4 models for other architectures.
+   The :func:`~nunchaku.utils.get_precision` 
+   function automatically detects whether your GPU supports INT4 or FP4 quantization. 
+   Use FP4 models for Blackwell GPUs (RTX 50-series) and INT4 models for other architectures.
 
 .. note::
 

@@ -19,16 +19,17 @@ Check out `DeepCompressor <deepcompressor_repo>`_ for the quantization library.
 
 .. toctree::
     :maxdepth: 1
-    :caption: Advanced Features
+    :caption: Usage Tutorials
 
-    advanced_features/lora.rst
-    advanced_features/kontext.rst
-    advanced_features/controlnet.rst
-    advanced_features/qencoder.rst
-    advanced_features/offload.rst
-    advanced_features/attention.rst
-    advanced_features/fbcache.rst
-    advanced_features/pulid.rst
+    usage/basic_usage.rst
+    usage/lora.rst
+    usage/kontext.rst
+    usage/controlnet.rst
+    usage/qencoder.rst
+    usage/offload.rst
+    usage/attention.rst
+    usage/fbcache.rst
+    usage/pulid.rst
 
 .. toctree::
     :maxdepth: 1
