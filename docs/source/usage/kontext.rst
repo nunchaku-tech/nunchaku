@@ -6,7 +6,7 @@ FLUX.1-Kontext
 
 Nunchaku supports `FLUX-Kontext-dev <_flux1_kontext_dev>`_,
 an advanced model that enables precise image editing through natural language prompts.
-The implementation follows the same pattern as described in :doc:`Basic Usage <../basic_usage/basic_usage>`.
+The implementation follows the same pattern as described in :doc:`Basic Usage <./basic_usage>`.
 
 .. literalinclude:: ../../../examples/flux.1-kontext-dev.py
    :language: python

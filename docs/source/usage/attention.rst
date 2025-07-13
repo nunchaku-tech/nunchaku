@@ -10,6 +10,8 @@ and 50-series GPUs compared to FlashAttention-2, without precision loss.
    :linenos:
    :emphasize-lines: 11
 
-The key change from `basic usage <../basic_usage/basic_usage>`_ is use ``transformer.set_attention_impl("nunchaku-fp16")`` to enable FP16 attention.
+The key change from `Basic Usage <./basic_usage>`_ is use ``transformer.set_attention_impl("nunchaku-fp16")`` to enable FP16 attention.
 While FlashAttention-2 is the default, FP16 attention offers better performance on modern NVIDIA GPUs.
-Switch back with ``transformer.set_attention_impl("flash-attention2")``.
+Switch back with ``transformer.set_attention_impl("flash-attention2")``. 
+
+For more details, see :meth:`~nunchaku.models.transformers.transformer_flux.NunchakuFluxTransformer2dModel.set_attention_impl`.

@@ -647,12 +647,15 @@ class NunchakuFluxTransformer2dModel(FluxTransformer2DModel, NunchakuModelLoader
 
     def set_attention_impl(self, impl: str):
         """
-        Sets the attention implementation for the quantized transformer block.
+        Set the attention implementation for the quantized transformer block.
 
         Parameters
         ----------
         impl : str
-            Name of the attention implementation.
+            Attention implementation to use. Supported values:
+            
+            - ``"flash-attention2"`` (default): Standard FlashAttention-2.
+            - ``"nunchaku-fp16"``: Uses FP16 attention accumulation, up to 1.2× faster than FlashAttention-2 on NVIDIA 30-, 40-, and 50-series GPUs.
         """
         block = self.transformer_blocks[0]
         assert isinstance(block, NunchakuFluxTransformerBlocks)
@@ -774,12 +777,16 @@ class NunchakuFluxTransformer2dModel(FluxTransformer2DModel, NunchakuModelLoader
 
     def update_lora_params(self, path_or_state_dict: str | dict[str, torch.Tensor]):
         """
-        Updates the model with new LoRA parameters.
+        Update the model with new LoRA parameters.
 
         Parameters
         ----------
         path_or_state_dict : str or dict
-            Path to the LoRA state dict or the state dict itself.
+            Path to a LoRA weights file or a state dict. The path supports:
+            
+            - Local file path, e.g., ``"/path/to/your/lora.safetensors"``
+            - HuggingFace repo with file, e.g., ``"user/repo/lora.safetensors"``
+              (automatically downloaded and cached)
         """
         if isinstance(path_or_state_dict, dict):
             state_dict = {

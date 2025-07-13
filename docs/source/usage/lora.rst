@@ -21,18 +21,18 @@ Below is an example of running FLUX.1-dev with `Ghibsky <ghibsky_lora_>`_ LoRA.
 The LoRA integration in Nunchaku works through two key methods:
 
 **Loading LoRA Parameters** (lines 16-17):
-The ``transformer.update_lora_params`` method loads LoRA weights from a safetensors file. It supports:
+The :meth:`~nunchaku.models.transformers.transformer_flux.NunchakuFluxTransformer2dModel.update_lora_params` method loads LoRA weights from a safetensors file. It supports:
 
 - **Local file path**: ``"/path/to/your/lora.safetensors"``
 - **HuggingFace repository with specific file**: ``"aleksa-codes/flux-ghibsky-illustration/lora.safetensors"``. The system automatically downloads and caches the LoRA file on first access.
 
 **Controlling LoRA Strength** (lines 18-19):
-The ``transformer.set_lora_strength`` method sets the LoRA strength parameter, which controls how much influence the LoRA has on the final output. A value of 1.0 applies the full LoRA effect, while lower values (e.g., 0.5) apply a more subtle influence.
+The :meth:`~nunchaku.models.transformers.transformer_flux.NunchakuFluxTransformer2dModel.set_lora_strength` method sets the LoRA strength parameter, which controls how much influence the LoRA has on the final output. A value of 1.0 applies the full LoRA effect, while lower values (e.g., 0.5) apply a more subtle influence.
 
 Multiple LoRAs
 --------------
 
-To load multiple LoRAs simultaneously, Nunchaku provides the ``nunchaku.lora.flux.compose.compose_lora`` function,
+To load multiple LoRAs simultaneously, Nunchaku provides the :func:`~nunchaku.lora.flux.compose.compose_lora` function,
 which combines multiple LoRA weights into a single composed LoRA before loading.
 This approach enables efficient multi-LoRA inference without requiring separate loading operations.
 
@@ -44,7 +44,7 @@ The following example demonstrates how to compose and load multiple LoRAs:
    :linenos:
    :emphasize-lines: 17-23
 
-The ``compose_lora`` function accepts a list of tuples, where each tuple contains:
+The :func:`~nunchaku.lora.flux.compose.compose_lora` function accepts a list of tuples, where each tuple contains:
 
 - **LoRA path**: Either a local file path or HuggingFace repository path with specific file
 - **Strength value**: A float value (typically between 0.0 and 1.0) that controls the influence of that specific LoRA
@@ -53,7 +53,11 @@ This composition method allows for precise control over individual LoRA strength
 
 .. warning::
 
-   When using multiple LoRAs, the ``transformer.set_lora_strength`` method applies a uniform strength value across all loaded LoRAs, which may not provide the desired level of control. For precise management of individual LoRA influences, specify strength values for each LoRA within the ``compose_lora`` function call.
+   When using multiple LoRAs,
+   the :meth:`~nunchaku.models.transformers.transformer_flux.NunchakuFluxTransformer2dModel.set_lora_strength` method
+   applies a uniform strength value across all loaded LoRAs, which may not provide the desired level of control.
+   For precise management of individual LoRA influences, specify strength values for each LoRA within the
+   :func:`~nunchaku.lora.flux.compose.compose_lora` function call.
 
 .. warning::
 
@@ -65,37 +69,44 @@ LoRA Conversion
 ---------------
 
 Nunchaku utilizes the `Diffusers <diffusers_repo_>`_ LoRA format as an intermediate representation for converting LoRAs to Nunchaku's native format.
-Both the ``transformer.update_lora_params`` method and ``compose_lora`` function internally invoke the `to_diffusers <to_diffusers_lora_>`_ method to convert LoRAs to the `Diffusers <diffusers_repo_>`_ format.
+Both the :meth:`~nunchaku.models.transformers.transformer_flux.NunchakuFluxTransformer2dModel.update_lora_params` method and :func:`~nunchaku.lora.flux.compose.compose_lora` function internally invoke the `to_diffusers <to_diffusers_lora_>`_ method to convert LoRAs to the `Diffusers <diffusers_repo_>`_ format.
 If LoRA functionality is not working as expected, verify that the LoRA has been properly converted to the `Diffusers <diffusers_repo_>`_ format. Please check `to_diffusers <to_diffusers_lora_>`_ for more details.
 
-Following the conversion to `Diffusers <diffusers_repo_>`_ format, the ``transformer.update_lora_params`` method calls the `to_nunchaku <to_nunchaku_lora_>`_ method to perform the final conversion to Nunchaku's format.
+Following the conversion to `Diffusers <diffusers_repo_>`_ format,
+the :meth:`~nunchaku.models.transformers.transformer_flux.NunchakuFluxTransformer2dModel.update_lora_params`
+method calls the :func:`~nunchaku.lora.flux.nunchaku_converter.to_nunchaku` function
+to perform the final conversion to Nunchaku's format.
 
 Exporting Converted LoRAs
 -------------------------
 
 The current implementation employs single-threaded conversion, which may result in extended processing times, particularly for large LoRA files.
-To address this limitation, users can pre-compose LoRAs using the ``python -m nunchaku.lora.flux.compose`` command-line interface.
+To address this limitation, users can pre-compose LoRAs using the :mod:`nunchaku.lora.flux.compose` command-line interface.
 The syntax is as follows:
 
 .. code-block:: bash
 
    python -m nunchaku.lora.flux.compose -i lora1.safetensors lora2.safetensors -s 0.8 0.6 -o composed_lora.safetensors
 
-Parameters:
+**Arguments**:
 
-- ``-i, --input-paths``: Paths to the LoRA safetensors files (supports multiple files)
-- ``-s, --strengths``: Strength values for each LoRA (must correspond to the number of input files)
-- ``-o, --output-path``: Output path for the composed LoRA safetensors file
+- ``-i``, ``--input-paths``: Paths to the LoRA safetensors files (supports multiple files)
+- ``-s``, ``--strengths``: Strength values for each LoRA (must correspond to the number of input files)
+- ``-o``, ``--output-path``: Output path for the composed LoRA safetensors file
 
-This command composes the specified LoRAs with their respective strength values and saves the result to the output file, which can subsequently be loaded using ``transformer.update_lora_params`` for optimized inference performance.
+This command composes the specified LoRAs with their respective strength values and saves the result to the output file,
+which can subsequently be loaded using :meth:`~nunchaku.models.transformers.transformer_flux.NunchakuFluxTransformer2dModel.update_lora_params` for optimized inference performance.
 
-Following composition, users may either load the file directly (via the ComfyUI LoRA loader or ``transformer.update_lora_params``) or utilize `python -m nunchaku.lora.flux.convert` to convert the composed LoRA to Nunchaku's format and export it. The syntax is as follows:
+Following composition, users may either load the file directly 
+(via the ComfyUI LoRA loader or :meth:`~nunchaku.models.transformers.transformer_flux.NunchakuFluxTransformer2dModel.update_lora_params`) 
+or utilize :mod:`nunchaku.lora.flux.convert` to convert the composed LoRA to Nunchaku's format and export it. 
+The syntax is as follows:
 
 .. code-block:: bash
 
    python -m nunchaku.lora.flux.convert --lora-path composed_lora.safetensors --quant-path mit-han-lab/svdq-int4-flux.1-dev/transformer_blocks.safetensors --output-root ./converted --dtype bfloat16
 
-Parameters:
+**Arguments**:
 
 - ``--lora-path``: Path to the LoRA weights safetensor file (required)
 - ``--quant-path``: Path to the quantized model safetensor file (default: ``mit-han-lab/svdq-int4-flux.1-dev/transformer_blocks.safetensors``)

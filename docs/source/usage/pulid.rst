@@ -15,11 +15,14 @@ Implementation Overview
 The PuLID integration follows these key steps:
 
 **Model Initialization** (lines 12-20):
-Load a Nunchaku FLUX.1-dev model using ``NunchakuFluxTransformer2dModel`` and initialize the FLUX PuLID pipeline with ``PuLIDFluxPipeline``.
+Load a Nunchaku FLUX.1-dev model using :class:`~nunchaku.models.transformers.transformer_flux.NunchakuFluxTransformer2dModel`
+and initialize the FLUX PuLID pipeline with :class:`~nunchaku.pipeline.pipeline_flux_pulid.PuLIDFluxPipeline`.
 
 **Forward Method Override** (line 22):
-Replace the transformer's forward method with PuLID's specialized implementation using ``MethodType(pulid_forward, pipeline.transformer)``.
+Replace the transformer's forward method with PuLID's specialized implementation using
+``MethodType(pulid_forward, pipeline.transformer)``.
 This modification enables identity-aware generation capabilities.
+See :meth:`~nunchaku.models.pulid.pulid_forward.pulid_forward` for more details.
 
 **Reference Image Processing** (line 24):
 Load and prepare the reference identity image that will guide the generation process.

@@ -9,7 +9,7 @@ Nunchaku supports `First-Block Cache (FB Cache) <fbcache>`_ for faster long-step
    :linenos:
    :emphasize-lines: 15-17
 
-Enable it with:
+Enable it with :func:`~nunchaku.caching.diffusers_adapters.flux.apply_cache_on_pipe`:
 
 .. code-block:: python
 
