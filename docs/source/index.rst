@@ -27,40 +27,23 @@ Check out `DeepCompressor <deepcompressor_repo>`_ for the quantization library.
 
 .. toctree::
     :maxdepth: 1
-    :caption: Gradio Demos
-    :titlesonly:
-
-    Gradio Demos <https://github.com/mit-han-lab/nunchaku/tree/main/app>
-
-.. toctree::
-    :maxdepth: 1
-    :caption: ComfyUI Support
-    :titlesonly:
-
-    ComfyUI-nunchaku Plugin <https://github.com/mit-han-lab/ComfyUI-nunchaku>
-
-.. toctree::
-    :maxdepth: 1
-    :caption: Customized Model Quantization
-    :titlesonly:
-
-    DeepCompressor <https://github.com/mit-han-lab/deepcompressor>
-
-.. toctree::
-    :maxdepth: 1
     :caption: Python API Reference
 
     python_api/nunchaku.rst
 
 .. toctree::
     :maxdepth: 1
-    :caption: Frequently Asked Questions (FAQ)
+    :caption: Useful Tools
+    :titlesonly:
 
-    faq/model.rst
-    faq/usage.rst
+    ComfyUI Support: ComfyUI-nunchaku Plugin <https://github.com/mit-han-lab/ComfyUI-nunchaku>
+    Customized Model Quantization: DeepCompressor <https://github.com/mit-han-lab/deepcompressor>
+    Gradio Demos <https://github.com/mit-han-lab/nunchaku/tree/main/app>
+
 
 .. toctree::
-    :maxdepth: 2
-    :caption: Developer Guidance
+    :maxdepth: 1
+    :caption: Other Resources
 
+    faq/faq.rst
     developer/contribution_guide.rst
