@@ -97,9 +97,9 @@ The syntax is as follows:
 This command composes the specified LoRAs with their respective strength values and saves the result to the output file,
 which can subsequently be loaded using :meth:`~nunchaku.models.transformers.transformer_flux.NunchakuFluxTransformer2dModel.update_lora_params` for optimized inference performance.
 
-Following composition, users may either load the file directly 
-(via the ComfyUI LoRA loader or :meth:`~nunchaku.models.transformers.transformer_flux.NunchakuFluxTransformer2dModel.update_lora_params`) 
-or utilize :mod:`nunchaku.lora.flux.convert` to convert the composed LoRA to Nunchaku's format and export it. 
+Following composition, users may either load the file directly
+(via the ComfyUI LoRA loader or :meth:`~nunchaku.models.transformers.transformer_flux.NunchakuFluxTransformer2dModel.update_lora_params`)
+or utilize :mod:`nunchaku.lora.flux.convert` to convert the composed LoRA to Nunchaku's format and export it.
 The syntax is as follows:
 
 .. code-block:: bash
