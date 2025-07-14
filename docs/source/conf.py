@@ -15,8 +15,9 @@ author = "Nunchaku Team"
 version_path = Path(__file__).parent.parent.parent / "nunchaku" / "__version__.py"
 version_ns = {}
 exec(version_path.read_text(), {}, version_ns)
-version = release = version_ns["__version__"]
-# release = version
+version = version_ns["__version__"]
+version = version.replace("dev", "")
+release = version
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
