@@ -170,11 +170,15 @@ from nunchaku import NunchakuFluxTransformer2dModel
 from nunchaku.utils import get_precision
 
 precision = get_precision()  # 自动检测GPU支持的精度（int4或fp4）
-transformer = NunchakuFluxTransformer2dModel.from_pretrained(f"mit-han-lab/svdq-{precision}-flux.1-dev")
+transformer = NunchakuFluxTransformer2dModel.from_pretrained(
+    f"mit-han-lab/svdq-{precision}-flux.1-dev"
+)
 pipeline = FluxPipeline.from_pretrained(
     "black-forest-labs/FLUX.1-dev", transformer=transformer, torch_dtype=torch.bfloat16
 ).to("cuda")
-image = pipeline("举着'Hello World'标牌的猫咪", num_inference_steps=50, guidance_scale=3.5).images[0]
+image = pipeline(
+    "举着'Hello World'标牌的猫咪", num_inference_steps=50, guidance_scale=3.5
+).images[0]
 image.save(f"flux.1-dev-{precision}.png")
 ```
 
@@ -231,7 +235,9 @@ from nunchaku import NunchakuFluxTransformer2dModel
 from nunchaku.utils import get_precision
 
 precision = get_precision()  # 自动检测你的精度是 'int4' 还是 'fp4'，取决于你的 GPU
-transformer = NunchakuFluxTransformer2dModel.from_pretrained(f"mit-han-lab/svdq-{precision}-flux.1-dev")
+transformer = NunchakuFluxTransformer2dModel.from_pretrained(
+    f"mit-han-lab/svdq-{precision}-flux.1-dev"
+)
 pipeline = FluxPipeline.from_pretrained(
     "black-forest-labs/FLUX.1-dev", transformer=transformer, torch_dtype=torch.bfloat16
 ).to("cuda")
