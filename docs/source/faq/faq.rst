@@ -1,3 +1,5 @@
+.. _faq_faq:
+
 Frequently Asked Questions (FAQ)
 ================================
 

@@ -199,14 +199,16 @@ Clone the `ComfyUI-nunchaku <comfyui_nunchaku_>`_ plugin into the ``custom_nodes
    cd ComfyUI/custom_nodes
    git clone https://github.com/mit-han-lab/ComfyUI-nunchaku.git
 
-Alternatively, install it using `ComfyUI-Manager <comfyui_manager_>`_ or ``comfy-cli``.
+Alternatively, install it using `ComfyUI-Manager <comfyui_manager_repo_>`_ or `comfy-cli <comfy_cli_repo_>`_.
 
 2. Download Models
 ^^^^^^^^^^^^^^^^^^
 
 **Standard FLUX.1-dev Models**
 
-Start by downloading the standard `FLUX.1-dev text encoders <https://huggingface.co/comfyanonymous/flux_text_encoders/tree/main>`__ and `VAE <https://huggingface.co/black-forest-labs/FLUX.1-dev/blob/main/ae.safetensors>`__. You can also optionally download the original `BF16 FLUX.1-dev <https://huggingface.co/black-forest-labs/FLUX.1-dev/blob/main/flux1-dev.safetensors>`__ model. An example command:
+Start by downloading the standard `FLUX.1-dev text encoders <https://huggingface.co/comfyanonymous/flux_text_encoders>`__
+and `VAE <https://huggingface.co/black-forest-labs/FLUX.1-dev/blob/main/ae.safetensors>`__.
+You can also optionally download the original `BF16 FLUX.1-dev <https://huggingface.co/black-forest-labs/FLUX.1-dev/blob/main/flux1-dev.safetensors>`__ model. An example command:
 
 .. code-block:: bat
 
@@ -231,7 +233,7 @@ You can test with some sample LoRAs like `FLUX.1-Turbo <turbo_lora_>`_ and `Ghib
    huggingface-cli download alimama-creative/FLUX.1-Turbo-Alpha diffusion_pytorch_model.safetensors --local-dir models/loras
    huggingface-cli download aleksa-codes/flux-ghibsky-illustration lora.safetensors --local-dir models/loras
 
-3. Set Up Workflows
+1. Set Up Workflows
 ^^^^^^^^^^^^^^^^^^^
 
 To use the official workflows, download them from the `ComfyUI-nunchaku <comfyui_nunchaku_>`_ and place them in your ``ComfyUI/user/default/workflows`` directory. The command can be:

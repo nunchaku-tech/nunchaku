@@ -1,7 +1,5 @@
 """
-Merge split safetensors model files into a single safetensors file.
-
-
+Merge split safetensors model files (deprecated format) into a single safetensors file.
 
 **Example usage**
 

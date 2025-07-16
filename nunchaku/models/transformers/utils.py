@@ -26,11 +26,6 @@ logger = logging.getLogger(__name__)
 class NunchakuModelLoaderMixin:
     """
     Mixin for standardized model loading in Nunchaku transformer models.
-
-    Provides:
-
-    - :meth:`_build_model`: Load model from a safetensors file.
-    - :meth:`_build_model_legacy`: Load model from a legacy folder structure (deprecated).
     """
 
     @classmethod
@@ -71,8 +66,8 @@ class NunchakuModelLoaderMixin:
         Build a transformer model from a legacy folder structure.
 
         .. warning::
-            This method is deprecated and will be removed in v0.4.
-            Please migrate to safetensors-based model loading.
+            This method is deprecated and will be removed in December 2025.
+            Please use :meth:`_build_model` instead.
 
         Parameters
         ----------
@@ -87,7 +82,7 @@ class NunchakuModelLoaderMixin:
             (transformer, unquantized_part_path, transformer_block_path)
         """
         logger.warning(
-            "Loading models from a folder will be deprecated in v0.4. "
+            "Loading models from a folder will be deprecated in December 2025. "
             "Please download the latest safetensors model, or use one of the following tools to "
             "merge your model into a single file: the CLI utility `python -m nunchaku.merge_safetensors` "
             "or the ComfyUI workflow `merge_safetensors.json`."

@@ -1,3 +1,5 @@
+.. _installation_installation:
+
 Installation
 ============
 
@@ -96,7 +98,7 @@ Requirements
   - Linux: ``gcc/g++ >= 11``
   - Windows: Latest **MSVC** via `Visual Studio <visual_studio_>`_
 
-.. note::
+.. important::
 
    Currently supported GPU architectures:
 

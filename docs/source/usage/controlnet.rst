@@ -2,7 +2,7 @@ ControlNets
 ===========
 
 .. image:: https://huggingface.co/mit-han-lab/nunchaku-artifacts/resolve/main/nunchaku/assets/control.jpg
-   :alt: ControlNet integration with Nunchaku
+   :alt: ControlNet Integration with Nunchaku
 
 Nunchaku supports mainly two types of ControlNets for FLUX.1.
 The first one is `FLUX.1-tools <flux1_tools_>`_ from Black-Forest-Labs.
@@ -17,7 +17,7 @@ FLUX.1-tools Base Models
 Nunchaku provides quantized FLUX.1-tools base models.
 The implementation follows the same pattern as described in :doc:`Basic Usage <./basic_usage>`,
 utilizing an API interface compatible with `Diffusers <diffusers_repo_>`_
-where the ``FluxTransformer2dModel`` is replaced with ``NunchakuFluxTransformer2dModel``.
+where the ``FluxTransformer2dModel`` is replaced with :class:`~nunchaku.models.transformers.transformer_flux.NunchakuFluxTransformer2dModel`.
 The primary modification involves switching to the appropriate ControlNet pipeline.
 Refer to the following examples for detailed implementation guidance.
 
