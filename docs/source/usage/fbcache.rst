@@ -1,4 +1,4 @@
-.. _usage_fbcache:
+.. _usage-fbcache:
 
 First-Block Cache
 =================
