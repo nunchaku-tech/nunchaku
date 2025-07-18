@@ -43,8 +43,12 @@ templates_path = ["_templates"]
 exclude_patterns = []
 
 # -- Include global link definitions -----------------------------------------
-with open(Path(__file__).parent / "links.rst", encoding="utf-8") as f:
-    rst_epilog = f.read()
+links_dir = Path(__file__).parent / "links"
+rst_epilog = ""
+if links_dir.exists() and links_dir.is_dir():
+    for link_file in sorted(links_dir.glob("*.txt")):
+        with open(link_file, encoding="utf-8") as f:
+            rst_epilog += f.read()
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
@@ -58,4 +62,19 @@ napoleon_numpy_docstring = True
 extlinks = {
     "nunchaku-issue": ("https://github.com/nunchaku-tech/nunchaku/issues/%s", "nunchaku#%s"),
     "comfyui-issue": ("https://github.com/nunchaku-tech/ComfyUI-nunchaku/issues/%s", "ComfyUI-nunchaku#%s"),
+}
+
+html_favicon = "_static/nunchaku.ico"
+
+html_theme_options = {
+    "repository_url": "https://github.com/nunchaku-tech/nunchaku",
+    "use_repository_button": True,
+    "use_edit_page_button": True,
+    "use_issues_button": True,
+    "path_to_docs": "docs/source",
+    "repository_branch": "main",
+}
+
+intersphinx_mapping = {
+    "comfyui_nunchaku": ("https://nunchaku.tech/docs/ComfyUI-nunchaku", None),
 }

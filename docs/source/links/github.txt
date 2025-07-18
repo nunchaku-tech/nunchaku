@@ -1,0 +1,13 @@
+.. _github_deepcompressor: https://github.com/nunchaku-tech/deepcompressor
+.. _github_flux: https://github.com/black-forest-labs/flux
+.. _github_diffuser: https://github.com/huggingface/diffusers
+.. _github_comfyui-nunchaku: https://github.com/nunchaku-tech/ComfyUI-nunchaku
+.. _github_nunchaku: https://github.com/nunchaku-tech/nunchaku
+.. _github_nunchaku_releases: https://github.com/nunchaku-tech/nunchaku/releases
+.. _github_comfyui-nunchaku_example_workflows: https://github.com/nunchaku-tech/ComfyUI-nunchaku/tree/main/example_workflows
+.. _github_comfyui-manager: https://github.com/Comfy-Org/ComfyUI-Manager
+.. _github_comfyui: https://github.com/comfyanonymous/ComfyUI
+.. _github_comfy-cli: https://github.com/Comfy-Org/comfy-cli
+.. _github_fbcache: https://github.com/chengzeyi/ParaAttention?tab=readme-ov-file#first-block-cache-our-dynamic-caching
+.. _github_comfyui-manager_missing-nodes-installation: https://github.com/ltdrdata/ComfyUI-Manager?tab=readme-ov-file#support-of-missing-nodes-installation
+.. _github_comfyui_controlnet_aux: https://github.com/Fannovel16/comfyui_controlnet_aux

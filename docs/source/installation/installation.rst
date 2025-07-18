@@ -25,13 +25,13 @@ Installing Nunchaku
 
 Once PyTorch is installed, you can install ``nunchaku`` from one of the following sources:
 
-- `GitHub Releases <nunchaku_github_releases_>`_
-- `Hugging Face <nunchaku_huggingface_>`_
-- `ModelScope <nunchaku_modelscope_>`_
+- `GitHub Releases <github_nunchaku_releases_>`_
+- `Hugging Face <hf_nunchaku_>`_
+- `ModelScope <ms_nunchaku_>`_
 
 .. code-block:: shell
 
-    pip install https://github.com/mit-han-lab/nunchaku/releases/download/v0.3.1/nunchaku-0.3.1+torch2.7-cp311-cp311-linux_x86_64.whl
+    pip install https://github.com/nunchaku-tech/nunchaku/releases/download/v0.3.1/nunchaku-0.3.1+torch2.7-cp311-cp311-linux_x86_64.whl
 
 For ComfyUI Users
 ^^^^^^^^^^^^^^^^^
@@ -39,15 +39,17 @@ For ComfyUI Users
 If you're using the **ComfyUI portable package**,
 ensure that ``nunchaku`` is installed into the Python environment bundled with ComfyUI. You can either:
 
-- Use our **NunchakuWheelInstaller Node** in `ComfyUI-nunchaku <comfyui_nunchaku_>`_, or
+- Use our :ref:`comfyui_nunchaku:install-wheel-json` workflow, or
 - Manually install the wheel using the correct Python path.
 
-Option 1: Using NunchakuWheelInstaller
-""""""""""""""""""""""""""""""""""""""
+Option 1: Using ``install_wheel.json`` workflow
+"""""""""""""""""""""""""""""""""""""""""""""""
 
-With `ComfyUI-nunchaku <comfyui_nunchaku_>`_ v0.3.2+, you can install Nunchaku using the provided `workflow <comfyui_nunchaku_wheel_installation_workflow_>`_ directly in ComfyUI.
+With `ComfyUI-nunchaku <github_comfyui-nunchaku_>`_ v0.3.2+,
+you can install Nunchaku using the provided
+:ref:`comfyui_nunchaku:install-wheel-json` workflow directly in ComfyUI.
 
-.. image:: https://huggingface.co/mit-han-lab/nunchaku-artifacts/resolve/main/ComfyUI-nunchaku/assets/install_wheel.png
+.. image:: https://huggingface.co/datasets/nunchaku-tech/cdn/resolve/main/ComfyUI-nunchaku/workflows/install_wheel.png
 
 Option 2: Manual Installation
 """""""""""""""""""""""""""""
@@ -71,7 +73,7 @@ To find the correct Python path:
 
    .. code-block:: bat
 
-       "G:\ComfyUI\python\python.exe" -m pip install https://github.com/mit-han-lab/nunchaku/releases/download/v0.3.1/nunchaku-0.3.1+torch2.7-cp311-cp311-linux_x86_64.whl
+       "G:\ComfyUI\python\python.exe" -m pip install https://github.com/nunchaku-tech/nunchaku/releases/download/v0.3.1/nunchaku-0.3.1+torch2.7-cp311-cp311-linux_x86_64.whl
 
 For Blackwell GPUs (50-series)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -146,7 +148,7 @@ For Windows users, download and install the latest `Visual Studio <visual_studio
 
 .. code-block:: shell
 
-    git clone https://github.com/mit-han-lab/nunchaku.git
+    git clone https://github.com/nunchaku-tech/nunchaku.git
     cd nunchaku
     git submodule init
     git submodule update
