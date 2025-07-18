@@ -1,20 +1,20 @@
 Customized LoRAs
 ================
 
-.. image:: https://huggingface.co/mit-han-lab/nunchaku-artifacts/resolve/main/nunchaku/assets/lora.jpg
+.. image:: https://huggingface.co/datasets/nunchaku-tech/cdn/resolve/main/nunchaku/assets/lora.jpg
    :alt: LoRA integration with Nunchaku
 
 Single LoRA
 -----------
 
-`Nunchaku <nunchaku_repo_>`_ seamlessly integrates with off-the-shelf LoRAs without requiring requantization.
+`Nunchaku <github_nunchaku_>`_ seamlessly integrates with off-the-shelf LoRAs without requiring requantization.
 Instead of fusing the LoRA branch into the main branch, we directly concatenate the LoRA weights to our low-rank branch.
 As Nunchaku uses fused kernel, the overhead of a separate low-rank branch is largely reduced.
-Below is an example of running FLUX.1-dev with `Ghibsky <ghibsky_lora_>`_ LoRA.
+Below is an example of running FLUX.1-dev with `Ghibsky <hf_lora_ghibsky_>`_ LoRA.
 
 .. literalinclude:: ../../../examples/flux.1-dev-lora.py
    :language: python
-   :caption: Running FLUX.1-dev with `Ghibsky <ghibsky_lora_>`_  LoRA (`examples/flux.1-dev-lora.py <https://github.com/mit-han-lab/nunchaku/blob/main/examples/flux.1-dev-lora.py>`__)
+   :caption: Running FLUX.1-dev with `Ghibsky <hf_lora_ghibsky_>`_  LoRA (`examples/flux.1-dev-lora.py <https://github.com/nunchaku-tech/nunchaku/blob/main/examples/flux.1-dev-lora.py>`__)
    :linenos:
    :emphasize-lines: 16-19
 
@@ -24,10 +24,13 @@ The LoRA integration in Nunchaku works through two key methods:
 The :meth:`~nunchaku.models.transformers.transformer_flux.NunchakuFluxTransformer2dModel.update_lora_params` method loads LoRA weights from a safetensors file. It supports:
 
 - **Local file path**: ``"/path/to/your/lora.safetensors"``
-- **HuggingFace repository with specific file**: ``"aleksa-codes/flux-ghibsky-illustration/lora.safetensors"``. The system automatically downloads and caches the LoRA file on first access.
+- **HuggingFace repository with specific file**: ``"aleksa-codes/flux-ghibsky-illustration/lora.safetensors"``.
+  The system automatically downloads and caches the LoRA file on first access.
 
 **Controlling LoRA Strength** (lines 18-19):
-The :meth:`~nunchaku.models.transformers.transformer_flux.NunchakuFluxTransformer2dModel.set_lora_strength` method sets the LoRA strength parameter, which controls how much influence the LoRA has on the final output. A value of 1.0 applies the full LoRA effect, while lower values (e.g., 0.5) apply a more subtle influence.
+The :meth:`~nunchaku.models.transformers.transformer_flux.NunchakuFluxTransformer2dModel.set_lora_strength` method sets the LoRA strength parameter,
+which controls how much influence the LoRA has on the final output.
+A value of 1.0 applies the full LoRA effect, while lower values (e.g., 0.5) apply a more subtle influence.
 
 Multiple LoRAs
 --------------
@@ -40,7 +43,7 @@ The following example demonstrates how to compose and load multiple LoRAs:
 
 .. literalinclude:: ../../../examples/flux.1-dev-multiple-lora.py
    :language: python
-   :caption: Running FLUX.1-dev with `Ghibsky <ghibsky_lora_>`_ and `FLUX-Turbo <turbo_lora_>`_ LoRA (`examples/flux.1-dev-multiple-lora.py <https://github.com/mit-han-lab/nunchaku/blob/main/examples/flux.1-dev-multiple-lora.py>`__)
+   :caption: Running FLUX.1-dev with `Ghibsky <hf_lora_ghibsky_>`_ and `FLUX-Turbo <hf_lora_flux-turbo_>`_ LoRA (`examples/flux.1-dev-multiple-lora.py <https://github.com/nunchaku-tech/nunchaku/blob/main/examples/flux.1-dev-multiple-lora.py>`__)
    :linenos:
    :emphasize-lines: 17-23
 
@@ -68,11 +71,13 @@ This composition method allows for precise control over individual LoRA strength
 LoRA Conversion
 ---------------
 
-Nunchaku utilizes the `Diffusers <diffusers_repo_>`_ LoRA format as an intermediate representation for converting LoRAs to Nunchaku's native format.
-Both the :meth:`~nunchaku.models.transformers.transformer_flux.NunchakuFluxTransformer2dModel.update_lora_params` method and :func:`~nunchaku.lora.flux.compose.compose_lora` function internally invoke the `to_diffusers <to_diffusers_lora_>`_ method to convert LoRAs to the `Diffusers <diffusers_repo_>`_ format.
-If LoRA functionality is not working as expected, verify that the LoRA has been properly converted to the `Diffusers <diffusers_repo_>`_ format. Please check `to_diffusers <to_diffusers_lora_>`_ for more details.
+Nunchaku utilizes the `Diffusers <github_diffusers_>`_ LoRA format as an intermediate representation for converting LoRAs to Nunchaku's native format.
+Both the :meth:`~nunchaku.models.transformers.transformer_flux.NunchakuFluxTransformer2dModel.update_lora_params` method and :func:`~nunchaku.lora.flux.compose.compose_lora`
+function internally invoke :func:`~nunchaku.lora.flux.diffusers_converter.to_diffusers` to convert LoRAs to the `Diffusers <github_diffusers_>`_ format.
+If LoRA functionality is not working as expected, verify that the LoRA has been properly converted to the `Diffusers <github_diffusers_>`_ format.
+Please check :func:`~nunchaku.lora.flux.diffusers_converter.to_diffusers` for more details.
 
-Following the conversion to `Diffusers <diffusers_repo_>`_ format,
+Following the conversion to `Diffusers <github_diffusers_>`_ format,
 the :meth:`~nunchaku.models.transformers.transformer_flux.NunchakuFluxTransformer2dModel.update_lora_params`
 method calls the :func:`~nunchaku.lora.flux.nunchaku_converter.to_nunchaku` function
 to perform the final conversion to Nunchaku's format.

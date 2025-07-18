@@ -42,7 +42,7 @@ ensure that ``nunchaku`` is installed into the Python environment bundled with C
 - Use our :ref:`comfyui_nunchaku:install-wheel-json` workflow, or
 - Manually install the wheel using the correct Python path.
 
-Option 1: Using ``install_wheel.json`` workflow
+Option 1: Using ``install_wheel.json`` Workflow
 """""""""""""""""""""""""""""""""""""""""""""""
 
 With `ComfyUI-nunchaku <github_comfyui-nunchaku_>`_ v0.3.2+,

@@ -7,7 +7,8 @@ Environment Setup
 1. Install Cuda
 ^^^^^^^^^^^^^^^^
 
-Download and install the latest CUDA Toolkit from the official `NVIDIA CUDA Downloads <nvidia_cuda_downloads_>`_. After installation, verify the installation:
+Download and install the latest CUDA Toolkit from the official `NVIDIA CUDA Downloads <download_cuda_>`_.
+After installation, verify the installation:
 
 .. code-block:: bat
 
@@ -16,7 +17,8 @@ Download and install the latest CUDA Toolkit from the official `NVIDIA CUDA Down
 2. Install Visual Studio C++ Build Tools
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Download from the official `Visual Studio Build Tools page <visual_studio_>`_. During installation, select the following workloads:
+Download from the official `Visual Studio Build Tools page <visual_studio_>`_.
+During installation, select the following workloads:
 
 - **Desktop development with C++**
 - **C++ tools for Linux development**
@@ -24,17 +26,18 @@ Download from the official `Visual Studio Build Tools page <visual_studio_>`_. D
 3. Install Git
 ^^^^^^^^^^^^^^
 
-Download Git from `https://git-scm.com/downloads/win <git_downloads_win_>`_ and follow the installation steps.
+Download Git from `this link <download_git_win_>`_ and follow the installation steps.
 
 4. (Optional) Install Conda
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Conda helps manage Python environments. You can install either Anaconda or Miniconda from the `official site <anaconda_download_>`_.
+Conda helps manage Python environments. You can install either Anaconda or Miniconda from the `official site <download_anaconda_>`_.
 
 5. (Optional) Install ComfyUI
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-You may have various ways to install ComfyUI. For example, you can use ComfyUI CLI.
+You may have various ways to install ComfyUI.
+For example, you can use ComfyUI CLI.
 Once Python is installed, you can install ComfyUI via the CLI:
 
 .. code-block:: bat
@@ -88,27 +91,28 @@ Install PyTorch appropriate for your setup:
 Step 3: Install Nunchaku
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Option 1: Use NunchakuWheelInstaller Node in ComfyUI
-""""""""""""""""""""""""""""""""""""""""""""""""""""
+Option 1: Use ``install_wheel.json`` Workflow in ComfyUI
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-With `ComfyUI-nunchaku <comfyui_nunchaku_>`_  v0.3.2+, you can install Nunchaku using the provided `workflow <comfyui_nunchaku_wheel_installation_workflow_>`_ directly in ComfyUI.
+With `ComfyUI-nunchaku <github_comfyui-nunchaku_>`_  v0.3.2+,
+you can install Nunchaku using the provided :ref:`comfyui_nunchaku:install-wheel-json` workflow directly in ComfyUI.
 
-.. image:: https://huggingface.co/mit-han-lab/nunchaku-artifacts/resolve/main/ComfyUI-nunchaku/assets/install_wheel.png
+.. image:: https://huggingface.co/datasets/nunchaku-tech/cdn/resolve/main/ComfyUI-nunchaku/workflows/install_wheel.png
 
 Option 2: Manually Install Prebuilt Wheels
 """""""""""""""""""""""""""""""""""""""""""
 
 You can install Nunchaku wheels from one of the following:
 
-- `Hugging Face <nunchaku_huggingface_>`_
-- `ModelScope <nunchaku_modelscope_>`_
-- `GitHub Releases <nunchaku_github_releases_>`_
+- `GitHub Releases <github_nunchaku_releases_>`_
+- `Hugging Face <hf_nunchaku_>`_
+- `ModelScope <ms_nunchaku_>`_
 
 Example (for Python 3.11 + PyTorch 2.7):
 
 .. code-block:: bat
 
-   "G:\ComfyUI\python\python.exe" -m pip install https://github.com/mit-han-lab/nunchaku/releases/download/v0.3.1/nunchaku-0.3.1+torch2.7-cp311-cp311-linux_x86_64.whl
+   "G:\ComfyUI\python\python.exe" -m pip install https://github.com/nunchaku-tech/nunchaku/releases/download/v0.3.1/nunchaku-0.3.1+torch2.7-cp311-cp311-linux_x86_64.whl
 
 To verify the installation:
 
@@ -138,7 +142,7 @@ Step 2: Clone the Repository
 
 .. code-block:: bat
 
-   git clone https://github.com/mit-han-lab/nunchaku.git
+   git clone https://github.com/nunchaku-tech/nunchaku.git
    cd nunchaku
    git submodule init
    git submodule update
@@ -192,14 +196,14 @@ Use Nunchaku in ComfyUI
 1. Install the Plugin
 ^^^^^^^^^^^^^^^^^^^^^
 
-Clone the `ComfyUI-nunchaku <comfyui_nunchaku_>`_ plugin into the ``custom_nodes`` folder:
+Clone the `ComfyUI-nunchaku <github_comfyui-nunchaku_>`_ plugin into the ``custom_nodes`` folder:
 
 .. code-block:: bat
 
    cd ComfyUI/custom_nodes
-   git clone https://github.com/mit-han-lab/ComfyUI-nunchaku.git
+   git clone https://github.com/nunchaku-tech/ComfyUI-nunchaku.git
 
-Alternatively, install it using `ComfyUI-Manager <comfyui_manager_repo_>`_ or `comfy-cli <comfy_cli_repo_>`_.
+Alternatively, install it using `ComfyUI-Manager <github_comfyui-manager_>`_ or `comfy-cli <github_comfy-cli_>`_.
 
 2. Download Models
 ^^^^^^^^^^^^^^^^^^
@@ -221,22 +225,22 @@ You can also optionally download the original `BF16 FLUX.1-dev <https://huggingf
 
 Next, download the Nunchaku 4-bit models to ``models/diffusion_models``:
 
-- For **50-series GPUs**, use the `FP4 model <nunchaku_flux1_dev_fp4_>`_.
-- For **other GPUs**, use the `INT4 model <nunchaku_flux1_dev_int4_>`_.
+- For **50-series GPUs**, use the `FP4 model <hf_nunchaku-flux1-dev-fp4_>`_.
+- For **other GPUs**, use the `INT4 model <hf_nunchaku-flux1-dev-int4_>`_.
 
 **(Optional): Download Sample LoRAs**
 
-You can test with some sample LoRAs like `FLUX.1-Turbo <turbo_lora_>`_ and `Ghibsky <ghibsky_lora_>`_. Place these files in the ``models/loras`` directory:
+You can test with some sample LoRAs like `FLUX.1-Turbo <hf_lora_flux-turbo_>`_ and `Ghibsky <hf_lora_ghibsky_>`_. Place these files in the ``models/loras`` directory:
 
 .. code-block:: bat
 
    huggingface-cli download alimama-creative/FLUX.1-Turbo-Alpha diffusion_pytorch_model.safetensors --local-dir models/loras
    huggingface-cli download aleksa-codes/flux-ghibsky-illustration lora.safetensors --local-dir models/loras
 
-1. Set Up Workflows
+3. Set Up Workflows
 ^^^^^^^^^^^^^^^^^^^
 
-To use the official workflows, download them from the `ComfyUI-nunchaku <comfyui_nunchaku_>`_ and place them in your ``ComfyUI/user/default/workflows`` directory. The command can be:
+To use the official workflows, download them from the `ComfyUI-nunchaku <github_comfyui-nunchaku_>`_ and place them in your ``ComfyUI/user/default/workflows`` directory. The command can be:
 
 .. code-block:: bat
 

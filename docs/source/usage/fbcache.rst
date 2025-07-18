@@ -7,7 +7,7 @@ Nunchaku supports `First-Block Cache (FB Cache) <fbcache>`_ for faster long-step
 
 .. literalinclude:: ../../../examples/flux.1-dev-cache.py
    :language: python
-   :caption: Running FLUX.1-dev with FB Cache (`examples/flux.1-dev-cache.py <https://github.com/mit-han-lab/nunchaku/blob/main/examples/flux.1-dev-cache.py>`__)
+   :caption: Running FLUX.1-dev with FB Cache (`examples/flux.1-dev-cache.py <https://github.com/nunchaku-tech/nunchaku/blob/main/examples/flux.1-dev-cache.py>`__)
    :linenos:
    :emphasize-lines: 15-17
 

@@ -1,6 +1,6 @@
 .. _github_deepcompressor: https://github.com/nunchaku-tech/deepcompressor
 .. _github_flux: https://github.com/black-forest-labs/flux
-.. _github_diffuser: https://github.com/huggingface/diffusers
+.. _github_diffusers: https://github.com/huggingface/diffusers
 .. _github_comfyui-nunchaku: https://github.com/nunchaku-tech/ComfyUI-nunchaku
 .. _github_nunchaku: https://github.com/nunchaku-tech/nunchaku
 .. _github_nunchaku_releases: https://github.com/nunchaku-tech/nunchaku/releases
