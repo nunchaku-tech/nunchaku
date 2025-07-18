@@ -11,7 +11,7 @@ If you encounter out-of-memory errors or notice that model loading is unusually 
 
 .. seealso::
 
-   **Related issues:** :nunchaku-issue:`249`, :nunchaku-issue:`276`, :nunchaku-issue:`311`
+   **Related issues:** :nunchaku_issue:`249`, :nunchaku_issue:`276`, :nunchaku_issue:`311`
 
 Why do the same seeds produce slightly different images with Nunchaku?
 ----------------------------------------------------------------------
@@ -22,4 +22,4 @@ Enforcing strict accumulation order would reduce this variability but significan
 
 .. seealso::
 
-   **Related issues:** :nunchaku-issue:`229`, :nunchaku-issue:`294`
+   **Related issues:** :nunchaku_issue:`229`, :nunchaku_issue:`294`

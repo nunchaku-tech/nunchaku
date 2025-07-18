@@ -60,19 +60,25 @@ napoleon_google_docstring = False
 napoleon_numpy_docstring = True
 
 extlinks = {
-    "nunchaku-issue": ("https://github.com/nunchaku-tech/nunchaku/issues/%s", "nunchaku#%s"),
-    "comfyui-issue": ("https://github.com/nunchaku-tech/ComfyUI-nunchaku/issues/%s", "ComfyUI-nunchaku#%s"),
+    "nunchaku_issue": ("https://github.com/nunchaku-tech/nunchaku/issues/%s", "nunchaku#%s"),
+    "comfyui-nunchaku_issue": ("https://github.com/nunchaku-tech/ComfyUI-nunchaku/issues/%s", "ComfyUI-nunchaku#%s"),
 }
 
 html_favicon = "_static/nunchaku.ico"
 
 html_theme_options = {
     "repository_url": "https://github.com/nunchaku-tech/nunchaku",
+    "repository_branch": "main",
+    "path_to_docs": "docs/source",
     "use_repository_button": True,
     "use_edit_page_button": True,
     "use_issues_button": True,
-    "path_to_docs": "docs/source",
-    "repository_branch": "main",
+    "use_download_button": True,
+    "logo_only": False,
+    "show_navbar_depth": 2,
+    "home_page_in_toc": True,
+    "show_toc_level": 2,
+    # "announcement": "🔥 Nunchaku v1.2 released!",
 }
 
 intersphinx_mapping = {
