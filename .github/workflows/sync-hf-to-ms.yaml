@@ -6,7 +6,7 @@ on:
 jobs:
   sync:
     runs-on: ubuntu-latest
-    if: github.repository == 'mit-han-lab/nunchaku'
+    if: github.repository == 'nunchaku-tech/nunchaku'
     strategy:
       matrix:
         repo:
@@ -20,27 +20,13 @@ jobs:
           - nunchaku-shuttle-jaguar
           - nunchaku-sana
           - nunchaku-flux.1-kontext-dev
-          - svdq-fp4-flux.1-schnell
-          - svdq-int4-flux.1-schnell
-          - svdq-fp4-flux.1-dev
-          - svdq-int4-flux.1-dev
-          - svdq-fp4-flux.1-fill-dev
-          - svdq-int4-flux.1-fill-dev
-          - svdq-fp4-flux.1-depth-dev
-          - svdq-int4-flux.1-depth-dev
-          - svdq-fp4-flux.1-canny-dev
-          - svdq-int4-flux.1-canny-dev
-          - svdq-fp4-shuttle-jaguar
-          - svdq-int4-shuttle-jaguar
-          - svdq-int4-sana-1600m
-          - svdq-flux.1-schnell-pix2pix-turbo
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
