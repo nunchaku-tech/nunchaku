@@ -70,6 +70,7 @@ https://github.com/user-attachments/assets/fdd4ab68-6489-4c65-8768-259bd866e8f8
 - [Custom Model Quantization: DeepCompressor](https://github.com/mit-han-lab/deepcompressor)
 - [Gradio Demo Apps](https://github.com/mit-han-lab/nunchaku/tree/main/app)
 - [Reproduce SVDQuant Paper Results](app/flux.1/t2i)
+- [API Reference](https://nunchaku.tech/docs/nunchaku/python_api/nunchaku.html)
 - [Contribution Guide](https://nunchaku.tech/docs/nunchaku/developer/contribution_guide.html)
 - [Frequently Asked Questions](https://nunchaku.tech/docs/nunchaku/faq/faq.html)
 
