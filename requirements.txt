@@ -3,3 +3,5 @@ insightface
 opencv-python
 facexlib
 onnxruntime
+# ip-adapter
+timm

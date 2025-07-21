@@ -55,7 +55,7 @@ def apply_IPA_on_transformer(transformer: FluxTransformer2DModel, *, ip_adapter_
     return transformer
 
 
-def apply_IPA_on_pipe(pipe: DiffusionPipeline, *, shallow_patch: bool = False, **kwargs):
+def apply_IPA_on_pipe(pipe: DiffusionPipeline, **kwargs):
     if getattr(pipe, "_is_cached", False):
         original_call = pipe.__class__.__call__
 
@@ -67,7 +67,6 @@ def apply_IPA_on_pipe(pipe: DiffusionPipeline, *, shallow_patch: bool = False, *
         pipe.__class__.__call__ = new_call
         pipe.__class__._is_cached = True
 
-    if not shallow_patch:
-        apply_IPA_on_transformer(pipe.transformer, **kwargs)
+    apply_IPA_on_transformer(pipe.transformer, **kwargs)
 
     return pipe

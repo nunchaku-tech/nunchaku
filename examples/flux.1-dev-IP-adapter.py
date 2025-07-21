@@ -8,8 +8,9 @@ from nunchaku.models.IP_adapter.diffusers_adapters import apply_IPA_on_pipe
 from nunchaku.utils import get_precision
 
 precision = get_precision()
-transformer = NunchakuFluxTransformer2dModel.from_pretrained(f"mit-han-lab/svdq-{precision}-flux.1-dev")
-
+transformer = NunchakuFluxTransformer2dModel.from_pretrained(
+    f"nunchaku-tech/nunchaku-flux.1-dev/svdq-{precision}_r32-flux.1-dev.safetensors"
+)
 pipeline = FluxPipeline.from_pretrained(
     "black-forest-labs/FLUX.1-dev", transformer=transformer, torch_dtype=torch.bfloat16
 ).to("cuda")
@@ -29,13 +30,12 @@ apply_cache_on_pipe(
 apply_IPA_on_pipe(pipeline, ip_adapter_scale=1.0, repo_id="XLabs-AI/flux-ip-adapter-v2")
 
 
-IP_image = load_image("https://github.com/ToTheBeginning/PuLID/blob/main/example_inputs/liuyifei.png?raw=true")
+IP_image = load_image("https://github.com/ToTheBeginning/PuLID/blob/main/example_inputs/lecun.jpg?raw=true")
 
 image = pipeline(
     prompt="A woman holding a sign that says 'SVDQuant is fast!",
     ip_adapter_image=IP_image.convert("RGB"),
-    num_inference_steps=50,
-    generator=torch.Generator("cuda"),
+    num_inference_steps=50
 ).images[0]
 
 image.save(f"flux.1-dev-IP-adapter-{precision}.png")
