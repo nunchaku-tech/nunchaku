@@ -1,15 +1,14 @@
 name: Synchronize to Private Repository
 on:
-  workflow_dispatch:
   push:
     branches:
-      - dev
+      - main
 permissions:
   contents: write
 jobs:
   cherry-pick-commits:
     runs-on: ubuntu-latest
-    if: github.repository == 'mit-han-lab/nunchaku'
+    if: github.repository == 'nunchaku-tech/nunchaku'
     steps:
       - name: Clone private repository
         run: |
@@ -18,12 +17,12 @@ jobs:
         run: |
           cd nunchaku-dev
           git remote add public https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/mit-han-lab/nunchaku.git
-          git fetch public dev
-      - name: Cherry-pick latest commit from public/dev
+          git fetch public main
+      - name: Cherry-pick latest commit from public/main
         run: |
           set -e
           cd nunchaku-dev
-          COMMIT=$(git rev-parse public/dev)
+          COMMIT=$(git rev-parse public/main)
           COMMIT_MSG=$(git log -1 --pretty=%B $COMMIT)
 
           echo "Latest commit: $COMMIT"
@@ -53,7 +52,6 @@ jobs:
 
           IGNORED_FILES=(
             ".github/workflows/sync-to-private.yml"
-            ".github/workflows/auto-merge-main-into-dev.yml"
           )
 
           echo "Attempting cherry-pick..."
