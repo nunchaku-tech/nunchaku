@@ -54,6 +54,11 @@ def apply_cache_on_transformer(
     -----
     If already cached, only updates thresholds. Caching is only active within a cache context.
     """
+    if not hasattr(transformer, "_original_forward"):
+        transformer._original_forward = transformer.forward
+    if not hasattr(transformer, "_original_blocks"):
+        transformer._original_blocks = transformer.transformer_blocks
+
     if residual_diff_threshold_multi is None:
         residual_diff_threshold_multi = residual_diff_threshold
 
