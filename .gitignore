@@ -103,6 +103,8 @@ instance/
 
 # Sphinx documentation
 docs/_build/
+docs/build/
+docs/doxygen/
 
 # PyBuilder
 .pybuilder/
@@ -208,3 +210,5 @@ cython_debug/
 *.safetensors
 *.onnx
 .gitattributes
+nunchaku-models/
+*.png

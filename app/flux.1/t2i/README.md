@@ -1,4 +1,4 @@
-# Nunchaku INT4 FLUX.1 Models
+# Nunchaku 4-Bit FLUX.1 Models
 
 ## Text-to-Image Gradio Demo
 

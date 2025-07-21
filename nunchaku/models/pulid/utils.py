@@ -1,4 +1,11 @@
-# Adapted from https://github.com/ToTheBeginning/PuLID
+"""
+This module provides utility functions for PuLID.
+
+.. note::
+    This module is adapted from the original PuLID repository:
+    https://github.com/ToTheBeginning/PuLID
+"""
+
 import math
 
 import cv2
@@ -8,6 +15,23 @@ from torchvision.utils import make_grid
 
 
 def resize_numpy_image_long(image, resize_long_edge=768):
+    """
+    Resize a numpy image so that its longest edge matches ``resize_long_edge``, preserving aspect ratio.
+
+    If the image's longest edge is already less than or equal to ``resize_long_edge``, the image is returned unchanged.
+
+    Parameters
+    ----------
+    image : np.ndarray
+        Input image as a numpy array of shape (H, W, C).
+    resize_long_edge : int, optional
+        Desired size for the longest edge (default: 768).
+
+    Returns
+    -------
+    np.ndarray
+        The resized image as a numpy array.
+    """
     h, w = image.shape[:2]
     if max(h, w) <= resize_long_edge:
         return image
@@ -18,18 +42,27 @@ def resize_numpy_image_long(image, resize_long_edge=768):
     return image
 
 
-# from basicsr
 def img2tensor(imgs, bgr2rgb=True, float32=True):
-    """Numpy array to tensor.
+    """
+    Convert numpy images to PyTorch tensors.
 
-    Args:
-        imgs (list[ndarray] | ndarray): Input images.
-        bgr2rgb (bool): Whether to change bgr to rgb.
-        float32 (bool): Whether to change to float32.
+    This function supports both single images and lists of images. The images are converted from
+    HWC (height, width, channel) format to CHW (channel, height, width) format. Optionally, BGR images
+    can be converted to RGB, and the output can be cast to float32.
 
-    Returns:
-        list[tensor] | tensor: Tensor images. If returned results only have
-            one element, just return tensor.
+    Parameters
+    ----------
+    imgs : np.ndarray or list of np.ndarray
+        Input image(s) as numpy array(s).
+    bgr2rgb : bool, optional
+        Whether to convert BGR images to RGB (default: True).
+    float32 : bool, optional
+        Whether to cast the output tensor(s) to float32 (default: True).
+
+    Returns
+    -------
+    torch.Tensor or list of torch.Tensor
+        Converted tensor(s). If a single image is provided, returns a tensor; if a list is provided, returns a list of tensors.
     """
 
     def _totensor(img, bgr2rgb, float32):
@@ -48,25 +81,44 @@ def img2tensor(imgs, bgr2rgb=True, float32=True):
 
 
 def tensor2img(tensor, rgb2bgr=True, out_type=np.uint8, min_max=(0, 1)):
-    """Convert torch Tensors into image numpy arrays.
+    """
+    Convert PyTorch tensor(s) to image numpy array(s).
 
-    After clamping to [min, max], values will be normalized to [0, 1].
+    This function supports 4D mini-batch tensors, 3D tensors, and 2D tensors. The output is a numpy array
+    in HWC (height, width, channel) or HW (height, width) format. Optionally, RGB images can be converted to BGR,
+    and the output type can be specified.
 
-    Args:
-        tensor (Tensor or list[Tensor]): Accept shapes:
-            1) 4D mini-batch Tensor of shape (B x 3/1 x H x W);
-            2) 3D Tensor of shape (3/1 x H x W);
-            3) 2D Tensor of shape (H x W).
-            Tensor channel should be in RGB order.
-        rgb2bgr (bool): Whether to change rgb to bgr.
-        out_type (numpy type): output types. If ``np.uint8``, transform outputs
-            to uint8 type with range [0, 255]; otherwise, float type with
-            range [0, 1]. Default: ``np.uint8``.
-        min_max (tuple[int]): min and max values for clamp.
+    After clamping to [min, max], values are normalized to [0, 1].
 
-    Returns:
-        (Tensor or list): 3D ndarray of shape (H x W x C) OR 2D ndarray of
-        shape (H x W). The channel order is BGR.
+    Parameters
+    ----------
+    tensor : torch.Tensor or list of torch.Tensor
+        Input tensor(s). Accepts:
+
+        1) 4D mini-batch tensor of shape (B x 3/1 x H x W)
+        2) 3D tensor of shape (3/1 x H x W)
+        3) 2D tensor of shape (H x W)
+
+        The channel order should be RGB.
+
+    rgb2bgr : bool, optional
+        Whether to convert RGB images to BGR (default: True).
+
+    out_type : numpy type, optional
+        Output data type. If ``np.uint8``, output is in [0, 255]; otherwise, in [0, 1] (default: np.uint8).
+
+    min_max : tuple of int, optional
+        Min and max values for clamping (default: (0, 1)).
+
+    Returns
+    -------
+    np.ndarray or list of np.ndarray
+        Converted image(s) as numpy array(s). If a single tensor is provided, returns a numpy array; if a list is provided, returns a list of numpy arrays.
+
+    Raises
+    ------
+    TypeError
+        If the input is not a tensor or list of tensors, or if the tensor has unsupported dimensions.
     """
     if not (torch.is_tensor(tensor) or (isinstance(tensor, list) and all(torch.is_tensor(t) for t in tensor))):
         raise TypeError(f"tensor or list of tensors expected, got {type(tensor)}")

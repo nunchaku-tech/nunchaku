@@ -45,7 +45,7 @@ def sync_model(repo_name: str, hf_repo: str, ms_repo: str):
         repo_id=ms_repo,
         folder_path=local_dir,
         commit_message=f"Sync from Hugging Face {hf_repo}",
-        ignore_patterns=["*mit-han-lab*"],
+        ignore_patterns=["*nunchaku-tech*", "README.md"],
     )
     print(f"✅ Sync complete: {hf_repo} -> {ms_repo}")
 
@@ -57,7 +57,7 @@ if __name__ == "__main__":
         "--repo-name",
         type=str,
         required=True,
-        help="Name of the HuggingFace repository under mit-han-lab to sync to (e.g., `nunchaku`)",
+        help="Name of the HuggingFace repository under nunchaku-tech to sync to (e.g., `nunchaku`)",
     )
     args = parser.parse_args()
-    sync_model(args.repo_name, f"mit-han-lab/{args.repo_name}", f"Lmxyy1999/{args.repo_name}")
+    sync_model(args.repo_name, f"nunchaku-tech/{args.repo_name}", f"nunchaku-tech/{args.repo_name}")

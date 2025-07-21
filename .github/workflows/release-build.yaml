@@ -7,7 +7,7 @@ jobs:
   release:
     name: Tag Main Branch and Create Release
     runs-on: ubuntu-latest
-    if: github.repository == 'mit-han-lab/nunchaku'
+    if: github.repository == 'nunchaku-tech/nunchaku'
     outputs:
       tag_name: ${{ steps.set-tag.outputs.tag_name }}
     steps:
@@ -51,7 +51,7 @@ jobs:
     strategy:
       matrix:
         python: ["3.10", "3.11", "3.12"]
-        torch: ["2.5", "2.6", "2.7"]
+        torch: ["2.5", "2.6", "2.7", "2.8"]
     steps:
       - name: Checkout to the tag
         uses: actions/checkout@v4
@@ -92,7 +92,7 @@ jobs:
     strategy:
       matrix:
         python: ["3.10", "3.11", "3.12"]
-        torch: ["2.5", "2.6", "2.7"]
+        torch: ["2.5", "2.6", "2.7", "2.8"]
     steps:
       - name: Checkout to the tag
         uses: actions/checkout@v4
