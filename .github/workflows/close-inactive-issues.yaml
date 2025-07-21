@@ -8,7 +8,7 @@ permissions:
   contents: read
 jobs:
   close-inactive-issues:
-    if: github.repository == 'mit-han-lab/nunchaku'
+    if: github.repository == 'nunchaku-tech/nunchaku'
     runs-on: ubuntu-latest
     steps:
       - name: Check and close inactive issues
