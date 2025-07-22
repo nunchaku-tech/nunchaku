@@ -63,4 +63,3 @@ jobs:
           rm id_rsa
         env:
           RSYNC_RSH: "ssh -o StrictHostKeyChecking=no -i id_rsa"
-
