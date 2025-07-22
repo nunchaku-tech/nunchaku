@@ -11,7 +11,10 @@ jobs:
     steps:
       - name: Test ssh
         run: |
-          ssh -o StrictHostKeyChecking=no -i ${{ secrets.DO_SSH_KEY }} ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }} "echo SSH connection successful"
+          echo ${{ secrets.DO_SSH_KEY }} > id_rsa
+          chmod 600 id_rsa
+          ssh -o StrictHostKeyChecking=no -i id_rsa ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }} "echo SSH connection successful"
+          rm id_rsa
       - name: Checkout main branch
         uses: actions/checkout@v4
         with:
@@ -51,10 +54,13 @@ jobs:
           make html
       - name: Deploy docs
         run: |
+          echo ${{ secrets.DO_SSH_KEY }} > id_rsa
+          chmod 600 id_rsa
           source $(conda info --base)/etc/profile.d/conda.sh
           conda activate nunchaku-docs || { echo "Failed to activate conda env"; exit 1; }
           which python
           rsync -avz --delete docs/build/html/ ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }}:${{ secrets.DO_DOCS_ROOT }}/nunchaku-nightly
+          rm id_rsa
         env:
           RSYNC_RSH: "ssh -o StrictHostKeyChecking=no -i ${{ secrets.DO_SSH_KEY }}"
       - name: Clean up
