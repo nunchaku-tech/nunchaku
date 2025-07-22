@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
 jobs:
   tag:
-    name: Check if main branch is a dev version
+    name: Build and deploy docs
     runs-on: [self-hosted, blackwell]
     if: github.repository == 'nunchaku-tech/nunchaku'
     steps:
@@ -57,5 +57,6 @@ jobs:
       - name: Clean up
         if: always() && github.repository == 'nunchaku-tech/nunchaku'
         run: |
+          pwd
           cd ..
-          rm -r nunchaku
+          rm -rf nunchaku
