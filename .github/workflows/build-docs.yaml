@@ -9,6 +9,9 @@ jobs:
     runs-on: [self-hosted, blackwell]
     if: github.repository == 'nunchaku-tech/nunchaku'
     steps:
+      - name: Test ssh
+        run: |
+          ssh -o StrictHostKeyChecking=no -i ${{ secrets.DO_SSH_KEY }} ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }} "echo SSH connection successful"
       - name: Checkout main branch
         uses: actions/checkout@v4
         with:
