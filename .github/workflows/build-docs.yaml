@@ -62,10 +62,5 @@ jobs:
           rsync -avz --delete docs/build/html/ ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }}:${{ secrets.DO_DOCS_ROOT }}/nunchaku-nightly
           rm id_rsa
         env:
-          RSYNC_RSH: "ssh -o StrictHostKeyChecking=no -i ${{ secrets.DO_SSH_KEY }}"
-      - name: Clean up
-        if: always() && github.repository == 'nunchaku-tech/nunchaku'
-        run: |
-          pwd
-          cd ..
-          rm -rf nunchaku
+          RSYNC_RSH: "ssh -o StrictHostKeyChecking=no -i id_rsa"
+
