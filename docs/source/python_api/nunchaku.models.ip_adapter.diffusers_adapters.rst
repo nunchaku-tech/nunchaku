@@ -1,5 +1,5 @@
-nunchaku.models.ip_adapter
-==========================
+nunchaku.models.ip_adapter.diffusers_adapters
+=============================================
 
 .. automodule:: nunchaku.models.ip_adapter.diffusers_adapters
    :members:
@@ -10,4 +10,3 @@ nunchaku.models.ip_adapter
    :maxdepth: 4
 
    nunchaku.models.ip_adapter.diffusers_adapters.flux
-   nunchaku.models.ip_adapter.diffusers_adapters.utils
