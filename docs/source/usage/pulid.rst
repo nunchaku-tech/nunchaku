@@ -1,6 +1,8 @@
 PuLID
 =====
 
+.. image:: https://huggingface.co/datasets/nunchaku-tech/cdn/resolve/main/ComfyUI-nunchaku/workflows/nunchaku-flux.1-dev-pulid.png
+
 Nunchaku integrates `PuLID <paper_pulid_>`_, a tuning-free identity customization method for text-to-image generation.
 This feature allows you to generate images that maintain specific identity characteristics from reference photos.
 
