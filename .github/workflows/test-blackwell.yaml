@@ -85,7 +85,8 @@ jobs:
           conda install -c conda-forge gxx=11 gcc=11
           echo "Installing dependencies"
           pip install torch==2.7 torchvision==0.22 torchaudio==2.7 --index-url https://download.pytorch.org/whl/cu128
-          pip install ninja wheel diffusers==0.33.1 transformers==4.51 accelerate==1.7 sentencepiece==0.2 protobuf==6.31 huggingface_hub==0.31
+          pip install git+https://github.com/huggingface/diffusers
+          pip install ninja wheel transformers==4.51 accelerate==1.7 sentencepiece==0.2 protobuf==6.31 huggingface_hub==0.31
       - name: Build
         run: |
           source $(conda info --base)/etc/profile.d/conda.sh
@@ -101,7 +102,7 @@ jobs:
           pwd
           cd ..
           pip install comfy-cli
-          yes | comfy --here install --nvidia --skip-torch-or-directml --version 0.3.34
+          yes | comfy --here install --nvidia --skip-torch-or-directml --version 0.3.43
           cd ComfyUI
           rm -r models
           mkdir -p ${{ secrets.COMFYUI_MODELS_ROOT_BLACKWELL }}
@@ -122,7 +123,7 @@ jobs:
           conda activate test_env || { echo "Failed to activate conda env"; exit 1; }
           pwd
           cd ../ComfyUI
-          python nunchaku_tests/scripts/nunchaku_flux1_dev.py
+          python nunchaku_tests/scripts/nunchaku-flux1-dev.py
           pytest -v nunchaku_tests/
       - name: Nunchaku FLUX memory tests
         run: |

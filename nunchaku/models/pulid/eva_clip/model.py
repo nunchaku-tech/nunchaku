@@ -24,13 +24,11 @@ try:
     from apex.normalization import FusedLayerNorm
 except ImportError:
     FusedLayerNorm = LayerNorm
-    print("Please 'pip install apex'")
 
 try:
     import xformers.ops as xops
 except ImportError:
     xops = None
-    print("Please 'pip install xformers'")
 
 
 @dataclass

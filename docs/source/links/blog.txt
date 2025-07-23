@@ -1,0 +1,2 @@
+.. _blog_flux1-tools: https://bfl.ai/announcements/24-11-21-tools
+.. _comfyui_examples_flux: https://comfyanonymous.github.io/ComfyUI_examples/flux/

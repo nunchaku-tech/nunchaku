@@ -8,7 +8,7 @@ def get_args() -> argparse.Namespace:
         "--precision",
         type=str,
         default="int4",
-        choices=["int4", "bf16"],
+        choices=["int4", "fp4", "bf16"],
         help="Which precisions to use",
     )
     parser.add_argument("--count-use", action="store_true", help="Whether to count the number of uses")

@@ -53,8 +53,22 @@ repos:
     rev: v0.17.0
     hooks:
       - id: yamlfmt
-  - repo: https://github.com/executablebooks/mdformat
+  - repo: https://github.com/hukkin/mdformat
     rev: 0.7.22
     hooks:
       - id: mdformat
         name: (Markdown) Format docs with mdformat
+        additional_dependencies:
+          - mdformat-gfm
+          - mdformat-black
+          - mdformat-myst
+  - repo: https://github.com/PyCQA/doc8
+    rev: v2.0.0
+    hooks:
+      - id: doc8
+        additional_dependencies: []
+  - repo: https://github.com/rstcheck/rstcheck
+    rev: main # should be replaced with the current verison
+    hooks:
+      - id: rstcheck
+        additional_dependencies: ['rstcheck[sphinx,toml]']

@@ -1,3 +1,7 @@
+"""
+Utilities for Nunchaku transformer model loading.
+"""
+
 import json
 import logging
 import os
@@ -20,16 +24,33 @@ logger = logging.getLogger(__name__)
 
 
 class NunchakuModelLoaderMixin:
+    """
+    Mixin for standardized model loading in Nunchaku transformer models.
+    """
 
     @classmethod
     def _build_model(
         cls, pretrained_model_name_or_path: str | os.PathLike[str], **kwargs
     ) -> tuple[nn.Module, dict[str, torch.Tensor], dict[str, str]]:
+        """
+        Build a transformer model from a safetensors file.
+
+        Parameters
+        ----------
+        pretrained_model_name_or_path : str or os.PathLike
+            Path to the safetensors file.
+        **kwargs
+            Additional keyword arguments (e.g., ``torch_dtype``).
+
+        Returns
+        -------
+        tuple
+            (transformer, state_dict, metadata)
+        """
         if isinstance(pretrained_model_name_or_path, str):
             pretrained_model_name_or_path = Path(pretrained_model_name_or_path)
         state_dict, metadata = load_state_dict_in_safetensors(pretrained_model_name_or_path, return_metadata=True)
 
-        # Load the config file
         config = json.loads(metadata["config"])
 
         with torch.device("meta"):
@@ -41,8 +62,27 @@ class NunchakuModelLoaderMixin:
     def _build_model_legacy(
         cls, pretrained_model_name_or_path: str | os.PathLike, **kwargs
     ) -> tuple[nn.Module, str, str]:
+        """
+        Build a transformer model from a legacy folder structure.
+
+        .. warning::
+            This method is deprecated and will be removed in December 2025.
+            Please use :meth:`_build_model` instead.
+
+        Parameters
+        ----------
+        pretrained_model_name_or_path : str or os.PathLike
+            Path to the folder containing model weights.
+        **kwargs
+            Additional keyword arguments for HuggingFace Hub download and config loading.
+
+        Returns
+        -------
+        tuple
+            (transformer, unquantized_part_path, transformer_block_path)
+        """
         logger.warning(
-            "Loading models from a folder will be deprecated in v0.4. "
+            "Loading models from a folder will be deprecated in December 2025. "
             "Please download the latest safetensors model, or use one of the following tools to "
             "merge your model into a single file: the CLI utility `python -m nunchaku.merge_safetensors` "
             "or the ComfyUI workflow `merge_safetensors.json`."
@@ -109,6 +149,25 @@ class NunchakuModelLoaderMixin:
 
 
 def pad_tensor(tensor: Optional[torch.Tensor], multiples: int, dim: int, fill: Any = 0) -> torch.Tensor | None:
+    """
+    Pad a tensor along a given dimension to the next multiple of a specified value.
+
+    Parameters
+    ----------
+    tensor : torch.Tensor or None
+        Input tensor. If None, returns None.
+    multiples : int
+        Pad to this multiple. If <= 1, no padding is applied.
+    dim : int
+        Dimension along which to pad.
+    fill : Any, optional
+        Value to use for padding (default: 0).
+
+    Returns
+    -------
+    torch.Tensor or None
+        The padded tensor, or None if input was None.
+    """
     if multiples <= 1:
         return tensor
     if tensor is None:

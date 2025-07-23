@@ -1,6 +1,6 @@
 # additional requirements for testing
 pytest
-datasets
+datasets<4
 torchmetrics
 mediapipe
 controlnet_aux
