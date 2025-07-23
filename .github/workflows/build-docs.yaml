@@ -1,0 +1,62 @@
+name: Build Docs
+on:
+  schedule:
+    - cron: '0 7 * * *' # UTC time
+  repository_dispatch:
+    types: [build-docs]
+jobs:
+  build-and-deploy-docs:
+    name: Build and deploy docs
+    runs-on: [self-hosted, blackwell]
+    if: github.repository == 'nunchaku-tech/nunchaku' && (github.event_name != 'repository_dispatch' || github.actor == 'lmxyy')
+    env:
+      DOC_VERSION: ${{ github.event.client_payload.version || 'nightly' }}
+    steps:
+      - name: Checkout main branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main
+          submodules: true
+      - name: Set up Python
+        run: |
+          which python
+          echo "Setting up Python with Conda"
+          conda create -n nunchaku-docs python=3.12 -y
+      - name: Install dependencies
+        run: |
+          source $(conda info --base)/etc/profile.d/conda.sh
+          conda activate nunchaku-docs || { echo "Failed to activate conda env"; exit 1; }
+          which python
+          conda install -c conda-forge gxx=11 gcc=11
+          echo "Installing dependencies"
+          pip install torch==2.7 torchvision==0.22 torchaudio==2.7 --index-url https://download.pytorch.org/whl/cu128
+          pip install git+https://github.com/huggingface/diffusers
+          pip install ninja wheel transformers==4.51 accelerate==1.7 sentencepiece==0.2 protobuf==6.31 huggingface_hub==0.31
+          pip install sphinx sphinx-tabs myst-parser sphinx-copybutton breathe sphinxcontrib-mermaid nbsphinx jupyter ipykernel graphviz sphinxext-rediraffe
+          pip install furo sphinxawesome-theme sphinx-book-theme sphinx-rtd-theme
+      - name: Build
+        run: |
+          source $(conda info --base)/etc/profile.d/conda.sh
+          conda activate nunchaku-docs || { echo "Failed to activate conda env"; exit 1; }
+          which python
+          NUNCHAKU_INSTALL_MODE=ALL python setup.py develop
+          pip install -r tests/requirements.txt
+      - name: Build docs
+        run: |
+          source $(conda info --base)/etc/profile.d/conda.sh
+          conda activate nunchaku-docs || { echo "Failed to activate conda env"; exit 1; }
+          which python
+          cd docs
+          make html
+      - name: Deploy docs
+        run: |
+          echo "${{ secrets.DO_SSH_KEY }}" > ./id_rsa
+          chmod 600 id_rsa
+          source $(conda info --base)/etc/profile.d/conda.sh
+          conda activate nunchaku-docs || { echo "Failed to activate conda env"; exit 1; }
+          which python
+          rsync -avz --delete docs/build/html/ ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }}:${{ secrets.DO_DOCS_ROOT }}/nunchaku-${{ env.DOC_VERSION }}
+          rm id_rsa
+        env:
+          RSYNC_RSH: "ssh -o StrictHostKeyChecking=no -i id_rsa"
