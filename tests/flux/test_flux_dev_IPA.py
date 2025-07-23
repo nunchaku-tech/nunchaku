@@ -1,3 +1,5 @@
+import gc
+
 import numpy as np
 import pytest
 import torch
@@ -7,10 +9,10 @@ from diffusers.utils import load_image
 
 from nunchaku import NunchakuFluxTransformer2dModel
 from nunchaku.models.IP_adapter.diffusers_adapters import apply_IPA_on_pipe
-from nunchaku.models.IP_adapter.utils import get_puild_embed, resize_numpy_image_long
-from nunchaku.utils import get_precision, is_turing
-import gc
+from nunchaku.models.IP_adapter.utils import resize_numpy_image_long
 from nunchaku.pipeline.pipeline_flux_pulid import PuLIDFluxPipeline
+from nunchaku.utils import get_precision, is_turing
+
 
 @pytest.mark.skipif(is_turing(), reason="Skip tests due to using Turing GPUs")
 def test_flux_dev_IPA():
@@ -28,7 +30,8 @@ def test_flux_dev_IPA():
         weight_name="ip_adapter.safetensors",
         image_encoder_pretrained_model_name_or_path="openai/clip-vit-large-patch14",
     )
-    apply_IPA_on_pipe(pipeline, ip_adapter_scale=1.1, repo_id="XLabs-AI/flux-ip-adapter-v2")
+
+    apply_IPA_on_pipe(pipeline, ip_adapter_scale=1.15, repo_id="XLabs-AI/flux-ip-adapter-v2")
 
     id_image = load_image(
         "https://huggingface.co/datasets/nunchaku-tech/test-data/resolve/main/ComfyUI-nunchaku/inputs/monalisa.jpg"
@@ -39,7 +42,7 @@ def test_flux_dev_IPA():
         ip_adapter_image=id_image.convert("RGB"),
         num_inference_steps=50,
     ).images[0]
-    image.save('./tmp.png')
+    image.save("./tmp.png")
 
     del pipeline
     del transformer
@@ -69,7 +72,7 @@ def test_flux_dev_IPA():
         F.cosine_similarity(id_embeddings.view(32, 2048), output_id_embeddings.view(32, 2048), dim=1).mean().item()
     )
     print(cosine_similarities)
-    assert cosine_similarities > 0.8
+    assert cosine_similarities > 0.85
 
 
 if __name__ == "__main__":
