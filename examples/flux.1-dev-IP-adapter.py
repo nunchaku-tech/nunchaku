@@ -19,6 +19,9 @@ pipeline.load_ip_adapter(
     weight_name="ip_adapter.safetensors",
     image_encoder_pretrained_model_name_or_path="openai/clip-vit-large-patch14",
 )
+
+apply_IPA_on_pipe(pipeline, ip_adapter_scale=1.1, repo_id="XLabs-AI/flux-ip-adapter-v2")
+
 apply_cache_on_pipe(
     pipeline,
     use_double_fb_cache=True,
@@ -26,13 +29,10 @@ apply_cache_on_pipe(
     residual_diff_threshold_single=0.12,
 )
 
-apply_IPA_on_pipe(pipeline, ip_adapter_scale=1.0, repo_id="XLabs-AI/flux-ip-adapter-v2")
-
-
-IP_image = load_image("https://github.com/ToTheBeginning/PuLID/blob/main/example_inputs/liuyifei.png?raw=true")
+IP_image = load_image("https://huggingface.co/datasets/nunchaku-tech/test-data/resolve/main/ComfyUI-nunchaku/inputs/monalisa.jpg")
 
 image = pipeline(
-    prompt="A woman holding a sign that says 'SVDQuant is fast!",
+    prompt="holding an iconic starbucks cup of coffee",
     ip_adapter_image=IP_image.convert("RGB"),
     num_inference_steps=50,
     generator=torch.Generator("cuda"),
