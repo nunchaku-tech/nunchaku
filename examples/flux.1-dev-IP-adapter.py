@@ -4,7 +4,7 @@ from diffusers.utils import load_image
 
 from nunchaku import NunchakuFluxTransformer2dModel
 from nunchaku.caching.diffusers_adapters import apply_cache_on_pipe
-from nunchaku.models.IP_adapter.diffusers_adapters import apply_IPA_on_pipe
+from nunchaku.models.ip_adapter.diffusers_adapters import apply_IPA_on_pipe
 from nunchaku.utils import get_precision
 
 precision = get_precision()

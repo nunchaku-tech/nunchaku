@@ -1,3 +1,11 @@
+"""
+IP-Adapter integration for Flux pipelines in Diffusers.
+
+This module provides functions to apply IP-Adapter modifications to
+FluxTransformer2DModel and DiffusionPipeline objects, enabling image prompt
+conditioning for generative models.
+"""
+
 import functools
 import unittest
 
@@ -5,12 +13,37 @@ from diffusers import DiffusionPipeline, FluxTransformer2DModel
 from torch import nn
 
 from nunchaku.caching.utils import cache_context, create_cache_context
-from nunchaku.models.IP_adapter.utils import undo_all_mods_on_transformer
+from nunchaku.models.ip_adapter.utils import undo_all_mods_on_transformer
 
-from ...IP_adapter import utils
+from ...ip_adapter import utils
 
 
-def apply_IPA_on_transformer(transformer: FluxTransformer2DModel, *, ip_adapter_scale: float = 1.0, repo_id: str):
+def apply_IPA_on_transformer(
+    transformer: FluxTransformer2DModel,
+    *,
+    ip_adapter_scale: float = 1.0,
+    repo_id: str,
+):
+    """
+    Apply IP-Adapter modifications to a FluxTransformer2DModel.
+
+    This function replaces the transformer's blocks with IP-Adapter-enabled blocks,
+    loads per-layer IP-Adapter weights, and wraps the forward method to use the new blocks.
+
+    Parameters
+    ----------
+    transformer : FluxTransformer2DModel
+        The transformer model to modify.
+    ip_adapter_scale : float, optional
+        Scaling factor for the IP-Adapter (default is 1.0).
+    repo_id : str
+        HuggingFace Hub repository ID containing the IP-Adapter weights.
+
+    Returns
+    -------
+    FluxTransformer2DModel
+        The modified transformer with IP-Adapter support.
+    """
     IPA_transformer_blocks = nn.ModuleList(
         [
             utils.IPA_TransformerBlocks(
@@ -56,6 +89,25 @@ def apply_IPA_on_transformer(transformer: FluxTransformer2DModel, *, ip_adapter_
 
 
 def apply_IPA_on_pipe(pipe: DiffusionPipeline, **kwargs):
+    """
+    Apply IP-Adapter modifications to a DiffusionPipeline.
+
+    This function modifies the pipeline's transformer to support IP-Adapter
+    conditioning. If the pipeline is cached, it also wraps the pipeline's
+    __call__ method to ensure cache context is used.
+
+    Parameters
+    ----------
+    pipe : DiffusionPipeline
+        The pipeline to modify. Must contain a FluxTransformer2DModel as its transformer.
+    **kwargs
+        Additional keyword arguments passed to `apply_IPA_on_transformer`.
+
+    Returns
+    -------
+    DiffusionPipeline
+        The modified pipeline with IP-Adapter support.
+    """
     if getattr(pipe, "_is_cached", False):
         original_call = pipe.__class__.__call__
 

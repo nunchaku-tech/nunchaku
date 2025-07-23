@@ -1,3 +1,11 @@
+"""
+IP-Adapter utility functions and classes for FluxTransformer2DModel.
+
+This module provides the core implementation for integrating IP-Adapter
+conditioning into Flux-based transformer models, including block modification,
+weight loading, and image embedding support.
+"""
+
 import cv2
 import torch
 import torch.nn.functional as F
@@ -14,6 +22,35 @@ num_single_transformer_blocks = 38  # FIXME
 
 
 class IPA_TransformerBlocks(FluxCachedTransformerBlocks):
+    """
+    Transformer block wrapper for IP-Adapter integration.
+
+    This class extends FluxCachedTransformerBlocks to enable per-layer
+    IP-Adapter conditioning, efficient caching, and flexible output control.
+
+    Parameters
+    ----------
+    transformer : nn.Module, optional
+        The base transformer module to wrap.
+    ip_adapter_scale : float, default=1.0
+        Scaling factor for the IP-Adapter output.
+    return_hidden_states_first : bool, default=True
+        If True, return hidden states before encoder states.
+    return_hidden_states_only : bool, default=False
+        If True, return only hidden states.
+    verbose : bool, default=False
+        If True, print verbose debug information.
+    device : str or torch.device
+        Device to use for computation.
+
+    Attributes
+    ----------
+    ip_adapter_scale : float
+        Scaling factor for IP-Adapter output.
+    image_embeds : torch.Tensor or None
+        Image embeddings for IP-Adapter conditioning.
+    """
+
     def __init__(
         self,
         *,
@@ -49,6 +86,38 @@ class IPA_TransformerBlocks(FluxCachedTransformerBlocks):
         controlnet_single_block_samples=None,
         skip_first_layer=False,
     ):
+        """
+        Forward pass with IP-Adapter conditioning.
+
+        Parameters
+        ----------
+        hidden_states : torch.Tensor
+            Input hidden states.
+        temb : torch.Tensor
+            Temporal embedding tensor.
+        encoder_hidden_states : torch.Tensor
+            Encoder hidden states.
+        image_rotary_emb : torch.Tensor
+            Rotary embedding for image tokens.
+        id_embeddings : optional
+            Not used.
+        id_weight : optional
+            Not used.
+        joint_attention_kwargs : dict, optional
+            Additional attention arguments, may include 'ip_hidden_states'.
+        controlnet_block_samples : list, optional
+            ControlNet block samples for multi-blocks.
+        controlnet_single_block_samples : list, optional
+            ControlNet block samples for single blocks.
+        skip_first_layer : bool, default=False
+            If True, skip the first transformer block.
+
+        Returns
+        -------
+        tuple or torch.Tensor
+            Final hidden states and encoder states, or only hidden states if
+            `return_hidden_states_only` is True.
+        """
         batch_size = hidden_states.shape[0]
         txt_tokens = encoder_hidden_states.shape[1]
         img_tokens = hidden_states.shape[1]
@@ -226,6 +295,43 @@ class IPA_TransformerBlocks(FluxCachedTransformerBlocks):
         first_block: bool = False,
         skip_block: bool = True,
     ):
+        """
+        Apply IP-Adapter conditioning to multiple transformer blocks.
+
+        Parameters
+        ----------
+        hidden_states : torch.Tensor
+            Input hidden states.
+        temb : torch.Tensor
+            Temporal embedding tensor.
+        encoder_hidden_states : torch.Tensor
+            Encoder hidden states.
+        rotary_emb_img : torch.Tensor
+            Rotary embedding for image tokens.
+        rotary_emb_txt : torch.Tensor
+            Rotary embedding for text tokens.
+        rotary_emb_single : torch.Tensor
+            Rotary embedding for single block.
+        controlnet_block_samples : list, optional
+            ControlNet block samples for multi-blocks.
+        controlnet_single_block_samples : list, optional
+            ControlNet block samples for single blocks.
+        skip_first_layer : bool, default=False
+            If True, skip the first transformer block.
+        txt_tokens : int, optional
+            Number of text tokens.
+        ip_hidden_states : torch.Tensor, optional
+            Image prompt hidden states.
+        first_block : bool, default=False
+            If True, only process the first block.
+        skip_block : bool, default=True
+            If True, skip the first block.
+
+        Returns
+        -------
+        tuple
+            (hidden_states, encoder_hidden_states, hidden_states_residual, encoder_hidden_states_residual)
+        """
         if first_block and skip_block:
             raise ValueError("`first_block` and `skip_block` cannot both be True.")
 
@@ -279,6 +385,26 @@ class IPA_TransformerBlocks(FluxCachedTransformerBlocks):
         joint_attention_dim: int = 4096,
         inner_dim: int = 3072,
     ):
+        """
+        Load per-layer IP-Adapter weights from a HuggingFace Hub repository.
+
+        Parameters
+        ----------
+        repo_id : str
+            HuggingFace Hub repository ID.
+        filename : str, default="ip_adapter.safetensors"
+            Name of the safetensors file.
+        prefix : str, default="double_blocks."
+            Prefix for block keys in the file.
+        joint_attention_dim : int, default=4096
+            Input dimension for joint attention.
+        inner_dim : int, default=3072
+            Output dimension for projections.
+
+        Returns
+        -------
+        None
+        """
         path = hf_hub_download(repo_id=repo_id, filename=filename)
         raw_cpu = {}
         with safe_open(path, framework="pt", device="cpu") as f:
@@ -318,10 +444,39 @@ class IPA_TransformerBlocks(FluxCachedTransformerBlocks):
             self.ip_v_projs.append(v_proj)
 
     def set_ip_hidden_states(self, image_embeds, negative_image_embeds=None):
+        """
+        Set the image embeddings for IP-Adapter conditioning.
+
+        Parameters
+        ----------
+        image_embeds : torch.Tensor
+            Image embeddings to use.
+        negative_image_embeds : optional
+            Not used.
+
+        Returns
+        -------
+        None
+        """
         self.image_embeds = image_embeds
 
 
 def resize_numpy_image_long(image, resize_long_edge=768):
+    """
+    Resize a numpy image so its longest edge matches a target size.
+
+    Parameters
+    ----------
+    image : np.ndarray
+        Input image as a numpy array.
+    resize_long_edge : int, default=768
+        Target size for the longest edge.
+
+    Returns
+    -------
+    np.ndarray
+        Resized image.
+    """
     h, w = image.shape[:2]
     if max(h, w) <= resize_long_edge:
         return image
@@ -333,6 +488,22 @@ def resize_numpy_image_long(image, resize_long_edge=768):
 
 
 def undo_all_mods_on_transformer(transformer: FluxTransformer2DModel):
+    """
+    Restore a FluxTransformer2DModel to its original, unmodified state.
+
+    This function undoes any modifications made for IP-Adapter integration,
+    restoring the original forward method and transformer blocks.
+
+    Parameters
+    ----------
+    transformer : FluxTransformer2DModel
+        The transformer model to restore.
+
+    Returns
+    -------
+    FluxTransformer2DModel
+        The restored transformer model.
+    """
     if hasattr(transformer, "_original_forward"):
         transformer.forward = transformer._original_forward
         del transformer._original_forward

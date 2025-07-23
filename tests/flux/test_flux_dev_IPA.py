@@ -8,8 +8,8 @@ from diffusers import FluxPipeline
 from diffusers.utils import load_image
 
 from nunchaku import NunchakuFluxTransformer2dModel
-from nunchaku.models.IP_adapter.diffusers_adapters import apply_IPA_on_pipe
-from nunchaku.models.IP_adapter.utils import resize_numpy_image_long
+from nunchaku.models.ip_adapter.diffusers_adapters import apply_IPA_on_pipe
+from nunchaku.models.ip_adapter.utils import resize_numpy_image_long
 from nunchaku.pipeline.pipeline_flux_pulid import PuLIDFluxPipeline
 from nunchaku.utils import get_precision, is_turing
 
