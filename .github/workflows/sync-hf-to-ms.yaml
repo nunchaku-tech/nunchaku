@@ -2,11 +2,12 @@ name: Synchronize HuggingFace Repos to ModelScope
 on:
   schedule:
     - cron: '0 3 * * *' # Run every day at 03:00 UTC
-      # workflow_dispatch: # Allow manual trigger from GitHub UI
+  repository_dispatch:
+    types: [sync-hf-to-ms]
 jobs:
   sync:
     runs-on: ubuntu-latest
-    if: github.repository == 'nunchaku-tech/nunchaku'
+    if: github.repository == 'nunchaku-tech/nunchaku' && (github.event_name != 'repository_dispatch' || github.actor == 'lmxyy')
     strategy:
       matrix:
         repo:
