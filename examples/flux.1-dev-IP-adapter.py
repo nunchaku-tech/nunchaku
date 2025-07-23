@@ -35,9 +35,7 @@ IP_image = load_image(
 )
 
 image = pipeline(
-    prompt="holding an iconic starbucks cup of coffee",
-    ip_adapter_image=IP_image.convert("RGB"),
-    num_inference_steps=50
+    prompt="holding an iconic starbucks cup of coffee", ip_adapter_image=IP_image.convert("RGB"), num_inference_steps=50
 ).images[0]
 
 image.save(f"flux.1-dev-IP-adapter-{precision}.png")
