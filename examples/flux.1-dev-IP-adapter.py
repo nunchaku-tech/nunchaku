@@ -29,7 +29,9 @@ apply_cache_on_pipe(
     residual_diff_threshold_single=0.12,
 )
 
-IP_image = load_image("https://huggingface.co/datasets/nunchaku-tech/test-data/resolve/main/ComfyUI-nunchaku/inputs/monalisa.jpg")
+IP_image = load_image(
+    "https://huggingface.co/datasets/nunchaku-tech/test-data/resolve/main/ComfyUI-nunchaku/inputs/monalisa.jpg"
+)
 
 image = pipeline(
     prompt="holding an iconic starbucks cup of coffee",
