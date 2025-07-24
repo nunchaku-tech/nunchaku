@@ -1,74 +1,29 @@
-name: Ampere Tests
+name: PR Tests
 on:
-  workflow_dispatch:
-    inputs:
-      test_target:
-        description: 'What to test: "pr" or "branch"'
-        required: true
-        type: choice
-        options:
-          - pr
-          - branch
-      pr_number:
-        description: 'Pull Request Number (only if test_target == "pr")'
-        required: false
-      branch_name:
-        description: 'Branch name (only if test_target == "branch")'
-        default: 'main'
-        required: false
-#  push:
-#    branches: [ main ]
-#    paths:
-#      - "nunchaku/**"
-#      - "src/**"
-#      - "tests/**"
-#      - "examples/**"
-#  pull_request:
-#    types: [ opened, synchronize, reopened, edited ]
-#    paths:
-#      - "nunchaku/**"
-#      - "src/**"
-#      - "tests/**"
-#      - "examples/**"
-#  issue_comment:
-#    types: [ created ]
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - "nunchaku/**"
+      - "src/**"
+      - "tests/**"
+      - "examples/**"
 
 concurrency:
   group: ${{ github.repository }}-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 jobs:
-  check-comment:
-    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'issue_comment' && github.event.issue.pull_request && !github.event.pull_request.draft) }}
-    runs-on: [self-hosted, ampere]
-    outputs:
-      should_run: ${{ steps.check.outputs.should_run }}
-    steps:
-      - id: check
-        run: |
-          body="${{ github.event.comment.body }}"
-          body_lower=$(echo "$body" | tr '[:upper:]' '[:lower:]')
-          if [[ "$body_lower" == "run tests" || "$body_lower" == "run test" ]]; then
-            echo "should_run=true" >> $GITHUB_OUTPUT
-          else
-            echo "should_run=false" >> $GITHUB_OUTPUT
-          fi
   run-tests:
     runs-on: [self-hosted, ampere]
-    needs: [check-comment]
-    if: ${{ github.event_name != 'issue_comment' || needs.check-comment.outputs.should_run == 'true' }}
+    if: ${{ !github.event.pull_request.draft }}
     steps:
       - name: Determine ref
         id: set-ref
         run: |
-          if [[ "${{ github.event.inputs.test_target }}" == "pr" ]]; then
-            echo "ref=refs/pull/${{ github.event.inputs.pr_number }}/merge" >> $GITHUB_OUTPUT
-          else
-            echo "ref=refs/heads/${{ github.event.inputs.branch_name }}" >> $GITHUB_OUTPUT
-          fi
+          echo "ref=${{ github.event.pull_request.head.ref }}" >> $GITHUB_OUTPUT
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ steps.set-ref.outputs.ref }}
+          ref: ${{ github.event.pull_request.head.ref }}
           submodules: true
       - name: Show current commit
         run: git log -1 --oneline
@@ -137,6 +92,7 @@ jobs:
           source $(conda info --base)/etc/profile.d/conda.sh
           conda activate test_env || { echo "Failed to activate conda env"; exit 1; }
           which python
+          NUNCHAKU_TEST_CACHE_ROOT=${{ secrets.NUNCHAKU_TEST_CACHE_ROOT_AMPERE }} HF_TOKEN=${{ secrets.HF_TOKEN }} pytest -v tests/flux/test_flux_examples.py
       - name: Nunchaku FLUX other tests
         run: |
           source $(conda info --base)/etc/profile.d/conda.sh
@@ -150,7 +106,7 @@ jobs:
           which python
           NUNCHAKU_TEST_CACHE_ROOT=${{ secrets.NUNCHAKU_TEST_CACHE_ROOT_AMPERE }} HF_TOKEN=${{ secrets.HF_TOKEN }} pytest -v tests/sana
       - name: clean up
-        if: always() && (github.event_name != 'issue_comment' || needs.check-comment.outputs.should_run == 'true')
+        if: always()
         run: |
           cd ..
           rm -rf ComfyUI
