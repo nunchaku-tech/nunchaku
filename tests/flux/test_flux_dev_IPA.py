@@ -42,7 +42,6 @@ def test_flux_dev_IPA():
         ip_adapter_image=id_image.convert("RGB"),
         num_inference_steps=50,
     ).images[0]
-    image.save("./tmp.png")
 
     del pipeline
     del transformer
@@ -73,6 +72,11 @@ def test_flux_dev_IPA():
     )
     print(cosine_similarities)
     assert cosine_similarities > 0.85
+
+    del pipeline
+    del transformer
+    gc.collect()
+    torch.cuda.empty_cache()
 
 
 if __name__ == "__main__":
