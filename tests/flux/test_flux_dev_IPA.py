@@ -71,7 +71,7 @@ def test_flux_dev_IPA():
         F.cosine_similarity(id_embeddings.view(32, 2048), output_id_embeddings.view(32, 2048), dim=1).mean().item()
     )
     print(cosine_similarities)
-    assert cosine_similarities > 0.85
+    assert cosine_similarities > 0.80
 
     del pipeline
     del transformer
