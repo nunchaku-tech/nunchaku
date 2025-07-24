@@ -7,13 +7,18 @@ on:
       - "src/**"
       - "tests/**"
       - "examples/**"
+  repository_dispatch:
+    types: [pr-test]
 
 concurrency:
   group: ${{ github.repository }}-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 jobs:
   run-tests:
-    runs-on: [self-hosted, ampere]
+    strategy:
+      matrix:
+        gpu: [ampere, blackwell]
+    runs-on: [self-hosted, ${{ matrix.gpu }}]
     if: ${{ !github.event.pull_request.draft }}
     steps:
       - name: Determine ref
