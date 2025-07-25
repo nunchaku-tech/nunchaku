@@ -1,0 +1,157 @@
+name: Ampere Tests
+on:
+  workflow_dispatch:
+    inputs:
+      test_target:
+        description: 'What to test: "pr" or "branch"'
+        required: true
+        type: choice
+        options:
+          - pr
+          - branch
+      pr_number:
+        description: 'Pull Request Number (only if test_target == "pr")'
+        required: false
+      branch_name:
+        description: 'Branch name (only if test_target == "branch")'
+        default: 'main'
+        required: false
+#  push:
+#    branches: [ main ]
+#    paths:
+#      - "nunchaku/**"
+#      - "src/**"
+#      - "tests/**"
+#      - "examples/**"
+#  pull_request:
+#    types: [ opened, synchronize, reopened, edited ]
+#    paths:
+#      - "nunchaku/**"
+#      - "src/**"
+#      - "tests/**"
+#      - "examples/**"
+#  issue_comment:
+#    types: [ created ]
+
+concurrency:
+  group: ${{ github.repository }}-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  check-comment:
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'issue_comment' && github.event.issue.pull_request && !github.event.pull_request.draft) }}
+    runs-on: [self-hosted, ampere]
+    outputs:
+      should_run: ${{ steps.check.outputs.should_run }}
+    steps:
+      - id: check
+        run: |
+          body="${{ github.event.comment.body }}"
+          body_lower=$(echo "$body" | tr '[:upper:]' '[:lower:]')
+          if [[ "$body_lower" == "run tests" || "$body_lower" == "run test" ]]; then
+            echo "should_run=true" >> $GITHUB_OUTPUT
+          else
+            echo "should_run=false" >> $GITHUB_OUTPUT
+          fi
+  run-tests:
+    runs-on: [self-hosted, ampere]
+    needs: [check-comment]
+    if: ${{ github.event_name != 'issue_comment' || needs.check-comment.outputs.should_run == 'true' }}
+    steps:
+      - name: Determine ref
+        id: set-ref
+        run: |
+          if [[ "${{ github.event.inputs.test_target }}" == "pr" ]]; then
+            echo "ref=refs/pull/${{ github.event.inputs.pr_number }}/merge" >> $GITHUB_OUTPUT
+          else
+            echo "ref=refs/heads/${{ github.event.inputs.branch_name }}" >> $GITHUB_OUTPUT
+          fi
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.set-ref.outputs.ref }}
+          submodules: true
+      - name: Show current commit
+        run: git log -1 --oneline
+      - name: Set up Python
+        run: |
+          which python
+          echo "Setting up Python with Conda"
+          conda create -n test_env python=3.11 -y
+      - name: Install dependencies
+        run: |
+          source $(conda info --base)/etc/profile.d/conda.sh
+          conda activate test_env || { echo "Failed to activate conda env"; exit 1; }
+          which python
+          conda install -c conda-forge gxx=11 gcc=11
+          echo "Installing dependencies"
+          pip install torch==2.7 torchvision==0.22 torchaudio==2.7 --index-url https://download.pytorch.org/whl/cu128
+          pip install git+https://github.com/huggingface/diffusers
+          pip install ninja wheel transformers==4.51 accelerate==1.7 sentencepiece==0.2 protobuf==6.31 huggingface_hub==0.31
+      - name: Build
+        run: |
+          source $(conda info --base)/etc/profile.d/conda.sh
+          conda activate test_env || { echo "Failed to activate conda env"; exit 1; }
+          which python
+          NUNCHAKU_INSTALL_MODE=ALL python setup.py develop
+          pip install -r tests/requirements.txt
+      - name: Setup ComfyUI
+        run: |
+          source $(conda info --base)/etc/profile.d/conda.sh
+          conda activate test_env || { echo "Failed to activate conda env"; exit 1; }
+          which python
+          pwd
+          cd ..
+          pip install comfy-cli
+          yes | comfy --here install --nvidia --skip-torch-or-directml --version 0.3.43
+          cd ComfyUI
+          rm -r models
+          mkdir -p ${{ secrets.COMFYUI_MODELS_ROOT_AMPERE }}
+          ln -s ${{ secrets.COMFYUI_MODELS_ROOT_AMPERE }} models
+          cd custom_nodes
+          git clone -b dev https://github.com/mit-han-lab/ComfyUI-nunchaku.git
+          cd ..
+          pip install -r custom_nodes/ComfyUI-nunchaku/requirements.txt
+          comfy node install comfyui_controlnet_aux
+          comfy node install comfyui-inpainteasy
+          cp -r custom_nodes/ComfyUI-nunchaku/tests nunchaku_tests
+          pip install -r nunchaku_tests/requirements.txt
+          HF_TOKEN=${{ secrets.HF_TOKEN }} python custom_nodes/ComfyUI-nunchaku/scripts/download_models.py
+          HF_TOKEN=${{ secrets.HF_TOKEN }} python custom_nodes/ComfyUI-nunchaku/scripts/download_test_data.py
+      - name: Run ComfyUI tests
+        run: |
+          source $(conda info --base)/etc/profile.d/conda.sh
+          conda activate test_env || { echo "Failed to activate conda env"; exit 1; }
+          pwd
+          cd ../ComfyUI
+          python nunchaku_tests/scripts/nunchaku-flux1-dev.py
+          pytest -v nunchaku_tests/
+      - name: Nunchaku FLUX memory tests
+        run: |
+          pwd
+          source $(conda info --base)/etc/profile.d/conda.sh
+          conda activate test_env || { echo "Failed to activate conda env"; exit 1; }
+          which python
+          NUNCHAKU_TEST_CACHE_ROOT=${{ secrets.NUNCHAKU_TEST_CACHE_ROOT_AMPERE }} HF_TOKEN=${{ secrets.HF_TOKEN }} pytest -v tests/flux/test_flux_memory.py
+      - name: Nunchaku FLUX example tests
+        run: |
+          source $(conda info --base)/etc/profile.d/conda.sh
+          conda activate test_env || { echo "Failed to activate conda env"; exit 1; }
+          which python
+          NUNCHAKU_TEST_CACHE_ROOT=${{ secrets.NUNCHAKU_TEST_CACHE_ROOT_AMPERE }} HF_TOKEN=${{ secrets.HF_TOKEN }} pytest -v tests/flux/test_flux_examples.py
+      - name: Nunchaku FLUX other tests
+        run: |
+          source $(conda info --base)/etc/profile.d/conda.sh
+          conda activate test_env || { echo "Failed to activate conda env"; exit 1; }
+          which python
+          NUNCHAKU_TEST_CACHE_ROOT=${{ secrets.NUNCHAKU_TEST_CACHE_ROOT_AMPERE }} HF_TOKEN=${{ secrets.HF_TOKEN }} pytest -v tests/flux --ignore=tests/flux/test_flux_memory.py --ignore=tests/flux/test_flux_examples.py
+      - name: Nunchaku SANA tests
+        run: |
+          source $(conda info --base)/etc/profile.d/conda.sh
+          conda activate test_env || { echo "Failed to activate conda env"; exit 1; }
+          which python
+          NUNCHAKU_TEST_CACHE_ROOT=${{ secrets.NUNCHAKU_TEST_CACHE_ROOT_AMPERE }} HF_TOKEN=${{ secrets.HF_TOKEN }} pytest -v tests/sana
+      - name: clean up
+        if: always() && (github.event_name != 'issue_comment' || needs.check-comment.outputs.should_run == 'true')
+        run: |
+          cd ..
+          rm -rf ComfyUI
