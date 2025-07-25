@@ -4,6 +4,7 @@
 # run fp4 on 5090
 
 import time
+import logging
 
 import torch
 import pytest
@@ -13,19 +14,22 @@ from diffusers import FluxPipeline
 from nunchaku import NunchakuFluxTransformer2dModel, NunchakuT5EncoderModel
 from nunchaku.utils import get_precision, is_turing
 
+_LOGGER = logging.getLogger(__name__)
+
 @pytest.mark.skipif(is_turing(), reason="Skip tests due to using Turing GPUs")
 @pytest.mark.parametrize(
-    "warmup_time,test_times,num_inference_steps,guidance_scale,use_qencoder,cpu_offload,expected_latency_ms",
+    "warmup_times,test_times,num_inference_steps,guidance_scale,use_qencoder,expected_latency",
     [
-        (2, 5, 30, 3.5, True, False, 100),
+        (2, 5, 30, 3.5, True, 6.49650 if get_precision() == "int4" else 6.3),
     ],
 )
 def test_flux_speed(warmup_times: int, test_times: int, num_inference_steps: int, guidance_scale: float, 
-                    use_qencoder: bool, cpu_offload: bool, expected_latency_ms: float):
+                    use_qencoder: bool, expected_latency: float):
     precision = get_precision()
+    
     pipeline_init_kwargs = {
         "transformer": NunchakuFluxTransformer2dModel.from_pretrained(
-            f"mit-han-lab/nunchaku-flux.1-schnell/svdq-{precision}_r32-flux.1-schnell.safetensors", offload=cpu_offload
+            f"mit-han-lab/nunchaku-flux.1-schnell/svdq-{precision}_r32-flux.1-schnell.safetensors", offload=False
         )
     }
     if use_qencoder:
@@ -37,16 +41,7 @@ def test_flux_speed(warmup_times: int, test_times: int, num_inference_steps: int
         "black-forest-labs/FLUX.1-schnell", torch_dtype=torch.bfloat16, **pipeline_init_kwargs
     )
 
-    if cpu_offload:
-        pipeline.enable_sequential_cpu_offload()
-    else:
-        pipeline = pipeline.to("cuda")
-
-    pipeline(
-        "A cat holding a sign that says hello world", 
-        width=1024, height=1024, 
-        num_inference_steps=num_inference_steps, guidance_scale=guidance_scale
-    )
+    pipeline = pipeline.to("cuda")
 
     latency_list = []
     dummy_prompt = "A cat holding a sign that says hello world"
@@ -64,7 +59,11 @@ def test_flux_speed(warmup_times: int, test_times: int, num_inference_steps: int
         torch.cuda.synchronize()
         end_time = time.time()
         latency_list.append(end_time - start_time)
-        
-    print(f"Latency: {sum(latency_list) / len(latency_list):.5f} s")
+    
+    average_latency = sum(latency_list) / len(latency_list) 
+    
+    _LOGGER.debug(f"Latency: {average_latency:.5f} s")
+    
+    assert average_latency < expected_latency * 1.1, f"Expected latency < {expected_latency}, but got {average_latency}"
     
     
