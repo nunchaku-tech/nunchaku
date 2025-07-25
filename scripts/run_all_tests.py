@@ -14,6 +14,9 @@ def run_all_tests():
         if str(rel_path) == "flux/test_flux_examples.py":
             continue
         test_files.append(str(file_path))
+    print("Running tests:")
+    for test_file in test_files:
+        print(f"  {test_file}")
 
     failed_tests = []
     for test_file in test_files:
