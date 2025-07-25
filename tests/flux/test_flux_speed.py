@@ -10,7 +10,7 @@ from nunchaku.utils import get_precision
 
 _LOGGER = logging.getLogger(__name__)
 
-EXPECTED_LATENCIES = {
+_EXPECTED_LATENCIES = {
     "NVIDIA GeForce RTX 3090": 16.05321,
     "NVIDIA GeForce RTX 4090": 6.49650,
     "NVIDIA GeForce RTX 5090": 4.79388,
@@ -18,12 +18,12 @@ EXPECTED_LATENCIES = {
 
 
 @pytest.mark.skipif(
-    torch.cuda.get_device_name(0) not in EXPECTED_LATENCIES, reason="Skip tests due to using unsupported GPUs"
+    torch.cuda.get_device_name(0) not in _EXPECTED_LATENCIES, reason="Skip tests due to using unsupported GPUs"
 )
 @pytest.mark.parametrize(
     "warmup_times,test_times,num_inference_steps,guidance_scale,use_qencoder,expected_latency",
     [
-        (2, 5, 30, 3.5, True, EXPECTED_LATENCIES[torch.cuda.get_device_name(0)]),
+        (2, 5, 30, 3.5, True, _EXPECTED_LATENCIES[torch.cuda.get_device_name(0)]),
     ],
 )
 def test_flux_speed(
