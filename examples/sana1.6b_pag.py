@@ -4,7 +4,7 @@ from diffusers import SanaPAGPipeline
 from nunchaku import NunchakuSanaTransformer2DModel
 
 transformer = NunchakuSanaTransformer2DModel.from_pretrained(
-    "mit-han-lab/nunchaku-sana/svdq-int4_r32-sana1.6b.safetensors", pag_layers=8
+    "nunchaku-tech/nunchaku-sana/svdq-int4_r32-sana1.6b.safetensors", pag_layers=8
 )
 pipe = SanaPAGPipeline.from_pretrained(
     "Efficient-Large-Model/Sana_1600M_1024px_BF16_diffusers",

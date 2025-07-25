@@ -24,7 +24,7 @@ def apply_cache_on_transformer(
     use_double_fb_cache: bool = False,
     residual_diff_threshold: float = 0.12,
     residual_diff_threshold_multi: float | None = None,
-    residual_diff_threshold_single: float = 0.1,
+    residual_diff_threshold_single: float | None = None,
 ):
     """
     Enable caching for a ``FluxTransformer2DModel``.
@@ -43,7 +43,7 @@ def apply_cache_on_transformer(
     residual_diff_threshold_multi : float, optional
         Threshold for multi-head (double) blocks. If None, uses ``residual_diff_threshold``.
     residual_diff_threshold_single : float, optional
-        Threshold for single-head blocks (default: 0.1).
+        Threshold for single-head blocks (default: None).
 
     Returns
     -------
@@ -54,6 +54,11 @@ def apply_cache_on_transformer(
     -----
     If already cached, only updates thresholds. Caching is only active within a cache context.
     """
+    if not hasattr(transformer, "_original_forward"):
+        transformer._original_forward = transformer.forward
+    if not hasattr(transformer, "_original_blocks"):
+        transformer._original_blocks = transformer.transformer_blocks
+
     if residual_diff_threshold_multi is None:
         residual_diff_threshold_multi = residual_diff_threshold
 
@@ -94,6 +99,10 @@ def apply_cache_on_transformer(
             return original_forward(*args, **kwargs)
 
     transformer.forward = new_forward.__get__(transformer)
+    transformer._is_cached = True
+    transformer.use_double_fb_cache = use_double_fb_cache
+    transformer.residual_diff_threshold_multi = residual_diff_threshold_multi
+    transformer.residual_diff_threshold_single = residual_diff_threshold_single
 
     return transformer
 
