@@ -21,16 +21,28 @@ jobs:
     runs-on:
       - self-hosted
       - ${{ matrix.gpu }}
-    if: ${{ !github.event.pull_request.draft }}
+    # Only run for non-draft PRs, or for repository_dispatch events
+    if: |
+      (github.event_name == 'pull_request' && !github.event.pull_request.draft) ||
+      (github.event_name == 'repository_dispatch')
     steps:
       - name: Determine ref
         id: set-ref
         run: |
-          echo "ref=${{ github.event.pull_request.head.ref }}" >> $GITHUB_OUTPUT
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "ref=${{ github.event.pull_request.head.ref }}" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event_name }}" == "repository_dispatch" ]]; then
+            # Use github.event.client_payload.ref if provided, else default to main
+            if [[ -n "${{ github.event.client_payload.ref }}" ]]; then
+              echo "ref=${{ github.event.client_payload.ref }}" >> $GITHUB_OUTPUT
+            else
+              echo "ref=main" >> $GITHUB_OUTPUT
+            fi
+          fi
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.ref }}
+          ref: ${{ steps.set-ref.outputs.ref }}
           submodules: true
       - name: Show current commit
         run: git log -1 --oneline
