@@ -7,9 +7,9 @@ on:
       - "src/**"
       - "tests/**"
       - "examples/**"
+      - "scripts/**"
   repository_dispatch:
     types: [pr-test]
-
 concurrency:
   group: ${{ github.repository }}-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -17,8 +17,10 @@ jobs:
   run-tests:
     strategy:
       matrix:
-        gpu: [ampere, blackwell]
-    runs-on: [self-hosted, ${{ matrix.gpu }}]
+        gpu: ['3090', '5090']
+    runs-on:
+      - self-hosted
+      - ${{ matrix.gpu }}
     if: ${{ !github.event.pull_request.draft }}
     steps:
       - name: Determine ref
@@ -36,7 +38,7 @@ jobs:
         run: |
           which python
           echo "Setting up Python with Conda"
-          conda create -n test_env python=3.11 -y
+          conda create -n test_env python=3.12 -y
       - name: Install dependencies
         run: |
           source $(conda info --base)/etc/profile.d/conda.sh
@@ -62,7 +64,7 @@ jobs:
           pwd
           cd ..
           pip install comfy-cli
-          yes | comfy --here install --nvidia --skip-torch-or-directml --version 0.3.43
+          yes | comfy --here install --nvidia --skip-torch-or-directml --version 0.3.44
           cd ComfyUI
           rm -r models
           mkdir -p ${{ secrets.COMFYUI_MODELS_ROOT_AMPERE }}
@@ -85,33 +87,21 @@ jobs:
           cd ../ComfyUI
           python nunchaku_tests/scripts/nunchaku-flux1-dev.py
           pytest -v nunchaku_tests/
-      - name: Nunchaku FLUX memory tests
-        run: |
-          pwd
-          source $(conda info --base)/etc/profile.d/conda.sh
-          conda activate test_env || { echo "Failed to activate conda env"; exit 1; }
-          which python
-          NUNCHAKU_TEST_CACHE_ROOT=${{ secrets.NUNCHAKU_TEST_CACHE_ROOT_AMPERE }} HF_TOKEN=${{ secrets.HF_TOKEN }} pytest -v tests/flux/test_flux_memory.py
       - name: Nunchaku FLUX example tests
         run: |
           source $(conda info --base)/etc/profile.d/conda.sh
           conda activate test_env || { echo "Failed to activate conda env"; exit 1; }
           which python
           NUNCHAKU_TEST_CACHE_ROOT=${{ secrets.NUNCHAKU_TEST_CACHE_ROOT_AMPERE }} HF_TOKEN=${{ secrets.HF_TOKEN }} pytest -v tests/flux/test_flux_examples.py
-      - name: Nunchaku FLUX other tests
+      - name: Nunchaku FLUX memory tests
         run: |
+          pwd
           source $(conda info --base)/etc/profile.d/conda.sh
           conda activate test_env || { echo "Failed to activate conda env"; exit 1; }
           which python
-          NUNCHAKU_TEST_CACHE_ROOT=${{ secrets.NUNCHAKU_TEST_CACHE_ROOT_AMPERE }} HF_TOKEN=${{ secrets.HF_TOKEN }} pytest -v tests/flux --ignore=tests/flux/test_flux_memory.py --ignore=tests/flux/test_flux_examples.py
-      - name: Nunchaku SANA tests
-        run: |
-          source $(conda info --base)/etc/profile.d/conda.sh
-          conda activate test_env || { echo "Failed to activate conda env"; exit 1; }
-          which python
-          NUNCHAKU_TEST_CACHE_ROOT=${{ secrets.NUNCHAKU_TEST_CACHE_ROOT_AMPERE }} HF_TOKEN=${{ secrets.HF_TOKEN }} pytest -v tests/sana
+          NUNCHAKU_TEST_CACHE_ROOT=${{ secrets.NUNCHAKU_TEST_CACHE_ROOT_AMPERE }} HF_TOKEN=${{ secrets.HF_TOKEN }} python scripts/run_all_tests.py
       - name: clean up
         if: always()
         run: |
           cd ..
-          rm -rf ComfyUI
+          rm -rf ComfyUI ComfyUI-nunchaku
