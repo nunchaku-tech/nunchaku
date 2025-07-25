@@ -1,8 +1,3 @@
-# single case for expect latency
-# original: bf16
-# use quantized text encoder, see doc
-# run fp4 on 5090
-
 import logging
 import time
 
