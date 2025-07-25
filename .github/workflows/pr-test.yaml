@@ -1,6 +1,6 @@
 name: PR Tests
 on:
-  pull_request:
+  pull_request_target:
     types: [opened, synchronize, reopened]
     paths:
       - "nunchaku/**"
@@ -99,7 +99,7 @@ jobs:
           cd ../ComfyUI
           python nunchaku_tests/scripts/nunchaku-flux1-dev.py
           pytest -v nunchaku_tests/
-      - name: Run nunchakutests
+      - name: Run nunchaku tests
         run: |
           source $(conda info --base)/etc/profile.d/conda.sh
           conda activate test_env || { echo "Failed to activate conda env"; exit 1; }
