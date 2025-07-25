@@ -20,7 +20,7 @@ _LOGGER = logging.getLogger(__name__)
 @pytest.mark.parametrize(
     "warmup_times,test_times,num_inference_steps,guidance_scale,use_qencoder,expected_latency",
     [
-        (2, 5, 30, 3.5, True, 6.49650 if get_precision() == "int4" else 6.3),
+        (2, 5, 30, 3.5, True, 6.49650 if get_precision() == "int4" else 4.79388),
     ],
 )
 def test_flux_speed(warmup_times: int, test_times: int, num_inference_steps: int, guidance_scale: float, 
