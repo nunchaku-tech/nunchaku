@@ -15,7 +15,7 @@ def run_all_tests():
             continue
         test_files.append(str(file_path))
     print("Running tests:")
-    for test_file in test_files:
+    for test_file in sorted(test_files):
         print(f"  {test_file}")
 
     failed_tests = []
