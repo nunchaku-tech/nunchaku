@@ -105,7 +105,7 @@ jobs:
           conda activate test_env || { echo "Failed to activate conda env"; exit 1; }
           which python
           NUNCHAKU_TEST_CACHE_ROOT=${{ secrets.NUNCHAKU_TEST_CACHE_ROOT_AMPERE }} HF_TOKEN=${{ secrets.HF_TOKEN }} pytest -v tests/flux/test_flux_examples.py
-      - name: Nunchaku FLUX memory tests
+      - name: Nunchaku other tests
         run: |
           pwd
           source $(conda info --base)/etc/profile.d/conda.sh
