@@ -99,18 +99,12 @@ jobs:
           cd ../ComfyUI
           python nunchaku_tests/scripts/nunchaku-flux1-dev.py
           pytest -v nunchaku_tests/
-      - name: Nunchaku FLUX example tests
+      - name: Run nunchakutests
         run: |
           source $(conda info --base)/etc/profile.d/conda.sh
           conda activate test_env || { echo "Failed to activate conda env"; exit 1; }
           which python
           NUNCHAKU_TEST_CACHE_ROOT=${{ secrets.NUNCHAKU_TEST_CACHE_ROOT_AMPERE }} HF_TOKEN=${{ secrets.HF_TOKEN }} pytest -v tests/flux/test_flux_examples.py
-      - name: Nunchaku other tests
-        run: |
-          pwd
-          source $(conda info --base)/etc/profile.d/conda.sh
-          conda activate test_env || { echo "Failed to activate conda env"; exit 1; }
-          which python
           NUNCHAKU_TEST_CACHE_ROOT=${{ secrets.NUNCHAKU_TEST_CACHE_ROOT_AMPERE }} HF_TOKEN=${{ secrets.HF_TOKEN }} python scripts/run_all_tests.py
       - name: clean up
         if: always()
