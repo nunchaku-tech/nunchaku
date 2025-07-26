@@ -8,8 +8,12 @@ on:
       - "tests/**"
       - "examples/**"
       - "scripts/**"
-  repository_dispatch:
-    types: [pr-test]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Branch, tag, or SHA to test (default: main)'
+        required: false
+        default: 'main'
 concurrency:
   group: ${{ github.repository }}-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -21,10 +25,10 @@ jobs:
     runs-on:
       - self-hosted
       - ${{ matrix.gpu }}
-    # Only run for non-draft PRs, or for repository_dispatch events
+    # Only run for non-draft PRs, or for workflow_dispatch events
     if: |
       (github.event_name == 'pull_request' && !github.event.pull_request.draft) ||
-      (github.event_name == 'repository_dispatch')
+      (github.event_name == 'workflow_dispatch')
     steps:
       - name: Determine ref
         id: set-ref
@@ -32,10 +36,10 @@ jobs:
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             # Use the merged commit SHA for PRs
             echo "ref=${{ github.event.pull_request.merge_commit_sha }}" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.event_name }}" == "repository_dispatch" ]]; then
-            # Use github.event.client_payload.ref if provided, else default to main
-            if [[ -n "${{ github.event.client_payload.ref }}" ]]; then
-              echo "ref=${{ github.event.client_payload.ref }}" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            # Use github.event.inputs.ref if provided, else default to main
+            if [[ -n "${{ github.event.inputs.ref }}" ]]; then
+              echo "ref=${{ github.event.inputs.ref }}" >> $GITHUB_OUTPUT
             else
               echo "ref=main" >> $GITHUB_OUTPUT
             fi
@@ -80,8 +84,8 @@ jobs:
           yes | comfy --here install --nvidia --skip-torch-or-directml --version 0.3.44
           cd ComfyUI
           rm -r models
-          mkdir -p ${{ secrets.COMFYUI_MODELS_ROOT_AMPERE }}
-          ln -s ${{ secrets.COMFYUI_MODELS_ROOT_AMPERE }} models
+          mkdir -p ${{ secrets.COMFYUI_MODELS_ROOT }}
+          ln -s ${{ secrets.COMFYUI_MODELS_ROOT }} models
           cd custom_nodes
           git clone -b dev https://github.com/mit-han-lab/ComfyUI-nunchaku.git
           cd ..
@@ -105,8 +109,8 @@ jobs:
           source $(conda info --base)/etc/profile.d/conda.sh
           conda activate test_env || { echo "Failed to activate conda env"; exit 1; }
           which python
-          NUNCHAKU_TEST_CACHE_ROOT=${{ secrets.NUNCHAKU_TEST_CACHE_ROOT_AMPERE }} HF_TOKEN=${{ secrets.HF_TOKEN }} pytest -v tests/flux/test_flux_examples.py
-          NUNCHAKU_TEST_CACHE_ROOT=${{ secrets.NUNCHAKU_TEST_CACHE_ROOT_AMPERE }} HF_TOKEN=${{ secrets.HF_TOKEN }} python .github/workflows/run_all_tests.py
+          NUNCHAKU_TEST_CACHE_ROOT=${{ secrets.NUNCHAKU_TEST_CACHE_ROOT }} HF_TOKEN=${{ secrets.HF_TOKEN }} pytest -v tests/flux/test_flux_examples.py
+          NUNCHAKU_TEST_CACHE_ROOT=${{ secrets.NUNCHAKU_TEST_CACHE_ROOT }} HF_TOKEN=${{ secrets.HF_TOKEN }} python .github/workflows/run_all_tests.py
       - name: clean up
         if: always()
         run: |
