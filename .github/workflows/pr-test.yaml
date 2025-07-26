@@ -8,6 +8,7 @@ on:
       - "tests/**"
       - "examples/**"
       - "scripts/**"
+      - ".github/workflows/**"
   workflow_dispatch:
     inputs:
       ref:
