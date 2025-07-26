@@ -1,6 +1,8 @@
 IP Adapter
 ==========
 
+.. image:: https://huggingface.co/datasets/nunchaku-tech/cdn/resolve/main/ComfyUI-nunchaku/workflows/nunchaku-flux.1-IP-adapter.png
+
 Nunchaku supports `IP Adapter <hf_ip-adapterv2_>`_, an adapter achieving image prompt capability for the FLUX.1-dev
 
 .. literalinclude:: ../../../examples/flux.1-dev-IP-adapter.py
