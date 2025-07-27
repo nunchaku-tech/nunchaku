@@ -79,9 +79,9 @@ def handle_kohya_lora(state_dict: dict[str, torch.Tensor]) -> dict[str, torch.Te
 def convert_keys_to_diffusers(source_state_dict: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
     """
     A LoRA format patch for FLUX.1 Kontext.
-    
+
     Example LoRA: https://huggingface.co/nunchaku-tech/nunchaku-test-models/blob/main/relight-kontext-lora-single-caption_comfy.safetensors
-    
+
     Related issue: https://github.com/nunchaku-tech/ComfyUI-nunchaku/issues/354
     """
     converted_state_dict = OrderedDict()
