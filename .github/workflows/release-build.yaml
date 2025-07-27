@@ -1,13 +1,14 @@
 name: Release Build
 on:
-  workflow_dispatch:
+  repository_dispatch:
+    types: [release-build]
 permissions:
   contents: write
 jobs:
   release:
     name: Tag Main Branch and Create Release
     runs-on: ubuntu-latest
-    if: github.repository == 'nunchaku-tech/nunchaku'
+    if: github.repository == 'nunchaku-tech/nunchaku' && github.actor == 'lmxyy'
     outputs:
       tag_name: ${{ steps.set-tag.outputs.tag_name }}
     steps:

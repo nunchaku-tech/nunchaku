@@ -10,7 +10,7 @@ pipe_prior_redux = FluxPriorReduxPipeline.from_pretrained(
     "black-forest-labs/FLUX.1-Redux-dev", torch_dtype=torch.bfloat16
 ).to("cuda")
 transformer = NunchakuFluxTransformer2dModel.from_pretrained(
-    f"mit-han-lab/nunchaku-flux.1-dev/svdq-{precision}_r32-flux.1-dev.safetensors"
+    f"nunchaku-tech/nunchaku-flux.1-dev/svdq-{precision}_r32-flux.1-dev.safetensors"
 )
 pipe = FluxPipeline.from_pretrained(
     "black-forest-labs/FLUX.1-dev",

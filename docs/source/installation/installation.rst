@@ -33,6 +33,12 @@ Once PyTorch is installed, you can install ``nunchaku`` from one of the followin
 
     pip install https://github.com/nunchaku-tech/nunchaku/releases/download/v0.3.1/nunchaku-0.3.1+torch2.7-cp311-cp311-linux_x86_64.whl
 
+Make sure to replace each version number with the correct one for your environment. `cp311` stands for python version 3.11.x. You can find your own python version using
+
+.. code-block:: shell
+
+    python --version
+
 For ComfyUI Users
 ^^^^^^^^^^^^^^^^^
 

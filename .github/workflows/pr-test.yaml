@@ -1,0 +1,123 @@
+name: PR Tests
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - "nunchaku/**"
+      - "src/**"
+      - "tests/**"
+      - "examples/**"
+      - "scripts/**"
+      - ".github/workflows/**"
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Branch, tag, or SHA to test (default: main)'
+        required: false
+        default: 'main'
+concurrency:
+  group: ${{ github.repository }}-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  run-tests:
+    strategy:
+      matrix:
+        gpu: ['3090', '5090']
+    runs-on:
+      - self-hosted
+      - ${{ matrix.gpu }}
+    # Only run for non-draft PRs, or for workflow_dispatch events
+    if: |
+      (github.event_name == 'pull_request' && !github.event.pull_request.draft) ||
+      (github.event_name == 'workflow_dispatch')
+    env:
+      COMFYUI_MODELS_ROOT: "/home/runner/workspace/comfyui_models"
+      NUNCHAKU_TEST_CACHE_ROOT: "/home/runner/workspace/nunchaku_test_root"
+    steps:
+      - name: Determine ref
+        id: set-ref
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            # Use the merged commit SHA for PRs
+            echo "ref=${{ github.event.pull_request.merge_commit_sha }}" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            # Use github.event.inputs.ref if provided, else default to main
+            if [[ -n "${{ github.event.inputs.ref }}" ]]; then
+              echo "ref=${{ github.event.inputs.ref }}" >> $GITHUB_OUTPUT
+            else
+              echo "ref=main" >> $GITHUB_OUTPUT
+            fi
+          fi
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.set-ref.outputs.ref }}
+          submodules: true
+      - name: Show current commit
+        run: git log -1 --oneline
+      - name: Set up Python
+        run: |
+          which python
+          echo "Setting up Python with Conda"
+          conda create -n test_env python=3.12 -y
+      - name: Install dependencies
+        run: |
+          source $(conda info --base)/etc/profile.d/conda.sh
+          conda activate test_env || { echo "Failed to activate conda env"; exit 1; }
+          which python
+          conda install -c conda-forge gxx=11 gcc=11
+          echo "Installing dependencies"
+          pip install torch==2.7 torchvision==0.22 torchaudio==2.7 --index-url https://download.pytorch.org/whl/cu128
+          pip install git+https://github.com/huggingface/diffusers
+          pip install ninja wheel transformers==4.51 accelerate==1.7 sentencepiece==0.2 protobuf==6.31 huggingface_hub==0.31
+      - name: Build
+        run: |
+          source $(conda info --base)/etc/profile.d/conda.sh
+          conda activate test_env || { echo "Failed to activate conda env"; exit 1; }
+          which python
+          NUNCHAKU_INSTALL_MODE=ALL python setup.py develop
+          pip install -r tests/requirements.txt
+      - name: Setup ComfyUI
+        run: |
+          source $(conda info --base)/etc/profile.d/conda.sh
+          conda activate test_env || { echo "Failed to activate conda env"; exit 1; }
+          which python
+          pwd
+          cd ..
+          pip install comfy-cli
+          rm -rf ComfyUI
+          yes | comfy --here install --nvidia --skip-torch-or-directml --version 0.3.44
+          cd ComfyUI
+          rm -r models
+          mkdir -p $COMFYUI_MODELS_ROOT
+          ln -s $COMFYUI_MODELS_ROOT models
+          cd custom_nodes
+          git clone -b dev https://github.com/mit-han-lab/ComfyUI-nunchaku.git
+          cd ..
+          pip install -r custom_nodes/ComfyUI-nunchaku/requirements.txt
+          comfy node install comfyui_controlnet_aux
+          comfy node install comfyui-inpainteasy
+          cp -r custom_nodes/ComfyUI-nunchaku/tests nunchaku_tests
+          pip install -r nunchaku_tests/requirements.txt
+          HF_TOKEN=${{ secrets.HF_TOKEN }} python custom_nodes/ComfyUI-nunchaku/scripts/download_models.py
+          HF_TOKEN=${{ secrets.HF_TOKEN }} python custom_nodes/ComfyUI-nunchaku/scripts/download_test_data.py
+      - name: Run ComfyUI tests
+        run: |
+          source $(conda info --base)/etc/profile.d/conda.sh
+          conda activate test_env || { echo "Failed to activate conda env"; exit 1; }
+          pwd
+          cd ../ComfyUI
+          python nunchaku_tests/scripts/nunchaku-flux1-dev.py
+          pytest -v nunchaku_tests/
+      - name: Run nunchaku tests
+        run: |
+          source $(conda info --base)/etc/profile.d/conda.sh
+          conda activate test_env || { echo "Failed to activate conda env"; exit 1; }
+          which python
+          pytest -v tests/flux/test_flux_examples.py
+          python .github/workflows/run_all_tests.py
+      - name: clean up
+        if: always()
+        run: |
+          cd ..
+          rm -rf ComfyUI

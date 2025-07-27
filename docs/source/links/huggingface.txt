@@ -8,3 +8,4 @@
 .. _hf_nunchaku-flux1-dev-int4: https://huggingface.co/mit-han-lab/nunchaku-flux.1-dev/blob/main/svdq-int4_r32-flux.1-dev.safetensors
 .. _hf_depth_anything: https://huggingface.co/LiheYoung/depth-anything-large-hf
 .. _hf_nunchaku_wheels: https://huggingface.co/nunchaku-tech/nunchaku
+.. _hf_ip-adapterv2: https://huggingface.co/XLabs-AI/flux-ip-adapter-v2
