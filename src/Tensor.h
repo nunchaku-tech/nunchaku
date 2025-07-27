@@ -432,6 +432,13 @@ public:
             return *this;
         }
 
+        std::optional<CUDADeviceContext> operation_ctx_guard;
+
+        if (this->device().type == Device::CUDA) {
+        } else if (other.device().type == Device::CUDA) {
+            operation_ctx_guard.emplace(other.device().idx);
+        }
+
         if (this->device().type == Device::CPU && other.device().type == Device::CPU) {
             memcpy(data_ptr<char>(), other.data_ptr<char>(), shape.size() * scalar_size());
             return *this;

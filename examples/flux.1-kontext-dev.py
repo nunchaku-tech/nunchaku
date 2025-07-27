@@ -6,7 +6,7 @@ from nunchaku import NunchakuFluxTransformer2dModel
 from nunchaku.utils import get_precision
 
 transformer = NunchakuFluxTransformer2dModel.from_pretrained(
-    f"mit-han-lab/nunchaku-flux.1-kontext-dev/svdq-{get_precision()}_r32-flux.1-kontext-dev.safetensors"
+    f"nunchaku-tech/nunchaku-flux.1-kontext-dev/svdq-{get_precision()}_r32-flux.1-kontext-dev.safetensors"
 )
 
 pipeline = FluxKontextPipeline.from_pretrained(

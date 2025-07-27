@@ -49,6 +49,16 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
              py::arg("rotary_emb_context"),
              py::arg("controlnet_block_samples")        = py::none(),
              py::arg("controlnet_single_block_samples") = py::none())
+        .def("forward_layer_ip_adapter",
+             &QuantizedFluxModel::forward_layer_ip_adapter,
+             py::arg("idx"),
+             py::arg("hidden_states"),
+             py::arg("encoder_hidden_states"),
+             py::arg("temb"),
+             py::arg("rotary_emb_img"),
+             py::arg("rotary_emb_context"),
+             py::arg("controlnet_block_samples")        = py::none(),
+             py::arg("controlnet_single_block_samples") = py::none())
         .def("forward_single_layer", &QuantizedFluxModel::forward_single_layer)
         .def("norm_one_forward", &QuantizedFluxModel::norm_one_forward)
         .def("startDebug", &QuantizedFluxModel::startDebug)

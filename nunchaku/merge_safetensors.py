@@ -1,3 +1,26 @@
+"""
+Merge split safetensors model files (deprecated format) into a single safetensors file.
+
+**Example usage**
+
+.. code-block:: bash
+
+    python -m nunchaku.merge_safetensors -i <input_path_or_repo> -o <output_path>
+
+**Arguments**
+
+- ``-i``, ``--input-path`` (Path): Path to the model directory or HuggingFace repo.
+- ``-o``, ``--output-path`` (Path): Path to save the merged safetensors file.
+
+It will combine the ``unquantized_layers.safetensors`` and ``transformer_blocks.safetensors``
+files (and associated config files) from a local directory or a HuggingFace Hub repository
+into a single safetensors file with appropriate metadata.
+
+**Main Function**
+
+:func:`merge_safetensors`
+"""
+
 import argparse
 import json
 import os
@@ -13,6 +36,28 @@ from .utils import load_state_dict_in_safetensors
 def merge_safetensors(
     pretrained_model_name_or_path: str | os.PathLike[str], **kwargs
 ) -> tuple[dict[str, torch.Tensor], dict[str, str]]:
+    """
+    Merge split safetensors model files into a single state dict and metadata.
+
+    This function loads the ``unquantized_layers.safetensors`` and ``transformer_blocks.safetensors``
+    files (and associated config files) from a local directory or a HuggingFace Hub repository,
+    and merges them into a single state dict and metadata dictionary.
+
+    Parameters
+    ----------
+    pretrained_model_name_or_path : str or os.PathLike
+        Path to the model directory or HuggingFace repo.
+    **kwargs
+        Additional keyword arguments for subfolder, comfy_config_path, and HuggingFace download options.
+
+    Returns
+    -------
+    tuple[dict[str, torch.Tensor], dict[str, str]]
+        The merged state dict and metadata dictionary.
+
+        - **state_dict**: The merged model state dict.
+        - **metadata**: Dictionary containing ``config``, ``comfy_config``, ``model_class``, and ``quantization_config``.
+    """
     subfolder = kwargs.get("subfolder", None)
     comfy_config_path = kwargs.get("comfy_config_path", None)
 

@@ -775,9 +775,458 @@ std::tuple<Tensor, Tensor> JointTransformerBlock::forward(Tensor hidden_states,
 
     return {hidden_states, encoder_hidden_states};
 }
+Tensor JointTransformerBlock::get_q_heads(Tensor hidden_states,
+                                          Tensor encoder_hidden_states,
+                                          Tensor temb,
+                                          Tensor rotary_emb,
+                                          Tensor rotary_emb_context,
+                                          float sparsityRatio) {
+    int batch_size     = hidden_states.shape[0];
+    int num_tokens_img = hidden_states.shape[1];
+    int num_tokens_txt = encoder_hidden_states.shape[1];
+
+    // Apply AdaNorm.
+    auto norm1_output         = norm1.forward(hidden_states, temb);
+    auto norm1_context_output = norm1_context.forward(encoder_hidden_states, temb);
+
+    Tensor concat = Tensor::allocate(
+        {batch_size, num_tokens_img + num_tokens_txt, dim * 3}, norm1_output.x.scalar_type(), norm1_output.x.device());
+
+    const bool blockSparse  = sparsityRatio > 0;
+    constexpr int POOL_SIZE = Attention::POOL_SIZE;
+    const int poolTokens    = num_tokens_img / POOL_SIZE + num_tokens_txt / POOL_SIZE;
+    Tensor pool =
+        blockSparse
+            ? Tensor::allocate({batch_size, poolTokens, dim * 3}, norm1_output.x.scalar_type(), norm1_output.x.device())
+            : Tensor{};
+
+    // QKV Projection.
+    for (int i = 0; i < batch_size; i++) {
+        Tensor qkv         = concat.slice(0, i, i + 1).slice(1, 0, num_tokens_img);
+        Tensor qkv_context = concat.slice(0, i, i + 1).slice(1, num_tokens_img, num_tokens_img + num_tokens_txt);
+        Tensor pool_qkv    = pool.valid() ? pool.slice(0, i, i + 1).slice(1, 0, num_tokens_img / POOL_SIZE) : Tensor{};
+        Tensor pool_qkv_context =
+            pool.valid() ? pool.slice(0, i, i + 1).slice(1, num_tokens_img / POOL_SIZE, poolTokens) : Tensor{};
+
+        qkv_proj.forward(norm1_output.x.slice(0, i, i + 1), qkv, pool_qkv, norm_q.weight, norm_k.weight, rotary_emb);
+        qkv_proj_context.forward(norm1_context_output.x.slice(0, i, i + 1),
+                                 qkv_context,
+                                 pool_qkv_context,
+                                 norm_added_q.weight,
+                                 norm_added_k.weight,
+                                 rotary_emb_context);
+    }
+
+    // Extract and return q_heads.
+    Tensor q_all = concat.slice(2, 0, num_heads * dim_head);
+    Tensor q_img = q_all.slice(1, 0, num_tokens_img);
+
+    auto make_contiguous = [&](const Tensor &t) {
+        int B            = t.shape.dataExtent[0];
+        int R            = t.shape.dataExtent[1];
+        int C            = t.shape.dataExtent[2];
+        size_t E         = t.scalar_size();
+        size_t src_pitch = t.stride(1) * E;
+        size_t dst_pitch = C * E;
+        size_t width     = C * E;
+        size_t height    = R;
+        Tensor out       = Tensor::allocate({B, R, C}, t.scalarType, t.device());
+        auto stream      = getCurrentCUDAStream();
+        for (int b = 0; b < B; ++b) {
+            const void *src = (const char *)t.data_ptr<char>() + t.stride(0) * b * E;
+            void *dst       = (char *)out.data_ptr<char>() + out.stride(0) * b * E;
+            checkCUDA(
+                cudaMemcpy2DAsync(dst, dst_pitch, src, src_pitch, width, height, cudaMemcpyDeviceToDevice, stream));
+        }
+        return out;
+    };
+    return make_contiguous(q_img);
+}
+
+std::tuple<Tensor, Tensor, Tensor> JointTransformerBlock::forward_ip_adapter_branch(Tensor hidden_states,
+                                                                                    Tensor encoder_hidden_states,
+                                                                                    Tensor temb,
+                                                                                    Tensor rotary_emb,
+                                                                                    Tensor rotary_emb_context,
+                                                                                    float sparsityRatio) {
+    int batch_size = hidden_states.shape[0];
+    assert(encoder_hidden_states.shape[0] == batch_size);
+
+    nvtxRangePushA("JointTransformerBlock");
+
+    nvtxRangePushA("AdaNorm");
+
+    int num_tokens_img = hidden_states.shape[1];
+    int num_tokens_txt = encoder_hidden_states.shape[1];
+
+    assert(hidden_states.shape[2] == dim);
+    assert(encoder_hidden_states.shape[2] == dim);
+
+    Tensor q_heads;
+
+    auto make_contiguous = [&](const Tensor &t) {
+        int B            = t.shape.dataExtent[0];
+        int R            = t.shape.dataExtent[1];
+        int C            = t.shape.dataExtent[2];
+        size_t E         = t.scalar_size();
+        size_t src_pitch = t.stride(1) * E;
+
+        size_t dst_pitch = C * E;
+        size_t width     = C * E;
+        size_t height    = R;
+
+        Tensor out = Tensor::allocate({B, R, C}, t.scalarType, t.device());
+
+        auto stream = getCurrentCUDAStream();
+        for (int b = 0; b < B; ++b) {
+            const void *src = (const char *)t.data_ptr<char>() + t.stride(0) * b * E;
+            void *dst       = (char *)out.data_ptr<char>() + out.stride(0) * b * E;
+            checkCUDA(
+                cudaMemcpy2DAsync(dst, dst_pitch, src, src_pitch, width, height, cudaMemcpyDeviceToDevice, stream));
+        }
+        return out;
+    };
+
+    spdlog::debug("hidden_states={} encoder_hidden_states={} temb={}",
+                  hidden_states.shape.str(),
+                  encoder_hidden_states.shape.str(),
+                  temb.shape.str());
+    spdlog::debug("batch_size={} num_tokens_img={} num_tokens_txt={}", batch_size, num_tokens_img, num_tokens_txt);
+
+    auto norm1_output         = norm1.forward(hidden_states, temb);
+    auto norm1_context_output = norm1_context.forward(encoder_hidden_states, temb);
+
+#if 0
+    norm1_output.x = hidden_states;
+    norm1_context_output.x = encoder_hidden_states;
+#endif
+
+    debug("norm_hidden_states", norm1_output.x);
+    debug("norm_encoder_hidden_states", norm1_context_output.x);
+
+    constexpr int POOL_SIZE = Attention::POOL_SIZE;
+
+    nvtxRangePop();
+
+    auto stream = getCurrentCUDAStream();
+
+    int num_tokens_img_pad = 0, num_tokens_txt_pad = 0;
+    Tensor raw_attn_output;
+
+    if (attnImpl == AttentionImpl::FlashAttention2) {
+        num_tokens_img_pad = num_tokens_img;
+        num_tokens_txt_pad = num_tokens_txt;
+
+        Tensor concat;
+        Tensor pool;
+
+        {
+            nvtxRangePushA("qkv_proj");
+
+            const bool blockSparse = sparsityRatio > 0;
+
+            const int poolTokens = num_tokens_img / POOL_SIZE + num_tokens_txt / POOL_SIZE;
+            concat               = Tensor::allocate({batch_size, num_tokens_img + num_tokens_txt, dim * 3},
+                                      norm1_output.x.scalar_type(),
+                                      norm1_output.x.device());
+
+            pool = blockSparse ? Tensor::allocate({batch_size, poolTokens, dim * 3},
+                                                  norm1_output.x.scalar_type(),
+                                                  norm1_output.x.device())
+                               : Tensor{};
+
+            for (int i = 0; i < batch_size; i++) {
+                // img first
+                Tensor qkv = concat.slice(0, i, i + 1).slice(1, 0, num_tokens_img);
+                Tensor qkv_context =
+                    concat.slice(0, i, i + 1).slice(1, num_tokens_img, num_tokens_img + num_tokens_txt);
+
+                Tensor pool_qkv =
+                    pool.valid() ? pool.slice(0, i, i + 1).slice(1, 0, num_tokens_img / POOL_SIZE) : Tensor{};
+                Tensor pool_qkv_context = pool.valid()
+                                              ? pool.slice(0, i, i + 1)
+                                                    .slice(1,
+                                                           num_tokens_img / POOL_SIZE,
+                                                           num_tokens_img / POOL_SIZE + num_tokens_txt / POOL_SIZE)
+                                              : Tensor{};
+
+                // qkv_proj.forward(norm1_output.x.slice(0, i, i + 1), qkv);
+                // debug("qkv_raw", qkv);
+
+                debug("rotary_emb", rotary_emb);
+
+                qkv_proj.forward(
+                    norm1_output.x.slice(0, i, i + 1), qkv, pool_qkv, norm_q.weight, norm_k.weight, rotary_emb);
+                debug("qkv", qkv);
+
+                // qkv_proj_context.forward(norm1_context_output.x.slice(0, i, i + 1), qkv_context);
+                // debug("qkv_context_raw", qkv_context);
+
+                debug("rotary_emb_context", rotary_emb_context);
+
+                qkv_proj_context.forward(norm1_context_output.x.slice(0, i, i + 1),
+                                         qkv_context,
+                                         pool_qkv_context,
+                                         norm_added_q.weight,
+                                         norm_added_k.weight,
+                                         rotary_emb_context);
+                debug("qkv_context", qkv_context);
+            }
+
+            nvtxRangePop();
+        }
+
+        spdlog::debug("concat={}", concat.shape.str());
+        debug("concat", concat);
+
+        assert(concat.shape[2] == num_heads * dim_head * 3);
+
+        nvtxRangePushA("Attention");
+
+        if (pool.valid()) {
+            raw_attn_output = attn.forward(concat, pool, sparsityRatio);
+        } else {
+            raw_attn_output = attn.forward(concat);
+        }
+
+        nvtxRangePop();
+
+        spdlog::debug("raw_attn_output={}", raw_attn_output.shape.str());
+
+        raw_attn_output = raw_attn_output.view({batch_size, num_tokens_img + num_tokens_txt, num_heads, dim_head});
+
+        // IP_adapter
+        Tensor q_all = concat.slice(2, 0, num_heads * dim_head); // [B, N_total, dim]
+
+        Tensor q_img = q_all.slice(1, 0, num_tokens_img); // [B, N_img, dim]
+
+        q_heads = make_contiguous(q_img);
+
+    } else if (attnImpl == AttentionImpl::NunchakuFP16) {
+        num_tokens_img_pad = ceilDiv(num_tokens_img, 256) * 256;
+        num_tokens_txt_pad = ceilDiv(num_tokens_txt, 256) * 256;
+
+        Tensor concat_q, concat_k, concat_v;
+
+        {
+            nvtxRangePushA("qkv_proj");
+
+            concat_q = Tensor::allocate({batch_size, num_heads, num_tokens_img_pad + num_tokens_txt_pad, dim_head},
+                                        Tensor::FP16,
+                                        norm1_output.x.device());
+            concat_k = Tensor::empty_like(concat_q);
+            concat_v = Tensor::empty_like(concat_q);
+
+            for (int i = 0; i < batch_size; i++) {
+                // img first
+                auto sliceImg = [&](Tensor x) { return x.slice(0, i, i + 1).slice(2, 0, num_tokens_img_pad); };
+                auto sliceTxt = [&](Tensor x) {
+                    return x.slice(0, i, i + 1).slice(2, num_tokens_img_pad, num_tokens_img_pad + num_tokens_txt_pad);
+                };
+
+                qkv_proj.forward(norm1_output.x.slice(0, i, i + 1),
+                                 {},
+                                 {},
+                                 norm_q.weight,
+                                 norm_k.weight,
+                                 rotary_emb,
+                                 sliceImg(concat_q),
+                                 sliceImg(concat_k),
+                                 sliceImg(concat_v),
+                                 num_tokens_img);
+
+                qkv_proj_context.forward(norm1_context_output.x.slice(0, i, i + 1),
+                                         {},
+                                         {},
+                                         norm_added_q.weight,
+                                         norm_added_k.weight,
+                                         rotary_emb_context,
+                                         sliceTxt(concat_q),
+                                         sliceTxt(concat_k),
+                                         sliceTxt(concat_v),
+                                         num_tokens_txt);
+            }
+
+            debug("concat_q", concat_q);
+            debug("concat_k", concat_k);
+            debug("concat_v", concat_v);
+
+            nvtxRangePop();
+        }
+
+        raw_attn_output = Tensor::allocate({batch_size, num_tokens_img_pad + num_tokens_txt_pad, num_heads * dim_head},
+                                           norm1_output.x.scalar_type(),
+                                           norm1_output.x.device());
+
+        nvtxRangePushA("Attention");
+
+        kernels::attention_fp16(concat_q, concat_k, concat_v, raw_attn_output, pow(dim_head, (-0.5)));
+
+        nvtxRangePop();
+
+        raw_attn_output =
+            raw_attn_output.view({batch_size, num_tokens_img_pad + num_tokens_txt_pad, num_heads, dim_head});
+
+        q_heads = concat_q;
+    } else {
+        assert(false);
+    }
+
+    debug("raw_attn_output", raw_attn_output);
+
+    {
+        nvtxRangePushA("o_proj");
+
+        auto &&[_, gate_msa, shift_mlp, scale_mlp, gate_mlp] = norm1_output;
+
+        // raw_attn_output: [batch_size, num_tokens_img + num_tokens_txt, num_heads * dim_head]
+
+        Tensor raw_attn_output_split;
+        if (batch_size == 1) {
+            raw_attn_output_split =
+                raw_attn_output.slice(1, 0, num_tokens_img).reshape({batch_size, num_tokens_img, num_heads * dim_head});
+        } else {
+            raw_attn_output_split = Tensor::allocate({batch_size, num_tokens_img, num_heads * dim_head},
+                                                     raw_attn_output.scalar_type(),
+                                                     raw_attn_output.device());
+            checkCUDA(cudaMemcpy2DAsync(raw_attn_output_split.data_ptr(),
+                                        num_tokens_img * num_heads * dim_head * raw_attn_output_split.scalar_size(),
+                                        raw_attn_output.data_ptr(),
+                                        (num_tokens_img_pad + num_tokens_txt_pad) * num_heads * dim_head *
+                                            raw_attn_output.scalar_size(),
+                                        num_tokens_img * num_heads * dim_head * raw_attn_output_split.scalar_size(),
+                                        batch_size,
+                                        cudaMemcpyDeviceToDevice,
+                                        stream));
+        }
+
+        spdlog::debug("raw_attn_output_split={}", raw_attn_output_split.shape.str());
+        debug("img.raw_attn_output_split", raw_attn_output_split);
+
+        Tensor attn_output =
+            forward_fc(out_proj, raw_attn_output_split); // std::get<Tensor>(out_proj.forward(raw_attn_output_split));
+        debug("img.attn_output", attn_output);
+
+#if 1
+        // kernels::mul_add(attn_output, gate_msa, hidden_states);
+        kernels::mul_add_batch(attn_output, gate_msa, true, 0.0, hidden_states, true);
+        hidden_states = std::move(attn_output);
+
+        nvtxRangePop();
+        nvtxRangePushA("MLP");
+
+        spdlog::debug("attn_output={}", hidden_states.shape.str());
+
+        Tensor norm_hidden_states = norm2.forward(hidden_states);
+        debug("scale_mlp", scale_mlp);
+        debug("shift_mlp", shift_mlp);
+        // kernels::mul_add(norm_hidden_states, scale_mlp, shift_mlp);
+        kernels::mul_add_batch(norm_hidden_states, scale_mlp, true, 0.0, shift_mlp, true);
+
+        spdlog::debug("norm_hidden_states={}", norm_hidden_states.shape.str());
+#else
+        Tensor norm_hidden_states = hidden_states;
+#endif
+
+        // Tensor ff_output = mlp_fc2.forward(GELU::forward(mlp_fc1.forward(norm_hidden_states)));
+        debug("img.ff_input", norm_hidden_states);
+        Tensor ff_output = forward_mlp(mlp_fc1, mlp_fc2, norm_hidden_states);
+        debug("img.ff_output", ff_output);
+
+        debug("gate_mlp", gate_mlp);
+        // kernels::mul_add(ff_output, gate_mlp, hidden_states);
+        kernels::mul_add_batch(ff_output, gate_mlp, true, 0.0, hidden_states, true);
+        hidden_states = std::move(ff_output);
+
+        nvtxRangePop();
+
+        spdlog::debug("ff_output={}", hidden_states.shape.str());
+    }
+
+    if (context_pre_only) {
+        return {hidden_states, encoder_hidden_states, q_heads};
+    }
+
+    {
+        nvtxRangePushA("o_proj_context");
+
+        auto &&[_, gate_msa, shift_mlp, scale_mlp, gate_mlp] = norm1_context_output;
+
+        Tensor raw_attn_output_split;
+        if (batch_size == 1) {
+            raw_attn_output_split = raw_attn_output.slice(1, num_tokens_img_pad, num_tokens_img_pad + num_tokens_txt)
+                                        .reshape({batch_size, num_tokens_txt, num_heads * dim_head});
+        } else {
+            raw_attn_output_split = Tensor::allocate({batch_size, num_tokens_txt, num_heads * dim_head},
+                                                     raw_attn_output.scalar_type(),
+                                                     raw_attn_output.device());
+            checkCUDA(cudaMemcpy2DAsync(raw_attn_output_split.data_ptr(),
+                                        num_tokens_txt * num_heads * dim_head * raw_attn_output_split.scalar_size(),
+                                        raw_attn_output.data_ptr<char>() + num_tokens_img_pad * num_heads * dim_head *
+                                                                               raw_attn_output_split.scalar_size(),
+                                        (num_tokens_img_pad + num_tokens_txt_pad) * num_heads * dim_head *
+                                            raw_attn_output.scalar_size(),
+                                        num_tokens_txt * num_heads * dim_head * raw_attn_output_split.scalar_size(),
+                                        batch_size,
+                                        cudaMemcpyDeviceToDevice,
+                                        stream));
+        }
+
+        spdlog::debug("raw_attn_output_split={}", raw_attn_output_split.shape.str());
+        debug("context.raw_attn_output_split", raw_attn_output_split);
+
+        Tensor attn_output =
+            forward_fc(out_proj_context,
+                       raw_attn_output_split); // std::get<Tensor>(out_proj_context.forward(raw_attn_output_split));
+        debug("context.attn_output", attn_output);
+
+#if 1
+        // kernels::mul_add(attn_output, gate_msa, encoder_hidden_states);
+        kernels::mul_add_batch(attn_output, gate_msa, true, 0.0, encoder_hidden_states, true);
+        encoder_hidden_states = std::move(attn_output);
+
+        nvtxRangePop();
+        nvtxRangePushA("MLP");
+
+        spdlog::debug("attn_output={}", encoder_hidden_states.shape.str());
+
+        Tensor norm_hidden_states = norm2_context.forward(encoder_hidden_states);
+        debug("c_scale_mlp", scale_mlp);
+        debug("c_shift_mlp", shift_mlp);
+        // kernels::mul_add(norm_hidden_states, scale_mlp, shift_mlp);
+        kernels::mul_add_batch(norm_hidden_states, scale_mlp, true, 0.0, shift_mlp, true);
+
+        spdlog::debug("norm_hidden_states={}", norm_hidden_states.shape.str());
+#else
+        auto norm_hidden_states = encoder_hidden_states;
+#endif
+
+        // Tensor ff_output = mlp_context_fc2.forward(GELU::forward(mlp_context_fc1.forward(norm_hidden_states)));
+        // Tensor ff_output =
+        // mlp_context_fc2.forward_quant(quant_static_fuse_gelu(mlp_context_fc1.forward(norm_hidden_states), 1.0));
+        debug("context.ff_input", norm_hidden_states);
+        Tensor ff_output = forward_mlp(mlp_context_fc1, mlp_context_fc2, norm_hidden_states);
+        debug("context.ff_output", ff_output);
+
+        debug("c_gate_mlp", gate_mlp);
+        // kernels::mul_add(ff_output, gate_mlp, encoder_hidden_states);
+        kernels::mul_add_batch(ff_output, gate_mlp, true, 0.0, encoder_hidden_states, true);
+        encoder_hidden_states = std::move(ff_output);
+
+        nvtxRangePop();
+
+        spdlog::debug("ff_output={}", encoder_hidden_states.shape.str());
+    }
+
+    nvtxRangePop();
+
+    return {hidden_states, encoder_hidden_states, q_heads};
+}
 
 FluxModel::FluxModel(bool use_fp4, bool offload, Tensor::ScalarType dtype, Device device)
     : dtype(dtype), offload(offload) {
+    CUDADeviceContext model_construction_ctx(device.idx);
+
     for (int i = 0; i < 19; i++) {
         transformer_blocks.push_back(
             std::make_unique<JointTransformerBlock>(3072, 24, 3072, false, use_fp4, dtype, device));
@@ -965,6 +1414,43 @@ std::tuple<Tensor, Tensor> FluxModel::forward_layer(size_t layer,
     }
 
     return {hidden_states, encoder_hidden_states};
+}
+
+std::tuple<Tensor, Tensor, Tensor> FluxModel::forward_ip_adapter(size_t layer,
+                                                                 Tensor hidden_states,         // [B, Nq, dim]
+                                                                 Tensor encoder_hidden_states, // [B, Nt, dim]
+                                                                 Tensor temb,
+                                                                 Tensor rotary_emb_img, // [B, Nq, dim_head]
+                                                                 Tensor rotary_emb_context,
+                                                                 Tensor controlnet_block_samples,
+                                                                 Tensor controlnet_single_block_samples) {
+    if (offload && layer > 0) {
+        if (layer < transformer_blocks.size()) {
+            transformer_blocks.at(layer)->loadLazyParams();
+        } else {
+            transformer_blocks.at(layer - transformer_blocks.size())->loadLazyParams();
+        }
+    }
+
+    std::tie(hidden_states, encoder_hidden_states) = transformer_blocks.at(layer)->forward(
+        hidden_states, encoder_hidden_states, temb, rotary_emb_img, rotary_emb_context, 0.0f);
+    Tensor ip_query = transformer_blocks.at(layer)->get_q_heads(
+        hidden_states, encoder_hidden_states, temb, rotary_emb_img, rotary_emb_context, 0.0f);
+
+    if (controlnet_block_samples.valid()) {
+        const int num_controlnet_block_samples = controlnet_block_samples.shape[0];
+
+        int interval_control = ceilDiv(transformer_blocks.size(), static_cast<size_t>(num_controlnet_block_samples));
+        int block_index      = layer / interval_control;
+
+        hidden_states = kernels::add(hidden_states, controlnet_block_samples[block_index]);
+    }
+
+    if (offload && layer > 0) {
+        transformer_blocks.at(layer)->releaseLazyParams();
+    }
+
+    return {hidden_states, encoder_hidden_states, ip_query};
 }
 
 void FluxModel::setAttentionImpl(AttentionImpl impl) {

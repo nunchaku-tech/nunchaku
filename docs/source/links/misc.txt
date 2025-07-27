@@ -1,0 +1,7 @@
+.. _pytorch_home: https://pytorch.org/
+.. _nunchaku_windows_tutorial_en: https://youtu.be/YHAVe-oM7U8?si=cM9zaby_aEHiFXk0
+.. _nunchaku_windows_tutorial_zh: https://www.bilibili.com/video/BV1BTocYjEk5/?share_source=copy_web&vd_source=8926212fef622f25cc95380515ac74ee
+.. _download_cuda: https://developer.nvidia.com/cuda-downloads
+.. _visual_studio: https://visualstudio.microsoft.com/visual-cpp-build-tools/
+.. _download_git_win: https://git-scm.com/downloads/win
+.. _download_anaconda: https://www.anaconda.com/download/success

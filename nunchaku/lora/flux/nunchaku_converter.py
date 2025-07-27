@@ -1,5 +1,15 @@
-# convert the diffusers lora to nunchaku format
-"""Convert LoRA weights to Nunchaku format."""
+"""
+Nunchaku LoRA format converter for Flux models.
+
+This module provides utilities to convert LoRA weights from Diffusers format
+to Nunchaku format for efficient quantized inference in Flux models.
+
+Key functions
+-------------
+- :func:`to_nunchaku` : Main conversion entry point
+- :func:`fuse_vectors` : Vector fusion for bias terms
+"""
+
 import logging
 import os
 
@@ -26,6 +36,28 @@ logger = logging.getLogger(__name__)
 def update_state_dict(
     lhs: dict[str, torch.Tensor], rhs: dict[str, torch.Tensor], prefix: str = ""
 ) -> dict[str, torch.Tensor]:
+    """
+    Update a state dictionary with values from another, optionally adding a prefix to keys.
+
+    Parameters
+    ----------
+    lhs : dict[str, torch.Tensor]
+        Target state dictionary.
+    rhs : dict[str, torch.Tensor]
+        Source state dictionary.
+    prefix : str, optional
+        Prefix to add to keys from rhs.
+
+    Returns
+    -------
+    dict[str, torch.Tensor]
+        Updated state dictionary.
+
+    Raises
+    ------
+    AssertionError
+        If any key already exists in the target dictionary.
+    """
     for rkey, value in rhs.items():
         lkey = f"{prefix}.{rkey}" if prefix else rkey
         assert lkey not in lhs, f"Key {lkey} already exists in the state dict."
@@ -37,13 +69,20 @@ def update_state_dict(
 
 
 def pack_lowrank_weight(weight: torch.Tensor, down: bool) -> torch.Tensor:
-    """Pack Low-Rank Weight.
+    """
+    Pack the low-rank weight tensor for W4A4 linear layers.
 
-    Args:
-        weight (`torch.Tensor`):
-            low-rank weight tensor.
-        down (`bool`):
-            whether the weight is for down projection in low-rank branch.
+    Parameters
+    ----------
+    weight : torch.Tensor
+        Low-rank weight tensor.
+    down : bool
+        If True, pack as down-projection; else as up-projection.
+
+    Returns
+    -------
+    torch.Tensor
+        Packed weight tensor.
     """
     assert weight.dtype in (torch.float16, torch.bfloat16), f"Unsupported weight dtype {weight.dtype}."
     lane_n, lane_k = 1, 2  # lane_n is always 1, lane_k is 32 bits // 16 bits = 2
@@ -66,13 +105,20 @@ def pack_lowrank_weight(weight: torch.Tensor, down: bool) -> torch.Tensor:
 
 
 def unpack_lowrank_weight(weight: torch.Tensor, down: bool) -> torch.Tensor:
-    """Unpack Low-Rank Weight.
+    """
+    Unpack the low-rank weight tensor from W4A4 linear layers.
 
-    Args:
-        weight (`torch.Tensor`):
-            low-rank weight tensor.
-        down (`bool`):
-            whether the weight is for down projection in low-rank branch.
+    Parameters
+    ----------
+    weight : torch.Tensor
+        Packed low-rank weight tensor.
+    down : bool
+        If True, unpack as down-projection; else as up-projection.
+
+    Returns
+    -------
+    torch.Tensor
+        Unpacked weight tensor.
     """
     c, r = weight.shape
     assert weight.dtype in (torch.float16, torch.bfloat16), f"Unsupported weight dtype {weight.dtype}."
@@ -96,6 +142,21 @@ def unpack_lowrank_weight(weight: torch.Tensor, down: bool) -> torch.Tensor:
 
 
 def reorder_adanorm_lora_up(lora_up: torch.Tensor, splits: int) -> torch.Tensor:
+    """
+    Reorder AdaNorm LoRA up-projection tensor for correct shape.
+
+    Parameters
+    ----------
+    lora_up : torch.Tensor
+        LoRA up-projection tensor.
+    splits : int
+        Number of splits for AdaNorm.
+
+    Returns
+    -------
+    torch.Tensor
+        Reordered tensor.
+    """
     c, r = lora_up.shape
     assert c % splits == 0
     return lora_up.view(splits, c // splits, r).transpose(0, 1).reshape(c, r).contiguous()
@@ -110,6 +171,41 @@ def convert_to_nunchaku_transformer_block_lowrank_dict(  # noqa: C901
     convert_map: dict[str, str],
     default_dtype: torch.dtype = torch.bfloat16,
 ) -> dict[str, torch.Tensor]:
+    """
+    Convert LoRA weights for a transformer block from Diffusers to Nunchaku format.
+
+    Merges and converts LoRA weights from the original SVDQuant low-rank branch and an extra LoRA dict
+    for a given transformer block, producing a Nunchaku-compatible dictionary. Handles both fused and
+    unfused LoRA branches (e.g., qkv), and merges multiple LoRA branches as needed.
+
+    Parameters
+    ----------
+    orig_state_dict : dict[str, torch.Tensor]
+        Original state dict with LoRA weights, keys like ``"{block}.{local}.lora_down"`` and ``"{block}.{local}.lora_up"``.
+    extra_lora_dict : dict[str, torch.Tensor]
+        Extra LoRA weights, keys like ``"{block}.{local}.lora_A.weight"`` and ``"{block}.{local}.lora_B.weight"``.
+    converted_block_name : str
+        Block name for output (e.g., ``"transformer_blocks.0"``).
+    candidate_block_name : str
+        Block name for input lookup (e.g., ``"blocks.0"``).
+    local_name_map : dict[str, str | list[str]]
+        Maps output local names (e.g., ``"attn.qkv"``) to one or more input local names.
+    convert_map : dict[str, str]
+        Maps output local names to conversion types: ``"adanorm_single"``, ``"adanorm_zero"``, or ``"linear"``.
+    default_dtype : torch.dtype, optional
+        Output tensor dtype (default: ``torch.bfloat16``).
+
+    Returns
+    -------
+    dict[str, torch.Tensor]
+        A dictionary containing the converted LoRA weights in Nunchaku format.
+
+    Notes
+    -----
+    - If both original and extra LoRA weights are present, they are merged by concatenation.
+    - Handles both fused and unfused attention projections (e.g., qkv).
+    - Applies special packing for W4A16 linear layers (e.g., ``"adanorm_single"`` and ``"adanorm_zero"``).
+    """
     logger.debug(f"Converting LoRA branch for block {candidate_block_name}...")
     converted: dict[str, torch.Tensor] = {}
     for converted_local_name, candidate_local_names in local_name_map.items():
@@ -254,6 +350,37 @@ def convert_to_nunchaku_flux_single_transformer_block_lowrank_dict(
     candidate_block_name: str,
     default_dtype: torch.dtype = torch.bfloat16,
 ) -> dict[str, torch.Tensor]:
+    """
+    Convert LoRA weights for a single FLUX transformer block from Diffusers to Nunchaku format.
+
+    This function merges and converts LoRA weights from the original SVDQuant low-rank branch and an
+    extra LoRA dictionary for a given transformer block, producing a Nunchaku-compatible dictionary.
+    It handles both fused and unfused LoRA branches (e.g., qkv), and merges multiple LoRA branches as needed.
+
+    Parameters
+    ----------
+    orig_state_dict : dict[str, torch.Tensor]
+        Original state dict with LoRA weights, keys like ``"{block}.{local}.lora_down"`` and ``"{block}.{local}.lora_up"``.
+    extra_lora_dict : dict[str, torch.Tensor]
+        Extra LoRA weights, keys like ``"{block}.{local}.lora_A.weight"`` and ``"{block}.{local}.lora_B.weight"``.
+    converted_block_name : str
+        Block name for output (e.g., ``"transformer_blocks.0"``).
+    candidate_block_name : str
+        Block name for input lookup (e.g., ``"blocks.0"``).
+    default_dtype : torch.dtype, optional
+        Output tensor dtype (default: ``torch.bfloat16``).
+
+    Returns
+    -------
+    dict[str, torch.Tensor]
+        A dictionary containing the converted LoRA weights in Nunchaku format.
+
+    Notes
+    -----
+    - If both original and extra LoRA weights are present, they are merged by concatenation.
+    - Handles both fused and unfused attention projections (e.g., qkv).
+    - Applies special packing for W4A16 linear layers (e.g., ``"adanorm_single"`` and ``"adanorm_zero"``).
+    """
     if f"{candidate_block_name}.proj_out.lora_A.weight" in extra_lora_dict:
         assert f"{converted_block_name}.out_proj.qweight" in orig_state_dict
         assert f"{converted_block_name}.mlp_fc2.qweight" in orig_state_dict
@@ -317,6 +444,27 @@ def convert_to_nunchaku_flux_transformer_block_lowrank_dict(
     candidate_block_name: str,
     default_dtype: torch.dtype = torch.bfloat16,
 ) -> dict[str, torch.Tensor]:
+    """
+    Convert LoRA weights for a single transformer block from Diffusers to Nunchaku format.
+
+    Parameters
+    ----------
+    orig_state_dict : dict[str, torch.Tensor]
+        Original model state dict.
+    extra_lora_dict : dict[str, torch.Tensor]
+        LoRA weights state dict.
+    converted_block_name : str
+        Output block name for the converted weights.
+    candidate_block_name : str
+        Input block name for lookup.
+    default_dtype : torch.dtype, optional
+        Output tensor dtype (default: torch.bfloat16).
+
+    Returns
+    -------
+    dict[str, torch.Tensor]
+        Converted LoRA weights in Nunchaku format.
+    """
     return convert_to_nunchaku_transformer_block_lowrank_dict(
         orig_state_dict=orig_state_dict,
         extra_lora_dict=extra_lora_dict,
@@ -359,6 +507,23 @@ def convert_to_nunchaku_flux_lowrank_dict(
     lora: dict[str, torch.Tensor] | str,
     default_dtype: torch.dtype = torch.bfloat16,
 ) -> dict[str, torch.Tensor]:
+    """
+    Convert a base model and LoRA weights from Diffusers format to Nunchaku format.
+
+    Parameters
+    ----------
+    base_model : dict[str, torch.Tensor] or str
+        Base model weights or path to safetensors file.
+    lora : dict[str, torch.Tensor] or str
+        LoRA weights or path to safetensors file.
+    default_dtype : torch.dtype, optional
+        Output tensor dtype (default: torch.bfloat16).
+
+    Returns
+    -------
+    dict[str, torch.Tensor]
+        LoRA weights in Nunchaku format.
+    """
     if isinstance(base_model, str):
         orig_state_dict = load_state_dict_in_safetensors(base_model)
     else:
@@ -377,7 +542,7 @@ def convert_to_nunchaku_flux_lowrank_dict(
         elif "transformer_blocks" not in k:
             unquantized_lora_dict[k] = extra_lora_dict.pop(k)
 
-    # concat qkv_proj's bias
+    # Concatenate qkv_proj biases if present
     for k in list(vector_dict.keys()):
         if ".to_q." in k or ".add_q_proj." in k:
             k_q = k
@@ -445,6 +610,32 @@ def to_nunchaku(
     dtype: str | torch.dtype = torch.bfloat16,
     output_path: str | None = None,
 ) -> dict[str, torch.Tensor]:
+    """
+    Convert LoRA weights to Nunchaku format.
+
+    Parameters
+    ----------
+    input_lora : str or dict[str, torch.Tensor]
+        Path or dictionary of LoRA weights in Diffusers format. Can be composed of multiple LoRA weights.
+    base_sd : str or dict[str, torch.Tensor]
+        Path or dictionary of base quantized model weights.
+    dtype : str or torch.dtype, optional
+        Output data type ("bfloat16", "float16", or torch dtype). Default is torch.bfloat16.
+    output_path : str, optional
+        If provided, saves the result to this path.
+
+    Returns
+    -------
+    dict[str, torch.Tensor]
+        LoRA weights in Nunchaku format.
+
+    Example
+    -------
+    .. code-block:: python
+
+        nunchaku_weights = to_nunchaku("lora.safetensors", "base_model.safetensors")
+        nunchaku_weights = to_nunchaku(lora_dict, base_dict)
+    """
     if isinstance(input_lora, str):
         tensors = load_state_dict_in_safetensors(input_lora, device="cpu")
     else:
@@ -486,6 +677,23 @@ def to_nunchaku(
 def fuse_vectors(
     vectors: dict[str, torch.Tensor], base_sd: dict[str, torch.Tensor], strength: float = 1
 ) -> dict[str, torch.Tensor]:
+    """
+    Fuse vector (bias) terms from LoRA into the base model.
+
+    Parameters
+    ----------
+    vectors : dict[str, torch.Tensor]
+        LoRA vector terms.
+    base_sd : dict[str, torch.Tensor]
+        Base model state dict.
+    strength : float, optional
+        Scaling factor for LoRA vectors.
+
+    Returns
+    -------
+    dict[str, torch.Tensor]
+        State dict with fused vectors.
+    """
     tensors: dict[str, torch.Tensor] = {}
     packer = NunchakuWeightPacker(bits=4)
     for k, v in base_sd.items():

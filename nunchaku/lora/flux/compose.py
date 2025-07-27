@@ -1,3 +1,30 @@
+"""
+Compose multiple LoRA weights into a single LoRA for FLUX models.
+
+This script merges several LoRA safetensors files into one, applying individual strength values to each.
+
+**Example Usage:**
+
+.. code-block:: bash
+
+    python -m nunchaku.lora.flux.compose \\
+        -i lora1.safetensors lora2.safetensors \\
+        -s 0.8 1.0 \\
+        -o composed_lora.safetensors
+
+**Arguments:**
+
+- ``-i``, ``--input-paths``: Input LoRA safetensors files (one or more).
+- ``-s``, ``--strengths``: Strength value for each LoRA (must match number of inputs).
+- ``-o``, ``--output-path``: Output path for the composed LoRA safetensors file.
+
+This will merge ``lora1.safetensors`` (strength 0.8) and ``lora2.safetensors`` (strength 1.0) into ``composed_lora.safetensors``.
+
+**Main Function**
+
+:func:`compose_lora`
+"""
+
 import argparse
 import os
 
@@ -11,6 +38,44 @@ from .utils import is_nunchaku_format, load_state_dict_in_safetensors
 def compose_lora(
     loras: list[tuple[str | dict[str, torch.Tensor], float]], output_path: str | None = None
 ) -> dict[str, torch.Tensor]:
+    """
+    Compose multiple LoRA weights into a single LoRA representation.
+
+    Parameters
+    ----------
+    loras : list of (str or dict[str, torch.Tensor], float)
+        Each tuple contains:
+            - Path to a LoRA safetensors file or a LoRA weights dictionary.
+            - Strength/scale factor for that LoRA.
+    output_path : str, optional
+        Path to save the composed LoRA weights as a safetensors file. If None, does not save.
+
+    Returns
+    -------
+    dict[str, torch.Tensor]
+        The composed LoRA weights.
+
+    Raises
+    ------
+    AssertionError
+        If LoRA weights are in Nunchaku format (must be converted to Diffusers format first)
+        or if tensor shapes are incompatible.
+
+    Notes
+    -----
+    - Converts all input LoRAs to Diffusers format.
+    - Handles QKV projection fusion for attention layers.
+    - Applies strength scaling to LoRA weights.
+    - Concatenates multiple LoRAs along appropriate dimensions.
+    - Handles normalization layers, bias vectors, and FLUX.1-tools LoRA compatibility.
+
+    Examples
+    --------
+    >>> lora_paths = [("lora1.safetensors", 0.8), ("lora2.safetensors", 0.6)]
+    >>> composed = compose_lora(lora_paths, "composed_lora.safetensors")
+    >>> lora_dicts = [({"layer.weight": torch.randn(10, 20)}, 1.0)]
+    >>> composed = compose_lora(lora_dicts)
+    """
     if len(loras) == 1:
         if is_nunchaku_format(loras[0][0]) and (loras[0][1] - 1) < 1e-5:
             if isinstance(loras[0][0], str):

@@ -1,0 +1,2 @@
+.. _paper_svdquant: http://arxiv.org/abs/2411.05007
+.. _paper_pulid: https://arxiv.org/abs/2404.16022

@@ -5,7 +5,7 @@ from nunchaku import NunchakuSanaTransformer2DModel
 from nunchaku.caching.diffusers_adapters import apply_cache_on_pipe
 
 transformer = NunchakuSanaTransformer2DModel.from_pretrained(
-    "mit-han-lab/nunchaku-sana/svdq-int4_r32-sana1.6b.safetensors"
+    "nunchaku-tech/nunchaku-sana/svdq-int4_r32-sana1.6b.safetensors"
 )
 pipe = SanaPipeline.from_pretrained(
     "Efficient-Large-Model/Sana_1600M_1024px_BF16_diffusers",

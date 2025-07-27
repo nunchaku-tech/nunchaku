@@ -3,13 +3,12 @@ name: Close Inactive Issues
 on:
   schedule:
     - cron: '0 0 * * *'
-  workflow_dispatch:
 permissions:
   issues: write
   contents: read
 jobs:
   close-inactive-issues:
-    if: github.repository == 'mit-han-lab/nunchaku'
+    if: github.repository == 'nunchaku-tech/nunchaku'
     runs-on: ubuntu-latest
     steps:
       - name: Check and close inactive issues
@@ -17,7 +16,7 @@ jobs:
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
-            const sixtyDaysAgo = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000);
+            const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
             const [owner, repo] = process.env.GITHUB_REPOSITORY.split('/');
             console.log(`Owner: ${owner}, Repo: ${repo}`);
@@ -57,7 +56,7 @@ jobs:
                       console.log(`Skipping issue #${issue.number} as it's marked as 'good first issue'`);
                       continue;
                     }
-                    if (new Date(issue.updated_at) < sixtyDaysAgo) {
+                    if (new Date(issue.updated_at) < thirtyDaysAgo) {
                       try {
                         await github.rest.issues.update({
                           owner,
@@ -70,7 +69,7 @@ jobs:
                           owner,
                           repo,
                           issue_number: issue.number,
-                          body: 'This issue has been automatically closed due to 60-day inactivity. Please feel free to reopen it if needed.'
+                          body: 'This issue has been automatically closed due to 30-day inactivity. Please feel free to reopen it with \`/reopen\` if needed.'
                         });
                         console.log(`Closed issue #${issue.number} due to inactivity.`);
                       } catch (error) {

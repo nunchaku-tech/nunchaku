@@ -1,0 +1,2 @@
+.. _ms_nunchaku: https://modelscope.cn/organization/nunchaku-tech
+.. _ms_nunchaku_wheels: https://modelscope.cn/models/nunchaku-tech/nunchaku

@@ -1,6 +1,12 @@
+"""
+This module provides a `SafetyChecker` class for evaluating user prompts against
+defined safety policies using a large language model. Only used deploying online gradio demos.
+"""
+
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
+#: Template for the safety check prompt.
 safety_check_template = """You are a policy expert trying to help determine whether a user
     prompt is in violation of the defined safety policies.
 
@@ -19,7 +25,40 @@ safety_check_template = """You are a policy expert trying to help determine whet
 
 
 class SafetyChecker:
+    """
+    SafetyChecker(device, disabled=False)
+
+    A class to check whether a user prompt violates safety policies using a language model.
+
+    Parameters
+    ----------
+    device : str or torch.device
+        The device to run the model on (e.g., "cuda", "cpu").
+    disabled : bool, optional
+        If True, disables the safety check and always returns True (default: False).
+
+    Examples
+    --------
+    >>> checker = SafetyChecker(device="cuda")
+    >>> checker("Generate a nude girl image")
+    False
+
+    >>> checker = SafetyChecker(device="cpu", disabled=True)
+    >>> checker("Any prompt")
+    True
+    """
+
     def __init__(self, device: str | torch.device, disabled: bool = False):
+        """
+        Initialize the SafetyChecker.
+
+        Parameters
+        ----------
+        device : str or torch.device
+            The device to run the model on.
+        disabled : bool, optional
+            If True, disables the safety check (default: False).
+        """
         if not disabled:
             self.device = device
             self.tokenizer = AutoTokenizer.from_pretrained("google/shieldgemma-2b")
@@ -29,6 +68,21 @@ class SafetyChecker:
         self.disabled = disabled
 
     def __call__(self, user_prompt: str, threshold: float = 0.2) -> bool:
+        """
+        Evaluate whether a user prompt is safe according to the defined policy.
+
+        Parameters
+        ----------
+        user_prompt : str
+            The user prompt to evaluate.
+        threshold : float, optional
+            The probability threshold for flagging a prompt as unsafe (default: 0.2).
+
+        Returns
+        -------
+        bool
+            True if the prompt is considered safe, False otherwise.
+        """
         if self.disabled:
             return True
         device = self.device
