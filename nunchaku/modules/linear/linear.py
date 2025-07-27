@@ -1,5 +1,6 @@
-from torch import nn
 import torch
+from torch import nn
+
 
 class NunchakuLinear(nn.Module):
     def __init__(self, in_features, out_features, bias=True):
@@ -11,4 +12,3 @@ class NunchakuLinear(nn.Module):
             self.bias = nn.Parameter(torch.randn(out_features))
         else:
             self.register_parameter("bias", None)
-            
