@@ -79,6 +79,36 @@ void gemm_w4a4(std::optional<torch::Tensor> act,            // packed act [M, K 
     // Tensor::synchronizeDevice();
 }
 
+void quantize_w4a4_act_fuse_lora(std::optional<torch::Tensor> input,
+                                 std::optional<torch::Tensor> output,
+                                 std::optional<torch::Tensor> oscales,
+                                 std::optional<torch::Tensor> lora_down,
+                                 std::optional<torch::Tensor> lora_act_out,
+                                 std::optional<torch::Tensor> smooth,
+                                 bool fuse_glu,
+                                 bool fp4) {
+
+    spdlog::trace("running quantize_w4a4_act_fuse_lora: ");
+
+    auto getTensor = [](std::optional<torch::Tensor> &t) {
+        Tensor ret = t.has_value() ? from_torch(t.value()) : Tensor{};
+        if (ret.valid()) {
+            spdlog::trace("  {}", ret.shape.str());
+        } else {
+            spdlog::trace("  <invalid>");
+        }
+        return ret;
+    };
+    nunchaku::kernels::quantize_w4a4_act_fuse_lora(getTensor(input),
+                                                   getTensor(output),
+                                                   getTensor(oscales),
+                                                   getTensor(lora_down),
+                                                   getTensor(lora_act_out),
+                                                   getTensor(smooth),
+                                                   fuse_glu,
+                                                   fp4);
+}
+
 void attention_fp16(torch::Tensor q, // packed [Batch, Head, TokensQ, HEAD_DIM]
                     torch::Tensor k, // packed [Batch, Head, TokensKV, HEAD_DIM]
                     torch::Tensor v, // packed [Batch, Head, TokensKV, HEAD_DIM]
