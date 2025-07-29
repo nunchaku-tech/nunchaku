@@ -4,6 +4,9 @@ from diffusers.models.transformers.transformer_flux import (
     FluxTransformerBlock,
 )
 
+from diffusers.models.normalization import AdaLayerNormZero
+from ..linear import AWQW4A16Linear
+
 
 class NunchakuFluxSingleTransformerBlock(FluxSingleTransformerBlock):
     def __init__(self, block: FluxSingleTransformerBlock):
@@ -23,6 +26,12 @@ class NunchakuFluxTransformerBlock(FluxTransformerBlock):
 
         self.norm1 = block.norm1
         self.norm1_context = block.norm1_context
+
+        if isinstance(self.norm1, AdaLayerNormZero):
+            self.norm1.linear = AWQW4A16Linear.from_linear(self.norm1.linear)
+        if isinstance(self.norm1_context, AdaLayerNormZero):
+            self.norm1_context.linear = AWQW4A16Linear.from_linear(self.norm1_context.linear)
+
         self.attn = block.attn
         self.norm2 = block.norm2
         self.norm2_context = block.norm2_context

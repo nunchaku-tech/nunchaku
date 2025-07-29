@@ -93,7 +93,6 @@ class AWQW4A16Linear(nn.Module):
         out_features: int,
         bias: bool = True,
         group_size: int = 128,
-        precision: str = "int4",
         torch_dtype: torch.dtype = torch.bfloat16,
         device: str = "cuda",
     ):
@@ -121,4 +120,17 @@ class AWQW4A16Linear(nn.Module):
             n=self.out_features,
             k=self.in_features,
             group_size=self.group_size,
+        )
+
+    @classmethod
+    def from_linear(
+        cls, linear: nn.Linear, group_size: int = 128, torch_dtype: torch.dtype = torch.bfloat16, device: str = "cuda"
+    ):
+        return cls(
+            in_features=linear.in_features,
+            out_features=linear.out_features,
+            bias=linear.bias is not None,
+            group_size=group_size,
+            torch_dtype=torch_dtype,
+            device=device,
         )
