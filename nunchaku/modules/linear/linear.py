@@ -1,7 +1,8 @@
 import torch
 from torch import nn
-from ...ops.quantize import svdq_w4a4_act_fuse_lora
+
 from ...ops.gemm import svdq_gemm_w4a4
+from ...ops.quantize import svdq_w4a4_act_fuse_lora
 
 
 class SVDQW4A4Linear(nn.Module):
