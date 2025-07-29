@@ -51,3 +51,6 @@ class SVDQW4A4Linear(nn.Module):
 
         self.alpha = None
         self.wcscales = None
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        pass

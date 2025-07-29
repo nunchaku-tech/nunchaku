@@ -149,3 +149,4 @@ def svdq_gemm_w4a4(
         out_v,
         attn_tokens,
     )
+    return out
