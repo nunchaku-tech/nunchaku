@@ -7,7 +7,7 @@ import torch
 from ._C import ops
 
 
-def awq_gemm_w4a16(
+def awq_gemv_w4a16(
     in_feats: torch.Tensor,
     kernel: torch.Tensor,
     scaling_factors: torch.Tensor,
@@ -15,6 +15,6 @@ def awq_gemm_w4a16(
     m: int,
     n: int,
     k: int,
-    group_size: int = 64,
-):
+    group_size: int = 128,
+) -> torch.Tensor:
     return ops.gemv_awq(in_feats, kernel, scaling_factors, zeros, m, n, k, group_size)

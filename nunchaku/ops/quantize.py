@@ -1,5 +1,5 @@
 """
-Python wrappers for quantization operations.
+Python wrappers for Nunchaku's quantization operations.
 """
 
 import torch

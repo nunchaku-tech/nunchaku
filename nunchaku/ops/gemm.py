@@ -119,6 +119,7 @@ def svdq_gemm_w4a4(
         The results are written in-place to the provided output tensors.
 
     """
+    # TODO: allocate a tensor for output if it is None
     ops.gemm_w4a4(
         act,
         wgt,
