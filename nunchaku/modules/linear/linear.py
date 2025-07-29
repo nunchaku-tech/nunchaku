@@ -1,5 +1,7 @@
 import torch
 from torch import nn
+from ...ops.quantize import svdq_w4a4_act_fuse_lora
+from ...ops.gemm import svdq_gemm_w4a4
 
 
 class SVDQW4A4Linear(nn.Module):
@@ -45,12 +47,38 @@ class SVDQW4A4Linear(nn.Module):
                 device=device,
             )
         )
+        self.smooth_factor = nn.Parameter(torch.empty(in_features, dtype=torch_dtype, device=device))
 
-        self.down_weight = nn.Parameter(torch.empty(in_features, rank, dtype=torch_dtype, device=device))
-        self.up_weight = nn.Parameter(torch.empty(out_features, rank, dtype=torch_dtype, device=device))
+        self.proj_down_weight = nn.Parameter(torch.empty(in_features, rank, dtype=torch_dtype, device=device))
+        self.proj_up_weight = nn.Parameter(torch.empty(out_features, rank, dtype=torch_dtype, device=device))
 
         self.alpha = None
         self.wcscales = None
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        pass
+        # quantize the input run the down projection
+        quantized_x, lora_act_out = svdq_w4a4_act_fuse_lora(
+            x,
+            oscales=self.ascales,
+            lora_down=self.proj_down_weight,
+            smooth=self.smooth_factor,
+            fp4=self.precision == "nvfp4",
+        )
+
+        output = svdq_gemm_w4a4(
+            act=quantized_x,
+            wgt=self.wgt,
+            ascales=self.ascales,
+            wscales=self.wscales,
+            lora_act_in=lora_act_out,
+            lora_up=self.proj_up_weight,
+            lora_down=self.proj_down_weight,
+            lora_act_out=lora_act_out,
+            norm_q=None,
+            norm_k=None,
+            rotary_emb=None,
+            bias=None,
+            act_unsigned=False,  # TODO: check this.
+            fp4=self.precision == "nvfp4",
+        )
+        return output
