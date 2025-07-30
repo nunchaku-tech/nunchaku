@@ -1,10 +1,10 @@
+from diffusers.models.normalization import AdaLayerNormZero, AdaLayerNormZeroSingle
 from diffusers.models.transformers.transformer_flux import (
-    FluxTransformer2DModel,
     FluxSingleTransformerBlock,
+    FluxTransformer2DModel,
     FluxTransformerBlock,
 )
 
-from diffusers.models.normalization import AdaLayerNormZero
 from ..linear import AWQW4A16Linear
 
 
@@ -13,6 +13,10 @@ class NunchakuFluxSingleTransformerBlock(FluxSingleTransformerBlock):
         super(FluxSingleTransformerBlock, self).__init__()
         self.mlp_hidden_dim = block.mlp_hidden_dim
         self.norm = block.norm
+
+        if isinstance(self.norm, AdaLayerNormZeroSingle):
+            self.norm.linear = AWQW4A16Linear.from_linear(self.norm.linear)
+
         self.proj_mlp = block.proj_mlp
         self.act_mlp = block.act_mlp
         self.proj_out = block.proj_out
