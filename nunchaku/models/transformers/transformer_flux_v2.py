@@ -1,11 +1,71 @@
+import torch
 from diffusers.models.normalization import AdaLayerNormZero, AdaLayerNormZeroSingle
 from diffusers.models.transformers.transformer_flux import (
+    FluxAttention,
     FluxSingleTransformerBlock,
     FluxTransformer2DModel,
     FluxTransformerBlock,
 )
+from torch import nn
 
-from ..linear import AWQW4A16Linear
+from ..linear import AWQW4A16Linear, SVDQW4A4Linear
+from ..utils import fuse_linears
+from typing import Optional
+
+
+class NunchakuFluxAttention(nn.Module):
+    def __init__(self, flux_attention: FluxAttention, processor: str = "flashattn2"):
+        super(FluxAttention, self).__init__()
+
+        self.head_dim = flux_attention.head_dim
+        self.inner_dim = flux_attention.inner_dim
+        self.query_dim = flux_attention.query_dim
+        self.use_bias = flux_attention.use_bias
+        self.dropout = flux_attention.dropout
+        self.out_dim = flux_attention.out_dim
+        self.context_pre_only = flux_attention.context_pre_only
+        self.pre_only = flux_attention.pre_only
+        self.heads = flux_attention.heads
+        self.added_kv_proj_dim = flux_attention.added_kv_proj_dim
+        self.added_proj_bias = flux_attention.added_proj_bias
+
+        self.norm_q = flux_attention.norm_q
+        self.norm_k = flux_attention.norm_k
+
+        # fuse the qkv
+        with torch.device("meta"):
+            fused_qkv = fuse_linears([flux_attention.to_q, flux_attention.to_k, flux_attention.to_v])
+        self.to_qkv = SVDQW4A4Linear.from_linear(fused_qkv)
+
+        self.to_out = flux_attention.to_out
+
+        self.norm_added_q = flux_attention.norm_added_q
+        self.norm_added_k = flux_attention.norm_added_k
+
+        # fuse the add_qkv
+        with torch.device("meta"):
+            fused_add_qkv = fuse_linears(
+                [flux_attention.add_q_proj, flux_attention.add_k_proj, flux_attention.add_v_proj]
+            )
+        self.add_qkv = SVDQW4A4Linear.from_linear(fused_add_qkv)
+        self.to_add_out = flux_attention.to_add_out
+
+        self.processor = processor
+
+    def forward(
+        self,
+        hidden_states: torch.Tensor,
+        encoder_hidden_states: Optional[torch.Tensor] = None,
+        attention_mask: Optional[torch.Tensor] = None,
+        image_rotary_emb: Optional[torch.Tensor] = None,
+        **kwargs,
+    ):
+        if attention_mask is not None:
+            raise NotImplementedError("attention_mask is not supported")
+        if image_rotary_emb is not None:
+            raise NotImplementedError("image_rotary_emb is not supported")
+        if encoder_hidden_states is not None:
+            raise NotImplementedError("encoder_hidden_states is not supported")
 
 
 class NunchakuFluxTransformerBlock(FluxTransformerBlock):
