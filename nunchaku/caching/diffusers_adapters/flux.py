@@ -1,8 +1,11 @@
 """
 Adapters for efficient caching in Flux diffusion pipelines.
+
 This module enables advanced first-block caching for Flux models, supporting both single and double caching strategies. It provides:
+
 - :func:`apply_cache_on_transformer` — Add caching to a ``FluxTransformer2DModel``.
 - :func:`apply_cache_on_pipe` — Add caching to a complete Flux pipeline.
+
 Caching is context-managed and only active within a cache context.
 """
 
