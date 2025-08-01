@@ -143,4 +143,6 @@ def apply_cache_on_pipe(pipe: DiffusionPipeline, **kwargs):
         pipe.__class__.__call__ = new_call
         pipe.__class__._is_cached = True
 
+    apply_cache_on_transformer(pipe.transformer, **kwargs)
+
     return pipe
