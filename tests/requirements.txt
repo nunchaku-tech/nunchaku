@@ -10,3 +10,4 @@ insightface
 opencv-python
 facexlib
 onnxruntime
+pytest-rerunfailures

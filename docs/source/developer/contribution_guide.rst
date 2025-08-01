@@ -59,9 +59,8 @@ Running the Tests
 
 .. code-block:: shell
 
-   HF_TOKEN=$YOUR_HF_TOKEN pytest -v tests/flux/test_flux_memory.py
-   HF_TOKEN=$YOUR_HF_TOKEN pytest -v tests/flux --ignore=tests/flux/test_flux_memory.py
-   HF_TOKEN=$YOUR_HF_TOKEN pytest -v tests/sana
+   HF_TOKEN=$YOUR_HF_TOKEN pytest -v tests/flux/test_flux_examples.py
+   HF_TOKEN=$YOUR_HF_TOKEN python .github/workflows/run_all_tests.py
 
 .. note::
 
