@@ -654,7 +654,7 @@ class NunchakuFluxTransformer2dModel(FluxTransformer2DModel, NunchakuModelLoader
         impl : str
             Attention implementation to use. Supported values:
 
-            - ``"flash-attention2"`` (default): Standard FlashAttention-2.
+            - ``"flashattn2"`` (default): Standard FlashAttention-2.
             - ``"nunchaku-fp16"``: Uses FP16 attention accumulation, up to 1.2× faster than FlashAttention-2 on NVIDIA 30-, 40-, and 50-series GPUs.
         """
         block = self.transformer_blocks[0]
