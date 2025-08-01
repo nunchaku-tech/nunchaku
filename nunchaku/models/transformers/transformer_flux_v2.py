@@ -8,21 +8,6 @@ from diffusers.models.transformers.transformer_flux import (
 from ..linear import AWQW4A16Linear
 
 
-class NunchakuFluxSingleTransformerBlock(FluxSingleTransformerBlock):
-    def __init__(self, block: FluxSingleTransformerBlock):
-        super(FluxSingleTransformerBlock, self).__init__()
-        self.mlp_hidden_dim = block.mlp_hidden_dim
-        self.norm = block.norm
-
-        if isinstance(self.norm, AdaLayerNormZeroSingle):
-            self.norm.linear = AWQW4A16Linear.from_linear(self.norm.linear)
-
-        self.proj_mlp = block.proj_mlp
-        self.act_mlp = block.act_mlp
-        self.proj_out = block.proj_out
-        self.attn = block.attn
-
-
 class NunchakuFluxTransformerBlock(FluxTransformerBlock):
 
     def __init__(self, block: FluxTransformerBlock):
@@ -41,6 +26,21 @@ class NunchakuFluxTransformerBlock(FluxTransformerBlock):
         self.norm2_context = block.norm2_context
         self.ff = block.ff
         self.ff_context = block.ff_context
+
+
+class NunchakuFluxSingleTransformerBlock(FluxSingleTransformerBlock):
+    def __init__(self, block: FluxSingleTransformerBlock):
+        super(FluxSingleTransformerBlock, self).__init__()
+        self.mlp_hidden_dim = block.mlp_hidden_dim
+        self.norm = block.norm
+
+        if isinstance(self.norm, AdaLayerNormZeroSingle):
+            self.norm.linear = AWQW4A16Linear.from_linear(self.norm.linear)
+
+        self.proj_mlp = block.proj_mlp
+        self.act_mlp = block.act_mlp
+        self.proj_out = block.proj_out
+        self.attn = block.attn
 
 
 class NunchakuFluxTransformer2DModelV2(FluxTransformer2DModel):
