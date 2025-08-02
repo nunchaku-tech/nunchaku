@@ -15,6 +15,7 @@
 
 ## 最新动态
 
+- **[2025-07-31]** 🚀 **[FLUX.1-Krea-dev](https://www.krea.ai/blog/flux-krea-open-source-release) 已支持！** 欢迎参考我们的[示例脚本](./examples/flux.1-krea-dev.py)快速上手。
 - **[2025-07-13]** 🚀 官方 [**Nunchaku 文档**](https://nunchaku.tech/docs/nunchaku/) 上线！欢迎查阅详细的入门指南和资源。
 - **[2025-06-29]** 🔥 支持 **FLUX.1-Kontext**！可参考我们的[示例脚本](./examples/flux.1-kontext-dev.py)体验，在线演示见[此处](https://svdquant.mit.edu/kontext/)！
 - **[2025-06-01]** 🚀 **v0.3.0 发布！** 本次更新支持多 batch 推理、[**ControlNet-Union-Pro 2.0**](https://huggingface.co/Shakker-Labs/FLUX.1-dev-ControlNet-Union-Pro-2.0)、初步集成 [**PuLID**](https://github.com/ToTheBeginning/PuLID)，并引入 [**双 FB Cache**](examples/flux.1-dev-double_cache.py)。现已支持单文件加载 FLUX 模型，升级后的 [**4-bit T5 编码器**](https://huggingface.co/nunchaku-tech/nunchaku-t5) 质量媲美 **FP8 T5**！

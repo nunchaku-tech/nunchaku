@@ -99,7 +99,6 @@ def apply_cache_on_transformer(
             return original_forward(*args, **kwargs)
 
     transformer.forward = new_forward.__get__(transformer)
-    transformer._is_cached = True
     transformer.use_double_fb_cache = use_double_fb_cache
     transformer.residual_diff_threshold_multi = residual_diff_threshold_multi
     transformer.residual_diff_threshold_single = residual_diff_threshold_single
@@ -142,5 +141,7 @@ def apply_cache_on_pipe(pipe: DiffusionPipeline, **kwargs):
 
         pipe.__class__.__call__ = new_call
         pipe.__class__._is_cached = True
+
+    apply_cache_on_transformer(pipe.transformer, **kwargs)
 
     return pipe

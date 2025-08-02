@@ -22,7 +22,7 @@ jobs:
   run-tests:
     strategy:
       matrix:
-        gpu: ['3090', '5090']
+        gpu: ['5090', '4090']
     runs-on:
       - self-hosted
       - ${{ matrix.gpu }}
@@ -31,8 +31,8 @@ jobs:
       (github.event_name == 'pull_request' && !github.event.pull_request.draft) ||
       (github.event_name == 'workflow_dispatch')
     env:
-      COMFYUI_MODELS_ROOT: "/home/runner/workspace/comfyui_models"
-      NUNCHAKU_TEST_CACHE_ROOT: "/home/runner/workspace/nunchaku_test_root"
+      COMFYUI_MODELS_ROOT: "/home/nunchaku/comfyui_models"
+      NUNCHAKU_TEST_CACHE_ROOT: "/home/nunchaku/nunchaku_test_root"
     steps:
       - name: Determine ref
         id: set-ref
