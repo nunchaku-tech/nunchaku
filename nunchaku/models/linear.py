@@ -15,7 +15,7 @@ class SVDQW4A4Linear(nn.Module):
         bias: bool = True,
         precision: str = "int4",
         torch_dtype: torch.dtype = torch.bfloat16,
-        device: str = "cuda",
+        device: str | torch.device = "cuda",
     ):
         super(SVDQW4A4Linear, self).__init__()
         self.in_features = in_features
@@ -57,6 +57,17 @@ class SVDQW4A4Linear(nn.Module):
         self.alpha = None
         self.wcscales = None
 
+    @classmethod
+    def from_linear(cls, linear: nn.Linear, **kwargs):
+        return cls(
+            in_features=linear.in_features,
+            out_features=linear.out_features,
+            bias=linear.bias is not None,
+            torch_dtype=linear.weight.dtype,
+            device=linear.weight.device,
+            **kwargs,
+        )
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # quantize the input run the down projection
         quantized_x, lora_act_out = svdq_w4a4_act_fuse_lora(
@@ -94,7 +105,7 @@ class AWQW4A16Linear(nn.Module):
         bias: bool = True,
         group_size: int = 128,
         torch_dtype: torch.dtype = torch.bfloat16,
-        device: str = "cuda",
+        device: str | torch.device = "cuda",
     ):
         super(AWQW4A16Linear, self).__init__()
         self.in_features = in_features

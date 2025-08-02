@@ -11,7 +11,6 @@ from torch import nn
 
 from ..linear import AWQW4A16Linear, SVDQW4A4Linear
 from ..utils import fuse_linears
-from ...utils import ceil_divide
 from typing import Optional, Dict, Any, Tuple
 from torch.nn import functional as F
 
@@ -28,9 +27,9 @@ def _patch_linear(module: nn.Module, linear_cls, **kwargs):
 
 
 class NunchakuFeedForward(FeedForward):
-    def __init__(self, ff: FeedForward):
+    def __init__(self, ff: FeedForward, **kwargs):
         super(FeedForward, self).__init__()
-        self.net = _patch_linear(ff.net, SVDQW4A4Linear)
+        self.net = _patch_linear(ff.net, SVDQW4A4Linear, **kwargs)
 
     def forward(self, hidden_states: torch.Tensor) -> torch.Tensor:
         for module in self.net:
@@ -39,7 +38,7 @@ class NunchakuFeedForward(FeedForward):
 
 
 class NunchakuFluxAttention(nn.Module):
-    def __init__(self, flux_attention: FluxAttention, processor: str = "flashattn2"):
+    def __init__(self, flux_attention: FluxAttention, processor: str = "flashattn2", **kwargs):
         super(FluxAttention, self).__init__()
 
         self.head_dim = flux_attention.head_dim
@@ -60,10 +59,10 @@ class NunchakuFluxAttention(nn.Module):
         # fuse the qkv
         with torch.device("meta"):
             fused_qkv = fuse_linears([flux_attention.to_q, flux_attention.to_k, flux_attention.to_v])
-        self.to_qkv = SVDQW4A4Linear.from_linear(fused_qkv)
+        self.to_qkv = SVDQW4A4Linear.from_linear(fused_qkv, **kwargs)
 
         self.to_out = flux_attention.to_out
-        self.to_out[1] = SVDQW4A4Linear.from_linear(self.to_out[1])
+        self.to_out[1] = SVDQW4A4Linear.from_linear(self.to_out[1], **kwargs)
 
         self.norm_added_q = flux_attention.norm_added_q
         self.norm_added_k = flux_attention.norm_added_k
@@ -73,8 +72,8 @@ class NunchakuFluxAttention(nn.Module):
             fused_add_qkv = fuse_linears(
                 [flux_attention.add_q_proj, flux_attention.add_k_proj, flux_attention.add_v_proj]
             )
-        self.add_qkv = SVDQW4A4Linear.from_linear(fused_add_qkv)
-        self.to_add_out = SVDQW4A4Linear.from_linear(flux_attention.to_add_out)
+        self.add_qkv = SVDQW4A4Linear.from_linear(fused_add_qkv, **kwargs)
+        self.to_add_out = SVDQW4A4Linear.from_linear(flux_attention.to_add_out, **kwargs)
 
         self.processor = processor
 
@@ -137,7 +136,7 @@ class NunchakuFluxAttention(nn.Module):
 
 class NunchakuFluxTransformerBlock(FluxTransformerBlock):
 
-    def __init__(self, block: FluxTransformerBlock):
+    def __init__(self, block: FluxTransformerBlock, **kwargs):
         super(FluxTransformerBlock, self).__init__()
 
         self.norm1 = block.norm1
@@ -148,11 +147,11 @@ class NunchakuFluxTransformerBlock(FluxTransformerBlock):
         if isinstance(self.norm1_context, AdaLayerNormZero):
             self.norm1_context.linear = AWQW4A16Linear.from_linear(self.norm1_context.linear)
 
-        self.attn = NunchakuFluxAttention(block.attn)
+        self.attn = NunchakuFluxAttention(block.attn, **kwargs)
         self.norm2 = block.norm2
         self.norm2_context = block.norm2_context
-        self.ff = NunchakuFeedForward(block.ff)
-        self.ff_context = NunchakuFeedForward(block.ff_context)
+        self.ff = NunchakuFeedForward(block.ff, **kwargs)
+        self.ff_context = NunchakuFeedForward(block.ff_context, **kwargs)
 
     def forward(
         self,
@@ -216,19 +215,19 @@ class NunchakuFluxTransformerBlock(FluxTransformerBlock):
 
 
 class NunchakuFluxSingleTransformerBlock(FluxSingleTransformerBlock):
-    def __init__(self, block: FluxSingleTransformerBlock):
+    def __init__(self, block: FluxSingleTransformerBlock, **kwargs):
         super(FluxSingleTransformerBlock, self).__init__()
         self.mlp_hidden_dim = block.mlp_hidden_dim
         self.norm = block.norm
 
         if isinstance(self.norm, AdaLayerNormZeroSingle):
-            self.norm.linear = AWQW4A16Linear.from_linear(self.norm.linear)
+            self.norm.linear = AWQW4A16Linear.from_linear(self.norm.linear, **kwargs)
 
-        self.proj_mlp = SVDQW4A4Linear.from_linear(block.proj_mlp)
+        self.proj_mlp = SVDQW4A4Linear.from_linear(block.proj_mlp, **kwargs)
         self.act_mlp = block.act_mlp
-        self.proj_out = SVDQW4A4Linear.from_linear(block.proj_out)
+        self.proj_out = SVDQW4A4Linear.from_linear(block.proj_out, **kwargs)
 
-        self.attn = NunchakuFluxAttention(block.attn)
+        self.attn = NunchakuFluxAttention(block.attn, **kwargs)
 
     def forward(
         self,
@@ -264,8 +263,8 @@ class NunchakuFluxSingleTransformerBlock(FluxSingleTransformerBlock):
 
 class NunchakuFluxTransformer2DModelV2(FluxTransformer2DModel):
 
-    def _patch_model(self):
+    def _patch_model(self, **kwargs):
         for i, block in enumerate(self.transformer_blocks):
-            self.transformer_blocks[i] = NunchakuFluxTransformerBlock(block)
+            self.transformer_blocks[i] = NunchakuFluxTransformerBlock(block, **kwargs)
         for i, block in enumerate(self.transformer_blocks_single):
-            self.transformer_blocks_single[i] = NunchakuFluxSingleTransformerBlock(block)
+            self.transformer_blocks_single[i] = NunchakuFluxSingleTransformerBlock(block, **kwargs)
