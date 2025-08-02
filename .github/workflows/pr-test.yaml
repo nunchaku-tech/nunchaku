@@ -108,13 +108,13 @@ jobs:
           pwd
           cd ../ComfyUI
           python nunchaku_tests/scripts/nunchaku-flux1-dev.py
-          pytest -s nunchaku_tests/
+          pytest -s -x nunchaku_tests/
       - name: Run nunchaku tests
         run: |
           source $(conda info --base)/etc/profile.d/conda.sh
           conda activate test_env || { echo "Failed to activate conda env"; exit 1; }
           which python
-          pytest -s tests/flux/test_flux_examples.py
+          pytest -s -x tests/flux/test_flux_examples.py
           python .github/workflows/run_all_tests.py
       - name: clean up
         if: always()

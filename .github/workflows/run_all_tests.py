@@ -21,7 +21,7 @@ def run_all_tests():
     failed_tests = []
     for test_file in test_files:
         print(f"Running {test_file} ...")
-        result = subprocess.run(["pytest", "--reruns", "2", "--reruns-delay", "0", "-s", test_file])
+        result = subprocess.run(["pytest", "--reruns", "2", "--reruns-delay", "0", "-s", "-x", test_file])
         if result.returncode != 0:
             print(f"Test failed: {test_file}")
             failed_tests.append(test_file)
