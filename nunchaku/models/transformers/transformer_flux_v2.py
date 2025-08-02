@@ -6,6 +6,7 @@ from diffusers.models.transformers.transformer_flux import (
     FluxTransformer2DModel,
     FluxTransformerBlock,
 )
+from diffusers.models.attention import FeedForward
 from torch import nn
 
 from ..linear import AWQW4A16Linear, SVDQW4A4Linear
@@ -15,6 +16,26 @@ from typing import Optional, Dict, Any, Tuple
 from torch.nn import functional as F
 
 from diffusers.models.embeddings import apply_rotary_emb
+
+
+def _pack_linear(module: nn.Module, **kwargs):
+    for name, child in module.named_children():
+        if isinstance(child, nn.Linear):
+            module[name] = SVDQW4A4Linear.from_linear(child, **kwargs)
+        else:
+            _pack_linear(child, **kwargs)
+    return module
+
+
+class NunchakuFeedForward(FeedForward):
+    def __init__(self, ff: FeedForward):
+        super(FeedForward, self).__init__()
+        self.net = _pack_linear(ff.net)
+
+    def forward(self, hidden_states: torch.Tensor) -> torch.Tensor:
+        for module in self.net:
+            hidden_states = module(hidden_states)
+        return hidden_states
 
 
 class NunchakuFluxAttention(nn.Module):
@@ -42,6 +63,7 @@ class NunchakuFluxAttention(nn.Module):
         self.to_qkv = SVDQW4A4Linear.from_linear(fused_qkv)
 
         self.to_out = flux_attention.to_out
+        self.to_out[1] = SVDQW4A4Linear.from_linear(self.to_out[1])
 
         self.norm_added_q = flux_attention.norm_added_q
         self.norm_added_k = flux_attention.norm_added_k
@@ -52,7 +74,7 @@ class NunchakuFluxAttention(nn.Module):
                 [flux_attention.add_q_proj, flux_attention.add_k_proj, flux_attention.add_v_proj]
             )
         self.add_qkv = SVDQW4A4Linear.from_linear(fused_add_qkv)
-        self.to_add_out = flux_attention.to_add_out
+        self.to_add_out = SVDQW4A4Linear.from_linear(flux_attention.to_add_out)
 
         self.processor = processor
 
@@ -129,8 +151,8 @@ class NunchakuFluxTransformerBlock(FluxTransformerBlock):
         self.attn = NunchakuFluxAttention(block.attn)
         self.norm2 = block.norm2
         self.norm2_context = block.norm2_context
-        self.ff = block.ff
-        self.ff_context = block.ff_context
+        self.ff = NunchakuFeedForward(block.ff)
+        self.ff_context = NunchakuFeedForward(block.ff_context)
 
     def forward(
         self,
