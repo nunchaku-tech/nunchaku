@@ -18,19 +18,19 @@ from torch.nn import functional as F
 from diffusers.models.embeddings import apply_rotary_emb
 
 
-def _pack_linear(module: nn.Module, **kwargs):
+def _patch_linear(module: nn.Module, linear_cls, **kwargs):
     for name, child in module.named_children():
         if isinstance(child, nn.Linear):
-            module[name] = SVDQW4A4Linear.from_linear(child, **kwargs)
+            module[name] = linear_cls.from_linear(child, **kwargs)
         else:
-            _pack_linear(child, **kwargs)
+            _patch_linear(child, linear_cls, **kwargs)
     return module
 
 
 class NunchakuFeedForward(FeedForward):
     def __init__(self, ff: FeedForward):
         super(FeedForward, self).__init__()
-        self.net = _pack_linear(ff.net)
+        self.net = _patch_linear(ff.net, SVDQW4A4Linear)
 
     def forward(self, hidden_states: torch.Tensor) -> torch.Tensor:
         for module in self.net:
@@ -224,10 +224,42 @@ class NunchakuFluxSingleTransformerBlock(FluxSingleTransformerBlock):
         if isinstance(self.norm, AdaLayerNormZeroSingle):
             self.norm.linear = AWQW4A16Linear.from_linear(self.norm.linear)
 
-        self.proj_mlp = block.proj_mlp
+        self.proj_mlp = SVDQW4A4Linear.from_linear(block.proj_mlp)
         self.act_mlp = block.act_mlp
-        self.proj_out = block.proj_out
-        self.attn = block.attn
+        self.proj_out = SVDQW4A4Linear.from_linear(block.proj_out)
+
+        self.attn = NunchakuFluxAttention(block.attn)
+
+    def forward(
+        self,
+        hidden_states: torch.Tensor,
+        encoder_hidden_states: torch.Tensor,
+        temb: torch.Tensor,
+        image_rotary_emb: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
+        joint_attention_kwargs: Optional[Dict[str, Any]] = None,
+    ) -> torch.Tensor:
+        text_seq_len = encoder_hidden_states.shape[1]
+        hidden_states = torch.cat([encoder_hidden_states, hidden_states], dim=1)
+
+        residual = hidden_states
+        norm_hidden_states, gate = self.norm(hidden_states, emb=temb)
+        mlp_hidden_states = self.act_mlp(self.proj_mlp(norm_hidden_states))
+        joint_attention_kwargs = joint_attention_kwargs or {}
+        attn_output = self.attn(
+            hidden_states=norm_hidden_states,
+            image_rotary_emb=image_rotary_emb,
+            **joint_attention_kwargs,
+        )
+
+        hidden_states = torch.cat([attn_output, mlp_hidden_states], dim=2)
+        gate = gate.unsqueeze(1)
+        hidden_states = gate * self.proj_out(hidden_states)
+        hidden_states = residual + hidden_states
+        if hidden_states.dtype == torch.float16:
+            hidden_states = hidden_states.clip(-65504, 65504)
+
+        encoder_hidden_states, hidden_states = hidden_states[:, :text_seq_len], hidden_states[:, text_seq_len:]
+        return encoder_hidden_states, hidden_states
 
 
 class NunchakuFluxTransformer2DModelV2(FluxTransformer2DModel):
