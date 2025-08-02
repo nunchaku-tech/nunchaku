@@ -119,7 +119,8 @@ def svdq_gemm_w4a4(
         The results are written in-place to the provided output tensors.
 
     """
-    # TODO: allocate a tensor for output if it is None
+    if out is None:
+        out = torch.empty(act.shape[0], wgt.shape[0], dtype=act.dtype, device=act.device)
     ops.gemm_w4a4(
         act,
         wgt,

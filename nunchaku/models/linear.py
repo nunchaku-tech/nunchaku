@@ -1,9 +1,9 @@
 import torch
 from torch import nn
 
-from ...ops.gemm import svdq_gemm_w4a4
-from ...ops.gemv import awq_gemv_w4a16
-from ...ops.quantize import svdq_w4a4_act_fuse_lora
+from ..ops.gemm import svdq_gemm_w4a4
+from ..ops.gemv import awq_gemv_w4a16
+from ..ops.quantize import svdq_w4a4_act_fuse_lora
 
 
 class SVDQW4A4Linear(nn.Module):
@@ -96,6 +96,9 @@ class SVDQW4A4Linear(nn.Module):
         )
         return output
 
+    def __repr__(self):
+        return f"SVDQW4A4Linear(in_features={self.in_features}, out_features={self.out_features}, rank={self.rank}, precision={self.precision})"
+
 
 class AWQW4A16Linear(nn.Module):
     def __init__(
@@ -145,3 +148,6 @@ class AWQW4A16Linear(nn.Module):
             torch_dtype=torch_dtype,
             device=device,
         )
+
+    def __repr__(self):
+        return f"AWQW4A16Linear(in_features={self.in_features}, out_features={self.out_features}, group_size={self.group_size})"
