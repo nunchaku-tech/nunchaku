@@ -7,7 +7,7 @@ on:
 jobs:
   build-and-deploy-docs:
     name: Build and deploy docs
-    runs-on: [self-hosted, blackwell]
+    runs-on: [self-hosted, "4090"]
     if: github.repository == 'nunchaku-tech/nunchaku' && (github.event_name != 'repository_dispatch' || github.actor == 'lmxyy')
     env:
       DOC_VERSION: ${{ github.event.client_payload.version || 'nightly' }}

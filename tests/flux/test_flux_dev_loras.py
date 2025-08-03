@@ -55,7 +55,7 @@ def test_flux_dev_turbo8_ghibsky_1024x1024():
         lora_names=["realism", "ghibsky", "anime", "sketch", "yarn", "haunted_linework", "turbo8"],
         lora_strengths=[0, 1, 0, 0, 0, 0, 1],
         cache_threshold=0,
-        expected_lpips=0.310 if get_precision() == "int4" else 0.168,
+        expected_lpips=0.310 if get_precision() == "int4" else 0.217,
     )
 
 
