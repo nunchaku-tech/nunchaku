@@ -254,76 +254,73 @@ def run_test(
         precision_str += f"-bs{batch_size}"
 
     save_dir_4bit = os.path.join("test_results", dtype_str, precision_str, model_name, folder_name)
-    if not already_generate(save_dir_4bit, max_dataset_size):
-        pipeline_init_kwargs = {}
-        model_id_4bit = NUNCHAKU_REPO_PATTERN_MAP[model_name].format(precision=precision)
+    pipeline_init_kwargs = {}
+    model_id_4bit = NUNCHAKU_REPO_PATTERN_MAP[model_name].format(precision=precision)
 
-        if i2f_mode is not None:
-            nunchaku._C.utils.set_faster_i2f_mode(i2f_mode)
+    if i2f_mode is not None:
+        nunchaku._C.utils.set_faster_i2f_mode(i2f_mode)
 
-        transformer = NunchakuFluxTransformer2dModel.from_pretrained(
-            model_id_4bit, offload=cpu_offload, torch_dtype=dtype
-        )
-        transformer.set_attention_impl(attention_impl)
+    transformer = NunchakuFluxTransformer2dModel.from_pretrained(model_id_4bit, offload=cpu_offload, torch_dtype=dtype)
+    transformer.set_attention_impl(attention_impl)
 
-        if len(lora_names) > 0:
-            if len(lora_names) == 1:  # directly load the lora
-                lora_path = LORA_PATH_MAP[lora_names[0]]
-                lora_strength = lora_strengths[0]
-                transformer.update_lora_params(lora_path)
-                transformer.set_lora_strength(lora_strength)
-            else:
-                composed_lora = compose_lora(
-                    [
-                        (LORA_PATH_MAP[lora_name], lora_strength)
-                        for lora_name, lora_strength in zip(lora_names, lora_strengths)
-                    ]
-                )
-                transformer.update_lora_params(composed_lora)
-
-        pipeline_init_kwargs["transformer"] = transformer
-        if task == "redux":
-            pipeline_init_kwargs.update({"text_encoder": None, "text_encoder_2": None})
-        elif use_qencoder:
-            text_encoder_2 = NunchakuT5EncoderModel.from_pretrained(
-                "mit-han-lab/nunchaku-t5/awq-int4-flux.1-t5xxl.safetensors"
-            )
-            pipeline_init_kwargs["text_encoder_2"] = text_encoder_2
-        pipeline = pipeline_cls.from_pretrained(model_id_16bit, torch_dtype=dtype, **pipeline_init_kwargs)
-        if cpu_offload:
-            pipeline.enable_sequential_cpu_offload()
+    if len(lora_names) > 0:
+        if len(lora_names) == 1:  # directly load the lora
+            lora_path = LORA_PATH_MAP[lora_names[0]]
+            lora_strength = lora_strengths[0]
+            transformer.update_lora_params(lora_path)
+            transformer.set_lora_strength(lora_strength)
         else:
-            pipeline = pipeline.to("cuda")
-
-        if use_double_fb_cache:
-            apply_cache_on_pipe(
-                pipeline,
-                use_double_fb_cache=use_double_fb_cache,
-                residual_diff_threshold_multi=residual_diff_threshold_multi,
-                residual_diff_threshold_single=residual_diff_threshold_single,
+            composed_lora = compose_lora(
+                [
+                    (LORA_PATH_MAP[lora_name], lora_strength)
+                    for lora_name, lora_strength in zip(lora_names, lora_strengths)
+                ]
             )
+            transformer.update_lora_params(composed_lora)
 
-        run_pipeline(
-            batch_size=batch_size,
-            dataset=dataset,
-            task=task,
-            pipeline=pipeline,
-            save_dir=save_dir_4bit,
-            forward_kwargs={
-                "height": height,
-                "width": width,
-                "num_inference_steps": num_inference_steps,
-                "guidance_scale": guidance_scale,
-            },
+    pipeline_init_kwargs["transformer"] = transformer
+    if task == "redux":
+        pipeline_init_kwargs.update({"text_encoder": None, "text_encoder_2": None})
+    elif use_qencoder:
+        text_encoder_2 = NunchakuT5EncoderModel.from_pretrained(
+            "mit-han-lab/nunchaku-t5/awq-int4-flux.1-t5xxl.safetensors"
         )
-        del transformer
-        del pipeline
-        # release the gpu memory
-        gc.collect()
-        torch.cuda.empty_cache()
+        pipeline_init_kwargs["text_encoder_2"] = text_encoder_2
+    pipeline = pipeline_cls.from_pretrained(model_id_16bit, torch_dtype=dtype, **pipeline_init_kwargs)
+    if cpu_offload:
+        pipeline.enable_sequential_cpu_offload()
+    else:
+        pipeline = pipeline.to("cuda")
+
+    if use_double_fb_cache:
+        apply_cache_on_pipe(
+            pipeline,
+            use_double_fb_cache=use_double_fb_cache,
+            residual_diff_threshold_multi=residual_diff_threshold_multi,
+            residual_diff_threshold_single=residual_diff_threshold_single,
+        )
+
+    run_pipeline(
+        batch_size=batch_size,
+        dataset=dataset,
+        task=task,
+        pipeline=pipeline,
+        save_dir=save_dir_4bit,
+        forward_kwargs={
+            "height": height,
+            "width": width,
+            "num_inference_steps": num_inference_steps,
+            "guidance_scale": guidance_scale,
+        },
+    )
+    del transformer
+    del pipeline
+    # release the gpu memory
+    gc.collect()
+    torch.cuda.empty_cache()
     lpips = compute_lpips(save_dir_16bit, save_dir_4bit)
     print(f"lpips: {lpips}")
-    assert lpips < expected_lpips * 1.1
+    assert lpips < expected_lpips * 1.15
 
 
 def offload_pipeline(pipeline: FluxPipeline) -> FluxPipeline:

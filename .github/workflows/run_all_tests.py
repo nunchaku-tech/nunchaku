@@ -27,7 +27,7 @@ def run_all_tests():
             failed_tests.append(test_file)
         else:
             print(f"Test passed: {test_file}")
-        if len(failed_tests) > 3:
+        if len(failed_tests) > 0:
             break
 
     if failed_tests:

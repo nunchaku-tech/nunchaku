@@ -2,6 +2,7 @@ name: Nightly Build
 on:
   schedule:
     - cron: '0 8 * * *' # UTC time
+  workflow_dispatch:
 permissions:
   contents: write
 jobs:
@@ -108,13 +109,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Clean up
-        if: always() && github.repository == 'mit-han-lab/nunchaku'
+        if: always()
         run: bash scripts/linux_cleanup.sh
   windows-wheels:
     name: Build the windows nightly wheels
     runs-on: [self-hosted, windows-build]
     needs: tag
-    if: needs.tag.outputs.need_build == 'true' && github.repository == 'mit-han-lab/nunchaku'
+    if: needs.tag.outputs.need_build == 'true' && github.repository == 'nunchaku-tech/nunchaku'
     strategy:
       matrix:
         python: ["3.10", "3.11", "3.12"]

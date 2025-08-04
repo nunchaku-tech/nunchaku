@@ -1,9 +1,7 @@
-import gc
 import os
 import subprocess
 
 import pytest
-import torch
 
 EXAMPLES_DIR = "./examples"
 

@@ -65,7 +65,6 @@ jobs:
           source $(conda info --base)/etc/profile.d/conda.sh
           conda activate test_env || { echo "Failed to activate conda env"; exit 1; }
           which python
-          conda install -c conda-forge gxx=11 gcc=11
           echo "Installing dependencies"
           pip install torch==2.7 torchvision==0.22 torchaudio==2.7 --index-url https://download.pytorch.org/whl/cu128
           pip install git+https://github.com/huggingface/diffusers
