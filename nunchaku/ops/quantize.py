@@ -4,7 +4,7 @@ Python wrappers for Nunchaku's quantization operations.
 
 import torch
 
-from ._C import ops
+from .._C import ops
 
 
 def svdq_w4a4_act_fuse_lora(

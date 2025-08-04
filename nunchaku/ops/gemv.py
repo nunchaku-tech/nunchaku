@@ -4,7 +4,7 @@ Python wrappers for Nunchaku's quantized GEMV operations.
 
 import torch
 
-from ._C import ops
+from .._C import ops
 
 
 def awq_gemv_w4a16(

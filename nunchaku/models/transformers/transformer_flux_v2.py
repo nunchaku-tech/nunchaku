@@ -17,6 +17,7 @@ from huggingface_hub import utils
 from torch import nn
 from torch.nn import functional as F
 
+from ...utils import get_precision
 from ..linear import AWQW4A16Linear, SVDQW4A4Linear
 from ..utils import fuse_linears
 from .utils import NunchakuModelLoaderMixin
@@ -44,7 +45,7 @@ class NunchakuFeedForward(FeedForward):
 
 class NunchakuFluxAttention(nn.Module):
     def __init__(self, flux_attention: FluxAttention, processor: str = "flashattn2", **kwargs):
-        super(FluxAttention, self).__init__()
+        super(NunchakuFluxAttention, self).__init__()
 
         self.head_dim = flux_attention.head_dim
         self.inner_dim = flux_attention.inner_dim
@@ -278,6 +279,7 @@ class NunchakuFluxTransformer2DModelV2(FluxTransformer2DModel, NunchakuModelLoad
     @classmethod
     @utils.validate_hf_hub_args
     def from_pretrained(cls, pretrained_model_name_or_path: str | os.PathLike[str], **kwargs):
+        device = kwargs.get("device", "cpu")
         offload = kwargs.get("offload", False)
 
         if offload:
@@ -294,4 +296,9 @@ class NunchakuFluxTransformer2DModelV2(FluxTransformer2DModel, NunchakuModelLoad
         ), "Only safetensors are supported"
         transformer, model_state_dict, metadata = cls._build_model(pretrained_model_name_or_path, **kwargs)
         quantization_config = json.loads(metadata["quantization_config"])
-        transformer._patch_model(**kwargs)
+
+        precision = get_precision()
+        if precision == "fp4":
+            precision = "nvfp4"
+        transformer._patch_model(precision=precision)
+        return transformer

@@ -4,7 +4,7 @@ Python wrappers for Nunchaku's quantized GEMM operations.
 
 import torch
 
-from ._C import ops
+from .._C import ops
 
 
 def svdq_gemm_w4a4(

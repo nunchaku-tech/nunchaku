@@ -15,7 +15,7 @@ class SVDQW4A4Linear(nn.Module):
         bias: bool = True,
         precision: str = "int4",
         torch_dtype: torch.dtype = torch.bfloat16,
-        device: str | torch.device = "cuda",
+        device: str | torch.device = "cpu",
     ):
         super(SVDQW4A4Linear, self).__init__()
         self.in_features = in_features
@@ -32,14 +32,17 @@ class SVDQW4A4Linear(nn.Module):
         else:
             raise ValueError(f"Invalid precision: {precision}")
 
-        self.qweight = nn.Parameter(torch.empty(out_features, in_features // 2, dtype=torch.int8, device=device))
+        self.qweight = nn.Parameter(
+            torch.empty(out_features, in_features // 2, dtype=torch.int8, device=device), requires_grad=False
+        )
         self.ascales = nn.Parameter(
             torch.empty(
                 in_features // self.group_size,
                 out_features,
                 dtype=torch_dtype if precision == "int4" else torch.float8_e4m3,
                 device=device,
-            )
+            ),
+            requires_grad=False,
         )
         self.wscales = nn.Parameter(
             torch.empty(
@@ -47,9 +50,12 @@ class SVDQW4A4Linear(nn.Module):
                 out_features,
                 dtype=torch_dtype if precision == "int4" else torch.float8_e4m3,
                 device=device,
-            )
+            ),
+            requires_grad=False,
         )
-        self.smooth_factor = nn.Parameter(torch.empty(in_features, dtype=torch_dtype, device=device))
+        self.smooth_factor = nn.Parameter(
+            torch.empty(in_features, dtype=torch_dtype, device=device), requires_grad=False
+        )
 
         self.proj_down_weight = nn.Parameter(torch.empty(in_features, rank, dtype=torch_dtype, device=device))
         self.proj_up_weight = nn.Parameter(torch.empty(out_features, rank, dtype=torch_dtype, device=device))
@@ -116,12 +122,16 @@ class AWQW4A16Linear(nn.Module):
 
         self.group_size = 128
 
-        self.qweight = nn.Parameter(torch.empty(out_features, in_features // 2, dtype=torch.int8, device=device))
+        self.qweight = nn.Parameter(
+            torch.empty(out_features, in_features // 2, dtype=torch.int8, device=device), requires_grad=False
+        )
         self.wscales = nn.Parameter(
-            torch.empty(in_features // self.group_size, out_features, dtype=torch_dtype, device=device)
+            torch.empty(in_features // self.group_size, out_features, dtype=torch_dtype, device=device),
+            requires_grad=False,
         )
         self.zeros = nn.Parameter(
-            torch.empty(in_features // self.group_size, out_features, dtype=torch_dtype, device=device)
+            torch.empty(in_features // self.group_size, out_features, dtype=torch_dtype, device=device),
+            requires_grad=False,
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -138,7 +148,7 @@ class AWQW4A16Linear(nn.Module):
 
     @classmethod
     def from_linear(
-        cls, linear: nn.Linear, group_size: int = 128, torch_dtype: torch.dtype = torch.bfloat16, device: str = "cuda"
+        cls, linear: nn.Linear, group_size: int = 128, torch_dtype: torch.dtype = torch.bfloat16, device: str = "cpu"
     ):
         return cls(
             in_features=linear.in_features,
