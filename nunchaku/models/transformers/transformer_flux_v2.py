@@ -23,10 +23,10 @@ from ..utils import fuse_linears
 from .utils import NunchakuModelLoaderMixin
 
 
-def _patch_linear(module: nn.Module, linear_cls, **kwargs):
+def _patch_linear(module: nn.Module, linear_cls, **kwargs) -> nn.Module:
     for name, child in module.named_children():
         if isinstance(child, nn.Linear):
-            module[name] = linear_cls.from_linear(child, **kwargs)
+            setattr(module, name, linear_cls.from_linear(child, **kwargs))
         else:
             _patch_linear(child, linear_cls, **kwargs)
     return module
@@ -67,19 +67,21 @@ class NunchakuFluxAttention(nn.Module):
             fused_qkv = fuse_linears([flux_attention.to_q, flux_attention.to_k, flux_attention.to_v])
         self.to_qkv = SVDQW4A4Linear.from_linear(fused_qkv, **kwargs)
 
-        self.to_out = flux_attention.to_out
-        self.to_out[1] = SVDQW4A4Linear.from_linear(self.to_out[1], **kwargs)
+        if not self.pre_only:
+            self.to_out = flux_attention.to_out
+            self.to_out[0] = SVDQW4A4Linear.from_linear(self.to_out[0], **kwargs)
 
-        self.norm_added_q = flux_attention.norm_added_q
-        self.norm_added_k = flux_attention.norm_added_k
+        if self.added_kv_proj_dim is not None:
+            self.norm_added_q = flux_attention.norm_added_q
+            self.norm_added_k = flux_attention.norm_added_k
 
-        # fuse the add_qkv
-        with torch.device("meta"):
-            fused_add_qkv = fuse_linears(
-                [flux_attention.add_q_proj, flux_attention.add_k_proj, flux_attention.add_v_proj]
-            )
-        self.add_qkv = SVDQW4A4Linear.from_linear(fused_add_qkv, **kwargs)
-        self.to_add_out = SVDQW4A4Linear.from_linear(flux_attention.to_add_out, **kwargs)
+            # fuse the add_qkv
+            with torch.device("meta"):
+                fused_add_qkv = fuse_linears(
+                    [flux_attention.add_q_proj, flux_attention.add_k_proj, flux_attention.add_v_proj]
+                )
+            self.add_qkv = SVDQW4A4Linear.from_linear(fused_add_qkv, **kwargs)
+            self.to_add_out = SVDQW4A4Linear.from_linear(flux_attention.to_add_out, **kwargs)
 
         self.processor = processor
 
@@ -272,8 +274,8 @@ class NunchakuFluxTransformer2DModelV2(FluxTransformer2DModel, NunchakuModelLoad
     def _patch_model(self, **kwargs):
         for i, block in enumerate(self.transformer_blocks):
             self.transformer_blocks[i] = NunchakuFluxTransformerBlock(block, **kwargs)
-        for i, block in enumerate(self.transformer_blocks_single):
-            self.transformer_blocks_single[i] = NunchakuFluxSingleTransformerBlock(block, **kwargs)
+        for i, block in enumerate(self.single_transformer_blocks):
+            self.single_transformer_blocks[i] = NunchakuFluxSingleTransformerBlock(block, **kwargs)
         return self
 
     @classmethod

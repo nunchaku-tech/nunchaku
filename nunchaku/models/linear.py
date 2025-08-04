@@ -39,7 +39,7 @@ class SVDQW4A4Linear(nn.Module):
             torch.empty(
                 in_features // self.group_size,
                 out_features,
-                dtype=torch_dtype if precision == "int4" else torch.float8_e4m3,
+                dtype=torch_dtype if precision == "int4" else torch.float8_e4m3fn,
                 device=device,
             ),
             requires_grad=False,
@@ -48,7 +48,7 @@ class SVDQW4A4Linear(nn.Module):
             torch.empty(
                 in_features // self.group_size,
                 out_features,
-                dtype=torch_dtype if precision == "int4" else torch.float8_e4m3,
+                dtype=torch_dtype if precision == "int4" else torch.float8_e4m3fn,
                 device=device,
             ),
             requires_grad=False,
@@ -148,7 +148,12 @@ class AWQW4A16Linear(nn.Module):
 
     @classmethod
     def from_linear(
-        cls, linear: nn.Linear, group_size: int = 128, torch_dtype: torch.dtype = torch.bfloat16, device: str = "cpu"
+        cls,
+        linear: nn.Linear,
+        group_size: int = 128,
+        torch_dtype: torch.dtype = torch.bfloat16,
+        device: str = "cpu",
+        **kwargs,
     ):
         return cls(
             in_features=linear.in_features,
