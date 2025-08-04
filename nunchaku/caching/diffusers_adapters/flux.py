@@ -91,7 +91,6 @@ def apply_cache_on_transformer(
                 unittest.mock.patch.object(self, "transformer_blocks", cached_transformer_blocks),
                 unittest.mock.patch.object(self, "single_transformer_blocks", dummy_single_transformer_blocks),
             ):
-                transformer._is_cached = True
                 transformer.cached_transformer_blocks = cached_transformer_blocks
                 transformer.single_transformer_blocks = dummy_single_transformer_blocks
                 return original_forward(*args, **kwargs)
@@ -99,6 +98,7 @@ def apply_cache_on_transformer(
             return original_forward(*args, **kwargs)
 
     transformer.forward = new_forward.__get__(transformer)
+    transformer._is_cached = True
     transformer.use_double_fb_cache = use_double_fb_cache
     transformer.residual_diff_threshold_multi = residual_diff_threshold_multi
     transformer.residual_diff_threshold_single = residual_diff_threshold_single
