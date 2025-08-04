@@ -42,15 +42,6 @@ class SVDQW4A4Linear(nn.Module):
             else None
         )
 
-        self.ascales = nn.Parameter(
-            torch.empty(
-                in_features // self.group_size,
-                out_features,
-                dtype=torch_dtype if precision == "int4" else torch.float8_e4m3fn,
-                device=device,
-            ),
-            requires_grad=False,
-        )
         self.wscales = nn.Parameter(
             torch.empty(
                 in_features // self.group_size,
@@ -71,15 +62,18 @@ class SVDQW4A4Linear(nn.Module):
         self.proj_up = nn.Parameter(torch.empty(out_features, rank, dtype=torch_dtype, device=device))
 
         self.wtscale = None
-        if precision == "nvfp4":
-            self.wtscale = nn.Parameter(torch.empty(1, dtype=torch_dtype, device=device), requires_grad=False)
-
         self.wcscales = None
+        if precision == "nvfp4":
+            self.wtscale = nn.Parameter(torch.ones(1, dtype=torch_dtype, device=device), requires_grad=False)
+            self.wcscales = nn.Parameter(
+                torch.ones(out_features, dtype=torch_dtype, device=device), requires_grad=False
+            )
 
     @classmethod
     def from_linear(cls, linear: nn.Linear, **kwargs):
+        in_features = kwargs.pop("in_features", linear.in_features)
         return cls(
-            in_features=kwargs.get("in_features", linear.in_features),
+            in_features=in_features,
             out_features=linear.out_features,
             bias=linear.bias is not None,
             torch_dtype=linear.weight.dtype,
@@ -125,7 +119,7 @@ class AWQW4A16Linear(nn.Module):
         in_features: int,
         out_features: int,
         bias: bool = True,
-        group_size: int = 128,
+        group_size: int = 64,
         torch_dtype: torch.dtype = torch.bfloat16,
         device: str | torch.device = "cuda",
     ):
@@ -133,10 +127,10 @@ class AWQW4A16Linear(nn.Module):
         self.in_features = in_features
         self.out_features = out_features
 
-        self.group_size = 128
+        self.group_size = group_size
 
         self.qweight = nn.Parameter(
-            torch.empty(out_features, in_features // 2, dtype=torch.int8, device=device), requires_grad=False
+            torch.empty(out_features // 4, in_features // 2, dtype=torch.int32, device=device), requires_grad=False
         )
         self.bias = (
             nn.Parameter(torch.empty(out_features, dtype=torch_dtype, device=device), requires_grad=True)
@@ -168,7 +162,7 @@ class AWQW4A16Linear(nn.Module):
     def from_linear(
         cls,
         linear: nn.Linear,
-        group_size: int = 128,
+        group_size: int = 64,
         torch_dtype: torch.dtype = torch.bfloat16,
         device: str = "cpu",
         **kwargs,

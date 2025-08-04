@@ -9,4 +9,10 @@ def fuse_linears(linears: list[nn.Linear]) -> nn.Linear:
         assert all(linear.in_features == linears[0].in_features for linear in linears)
         out_features = sum(linear.out_features for linear in linears)
         bias = all(linear.bias is not None for linear in linears)
-        return nn.Linear(linears[0].in_features, out_features, bias=bias)
+        return nn.Linear(
+            linears[0].in_features,
+            out_features,
+            bias=bias,
+            dtype=linears[0].weight.dtype,
+            device=linears[0].weight.device,
+        )

@@ -1,4 +1,3 @@
-import json
 import os
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
@@ -295,7 +294,6 @@ class NunchakuFluxTransformer2DModelV2(FluxTransformer2DModel, NunchakuModelLoad
             raise NotImplementedError("offload is not supported")
 
         torch_dtype = kwargs.get("torch_dtype", torch.bfloat16)
-        metadata = None
 
         if isinstance(pretrained_model_name_or_path, str):
             pretrained_model_name_or_path = Path(pretrained_model_name_or_path)
@@ -304,16 +302,33 @@ class NunchakuFluxTransformer2DModelV2(FluxTransformer2DModel, NunchakuModelLoad
             (".safetensors", ".sft")
         ), "Only safetensors are supported"
         transformer, model_state_dict, metadata = cls._build_model(pretrained_model_name_or_path, **kwargs)
-        quantization_config = json.loads(metadata["quantization_config"])
+        transformer = transformer.to(torch_dtype)
 
         precision = get_precision()
         if precision == "fp4":
             precision = "nvfp4"
         transformer._patch_model(precision=precision)
 
-        transformer.to_empty(device)
+        transformer = transformer.to_empty(device=device)
         converted_state_dict = convert_flux_state_dict(model_state_dict)
-        transformer.load_state_dict(converted_state_dict)
+
+        state_dict = transformer.state_dict()
+        with open("model_sd.txt", "w") as f:
+            for k, v in sorted(state_dict.items()):
+                f.write(f"{k} {v.shape} {v.dtype}\n")
+
+        with open("loaded_sd.txt", "w") as f:
+            for k, v in sorted(converted_state_dict.items()):
+                f.write(f"{k} {v.shape} {v.dtype}\n")
+
+        for k in state_dict.keys():
+            if k not in converted_state_dict:
+                assert ".wtscale" in k or ".wcscales" in k
+            else:
+                if state_dict[k].dtype != converted_state_dict[k].dtype:
+                    assert state_dict[k].dtype == converted_state_dict[k].dtype
+
+        transformer.load_state_dict(converted_state_dict, strict=False)
 
         return transformer
 
@@ -344,9 +359,11 @@ def convert_flux_state_dict(state_dict: dict[str, torch.Tensor]) -> dict[str, to
             elif ".mlp_context_fc2" in k:
                 new_k = k.replace(".mlp_context_fc2.", ".ff_context.net.2.")
             elif ".mlp_fc1" in k:
-                new_k = k.replace(".mlp_fc1", ".ff.net.0.proj.")
+                new_k = k.replace(".mlp_fc1.", ".ff.net.0.proj.")
             elif ".mlp_fc2" in k:
-                new_k = k.replace(".mlp_fc2", ".ff.net.2.")
+                new_k = k.replace(".mlp_fc2.", ".ff.net.2.")
+            elif ".qkv_proj_context." in k:
+                new_k = k.replace(".qkv_proj_context.", ".attn.add_qkv.")
             elif ".qkv_proj." in k:
                 new_k = k.replace(".qkv_proj.", ".attn.to_qkv.")
             elif ".norm_q." in k or ".norm_k." in k:
