@@ -7,7 +7,7 @@ import torch
 from .._C import ops
 
 
-def svdq_gemm_w4a4(
+def svdq_gemm_w4a4_cuda(
     act: torch.Tensor,
     wgt: torch.Tensor,
     out: torch.Tensor | None = None,

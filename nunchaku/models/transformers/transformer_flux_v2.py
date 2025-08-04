@@ -129,12 +129,17 @@ class NunchakuFluxAttention(nn.Module):
         hidden_states = hidden_states.flatten(2, 3)
         hidden_states = hidden_states.to(query.dtype)
 
+        if hasattr(self, "to_out"):
+            if isinstance(self.to_out, (nn.Linear, SVDQW4A4Linear)):
+                hidden_states = self.to_out(hidden_states)
+            else:
+                hidden_states = self.to_out[0](hidden_states)
+                hidden_states = self.to_out[1](hidden_states)
+
         if encoder_hidden_states is not None:
             encoder_hidden_states, hidden_states = hidden_states.split_with_sizes(
                 [encoder_hidden_states.shape[1], hidden_states.shape[1] - encoder_hidden_states.shape[1]], dim=1
             )
-            hidden_states = self.to_out[0](hidden_states)
-            hidden_states = self.to_out[1](hidden_states)
             encoder_hidden_states = self.to_add_out(encoder_hidden_states)
 
             return hidden_states, encoder_hidden_states
@@ -231,11 +236,12 @@ class NunchakuFluxSingleTransformerBlock(FluxSingleTransformerBlock):
         if isinstance(self.norm, AdaLayerNormZeroSingle):
             self.norm.linear = AWQW4A16Linear.from_linear(self.norm.linear, **kwargs)
 
-        self.proj_mlp = SVDQW4A4Linear.from_linear(block.proj_mlp, **kwargs)
+        self.mlp_fc1 = SVDQW4A4Linear.from_linear(block.proj_mlp, **kwargs)
         self.act_mlp = block.act_mlp
-        self.proj_out = SVDQW4A4Linear.from_linear(block.proj_out, **kwargs)
+        self.mlp_fc2 = SVDQW4A4Linear.from_linear(block.proj_out, in_features=self.mlp_hidden_dim, **kwargs)
 
         self.attn = NunchakuFluxAttention(block.attn, **kwargs)
+        self.attn.to_out = SVDQW4A4Linear.from_linear(block.proj_out, in_features=self.mlp_fc1.in_features, **kwargs)
 
     def forward(
         self,
@@ -245,12 +251,13 @@ class NunchakuFluxSingleTransformerBlock(FluxSingleTransformerBlock):
         image_rotary_emb: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
         joint_attention_kwargs: Optional[Dict[str, Any]] = None,
     ) -> torch.Tensor:
+        raise NotImplementedError("NunchakuFluxSingleTransformerBlock is not supported")
         text_seq_len = encoder_hidden_states.shape[1]
         hidden_states = torch.cat([encoder_hidden_states, hidden_states], dim=1)
 
         residual = hidden_states
         norm_hidden_states, gate = self.norm(hidden_states, emb=temb)
-        mlp_hidden_states = self.act_mlp(self.proj_mlp(norm_hidden_states))
+        mlp_hidden_states = self.act_mlp(self.mlp_fc1(norm_hidden_states))
         joint_attention_kwargs = joint_attention_kwargs or {}
         attn_output = self.attn(
             hidden_states=norm_hidden_states,
@@ -303,4 +310,65 @@ class NunchakuFluxTransformer2DModelV2(FluxTransformer2DModel, NunchakuModelLoad
         if precision == "fp4":
             precision = "nvfp4"
         transformer._patch_model(precision=precision)
+
+        transformer.to_empty(device)
+        converted_state_dict = convert_flux_state_dict(model_state_dict)
+        transformer.load_state_dict(converted_state_dict)
+
         return transformer
+
+
+def convert_flux_state_dict(state_dict: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
+    new_state_dict = {}
+    for k, v in state_dict.items():
+        if "single_transformer_blocks." in k:
+            if ".qkv_proj." in k:
+                new_k = k.replace(".qkv_proj.", ".attn.to_qkv.")
+            elif ".out_proj." in k:
+                new_k = k.replace(".out_proj.", ".attn.to_out.")
+            elif ".norm_q." in k or ".norm_k." in k:
+                new_k = k.replace(".norm_k.", ".attn.norm_k.")
+                new_k = new_k.replace(".norm_q.", ".attn.norm_q.")
+            else:
+                new_k = k
+            new_k = new_k.replace(".lora_down", ".proj_down")
+            new_k = new_k.replace(".lora_up", ".proj_up")
+            if ".smooth_orig" in k:
+                new_k = new_k.replace(".smooth_orig", ".smooth_factor_orig")
+            elif ".smooth" in k:
+                new_k = new_k.replace(".smooth", ".smooth_factor")
+            new_state_dict[new_k] = v
+        elif "transformer_blocks." in k:
+            if ".mlp_context_fc1" in k:
+                new_k = k.replace(".mlp_context_fc1.", ".ff_context.net.0.proj.")
+            elif ".mlp_context_fc2" in k:
+                new_k = k.replace(".mlp_context_fc2.", ".ff_context.net.2.")
+            elif ".mlp_fc1" in k:
+                new_k = k.replace(".mlp_fc1", ".ff.net.0.proj.")
+            elif ".mlp_fc2" in k:
+                new_k = k.replace(".mlp_fc2", ".ff.net.2.")
+            elif ".qkv_proj." in k:
+                new_k = k.replace(".qkv_proj.", ".attn.to_qkv.")
+            elif ".norm_q." in k or ".norm_k." in k:
+                new_k = k.replace(".norm_k.", ".attn.norm_k.")
+                new_k = new_k.replace(".norm_q.", ".attn.norm_q.")
+            elif ".norm_added_q." in k or ".norm_added_k." in k:
+                new_k = k.replace(".norm_added_k.", ".attn.norm_added_k.")
+                new_k = new_k.replace(".norm_added_q.", ".attn.norm_added_q.")
+            elif ".out_proj." in k:
+                new_k = k.replace(".out_proj.", ".attn.to_out.0.")
+            elif ".out_proj_context." in k:
+                new_k = k.replace(".out_proj_context.", ".attn.to_add_out.")
+            else:
+                new_k = k
+            new_k = new_k.replace(".lora_down", ".proj_down")
+            new_k = new_k.replace(".lora_up", ".proj_up")
+            if ".smooth_orig" in k:
+                new_k = new_k.replace(".smooth_orig", ".smooth_factor_orig")
+            elif ".smooth" in k:
+                new_k = new_k.replace(".smooth", ".smooth_factor")
+            new_state_dict[new_k] = v
+        else:
+            new_state_dict[k] = v
+
+    return new_state_dict

@@ -7,7 +7,7 @@ import torch
 from .._C import ops
 
 
-def svdq_w4a4_act_fuse_lora(
+def svdq_w4a4_act_fuse_lora_cuda(
     input: torch.Tensor,
     output: torch.Tensor | None = None,
     oscales: torch.Tensor | None = None,
