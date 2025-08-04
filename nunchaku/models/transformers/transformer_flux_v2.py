@@ -1,4 +1,11 @@
+import json
+import os
+from pathlib import Path
+from typing import Any, Dict, Optional, Tuple
+
 import torch
+from diffusers.models.attention import FeedForward
+from diffusers.models.embeddings import apply_rotary_emb
 from diffusers.models.normalization import AdaLayerNormZero, AdaLayerNormZeroSingle
 from diffusers.models.transformers.transformer_flux import (
     FluxAttention,
@@ -6,15 +13,13 @@ from diffusers.models.transformers.transformer_flux import (
     FluxTransformer2DModel,
     FluxTransformerBlock,
 )
-from diffusers.models.attention import FeedForward
+from huggingface_hub import utils
 from torch import nn
+from torch.nn import functional as F
 
 from ..linear import AWQW4A16Linear, SVDQW4A4Linear
 from ..utils import fuse_linears
-from typing import Optional, Dict, Any, Tuple
-from torch.nn import functional as F
-
-from diffusers.models.embeddings import apply_rotary_emb
+from .utils import NunchakuModelLoaderMixin
 
 
 def _patch_linear(module: nn.Module, linear_cls, **kwargs):
@@ -261,10 +266,32 @@ class NunchakuFluxSingleTransformerBlock(FluxSingleTransformerBlock):
         return encoder_hidden_states, hidden_states
 
 
-class NunchakuFluxTransformer2DModelV2(FluxTransformer2DModel):
+class NunchakuFluxTransformer2DModelV2(FluxTransformer2DModel, NunchakuModelLoaderMixin):
 
     def _patch_model(self, **kwargs):
         for i, block in enumerate(self.transformer_blocks):
             self.transformer_blocks[i] = NunchakuFluxTransformerBlock(block, **kwargs)
         for i, block in enumerate(self.transformer_blocks_single):
             self.transformer_blocks_single[i] = NunchakuFluxSingleTransformerBlock(block, **kwargs)
+        return self
+
+    @classmethod
+    @utils.validate_hf_hub_args
+    def from_pretrained(cls, pretrained_model_name_or_path: str | os.PathLike[str], **kwargs):
+        offload = kwargs.get("offload", False)
+
+        if offload:
+            raise NotImplementedError("offload is not supported")
+
+        torch_dtype = kwargs.get("torch_dtype", torch.bfloat16)
+        metadata = None
+
+        if isinstance(pretrained_model_name_or_path, str):
+            pretrained_model_name_or_path = Path(pretrained_model_name_or_path)
+
+        assert pretrained_model_name_or_path.is_file() or pretrained_model_name_or_path.name.endswith(
+            (".safetensors", ".sft")
+        ), "Only safetensors are supported"
+        transformer, model_state_dict, metadata = cls._build_model(pretrained_model_name_or_path, **kwargs)
+        quantization_config = json.loads(metadata["quantization_config"])
+        transformer._patch_model(**kwargs)
