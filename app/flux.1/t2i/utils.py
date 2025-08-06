@@ -93,6 +93,9 @@ def get_pipeline(
                             m.scaling[name] = lora_weight
     else:
         raise NotImplementedError(f"Model {model_name} not implemented")
-    pipeline = pipeline.to(device)
+    if precision == "bf16":
+        pipeline.enable_model_cpu_offload()
+    else:
+        pipeline = pipeline.to(device)
 
     return pipeline

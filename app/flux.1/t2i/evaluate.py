@@ -56,7 +56,7 @@ def main():
     for dataset_name in args.datasets:
         output_dirname = os.path.join(output_root, dataset_name)
         os.makedirs(output_dirname, exist_ok=True)
-        dataset = get_dataset(name=dataset_name, max_dataset_size=8)
+        dataset = get_dataset(name=dataset_name, max_dataset_size=1024)
         if args.chunk_step > 1:
             dataset = dataset.select(range(args.chunk_start, len(dataset), args.chunk_step))
         for row in tqdm(dataset):

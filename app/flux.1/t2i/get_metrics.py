@@ -35,7 +35,7 @@ def main():
             continue
         print("Results for dataset:", dataset_name)
         results[dataset_name] = {}
-        dataset = get_dataset(name=dataset_name, return_gt=True)
+        dataset = get_dataset(name=dataset_name, return_gt=True, max_dataset_size=1024)
         fid = compute_fid(ref_dirpath_or_dataset=dataset, gen_dirpath=os.path.join(image_root1, dataset_name))
         results[dataset_name]["fid"] = fid
         print("FID:", fid)
