@@ -29,5 +29,4 @@ def svdq_w4a4_act_fuse_lora_cuda(
         lora_act_out = torch.empty(batch_size, channels, dtype=torch.int8, device=input.device)
 
     ops.svdq_w4a4_act_fuse_lora(input, output, oscales, lora_down, lora_act_out, smooth, fuse_glu, fp4)
-
     return output, oscales, lora_act_out

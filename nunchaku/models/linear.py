@@ -83,8 +83,10 @@ class SVDQW4A4Linear(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # quantize the input run the down projection
+        batch_size, seq_len, channels = x.shape
+        x = x.view(batch_size * seq_len, channels)
         quantized_x, ascales, lora_act_out = svdq_w4a4_act_fuse_lora_cuda(
-            x, lora_down=self.proj_down_weight, smooth=self.smooth_factor, fp4=self.precision == "nvfp4"
+            x, lora_down=self.proj_down, smooth=self.smooth_factor, fp4=self.precision == "nvfp4"
         )
 
         output = svdq_gemm_w4a4_cuda(
@@ -94,8 +96,8 @@ class SVDQW4A4Linear(nn.Module):
             wscales=self.wscales,
             lora_act_in=lora_act_out,
             lora_up=self.proj_up,
-            lora_down=self.proj_down,
-            lora_act_out=lora_act_out,
+            lora_down=None,
+            lora_act_out=None,
             norm_q=None,
             norm_k=None,
             rotary_emb=None,
@@ -103,6 +105,7 @@ class SVDQW4A4Linear(nn.Module):
             act_unsigned=False,  # TODO: check this.
             fp4=self.precision == "nvfp4",
         )
+        output = output.view(batch_size, seq_len, -1)
         return output
 
     def __repr__(self):
