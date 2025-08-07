@@ -3,7 +3,7 @@ from torch import nn
 
 from ..ops.gemm import svdq_gemm_w4a4_cuda
 from ..ops.gemv import awq_gemv_w4a16_cuda
-from ..ops.quantize import svdq_w4a4_act_fuse_lora_cuda
+from ..ops.quantize import svdq_quantize_w4a4_act_fuse_lora_cuda
 
 
 class SVDQW4A4Linear(nn.Module):
@@ -85,7 +85,7 @@ class SVDQW4A4Linear(nn.Module):
         # quantize the input run the down projection
         batch_size, seq_len, channels = x.shape
         x = x.view(batch_size * seq_len, channels)
-        quantized_x, ascales, lora_act_out = svdq_w4a4_act_fuse_lora_cuda(
+        quantized_x, ascales, lora_act_out = svdq_quantize_w4a4_act_fuse_lora_cuda(
             x, lora_down=self.proj_down, smooth=self.smooth_factor, fp4=self.precision == "nvfp4"
         )
 
