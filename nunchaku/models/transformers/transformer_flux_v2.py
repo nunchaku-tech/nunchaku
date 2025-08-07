@@ -16,10 +16,10 @@ from torch import nn
 from torch.nn import functional as F
 
 from ...utils import get_precision
+from ..attention import NunchakuFeedForward
 from ..linear import AWQW4A16Linear, SVDQW4A4Linear
 from ..utils import fuse_linears
 from .utils import NunchakuModelLoaderMixin
-from ..attention import NunchakuFeedForward
 
 
 class NunchakuFluxAttention(nn.Module):
@@ -230,23 +230,26 @@ class NunchakuFluxSingleTransformerBlock(FluxSingleTransformerBlock):
         image_rotary_emb: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
         joint_attention_kwargs: Optional[Dict[str, Any]] = None,
     ) -> torch.Tensor:
-        raise NotImplementedError("NunchakuFluxSingleTransformerBlock is not supported")
         text_seq_len = encoder_hidden_states.shape[1]
         hidden_states = torch.cat([encoder_hidden_states, hidden_states], dim=1)
 
         residual = hidden_states
         norm_hidden_states, gate = self.norm(hidden_states, emb=temb)
-        mlp_hidden_states = self.act_mlp(self.mlp_fc1(norm_hidden_states))
+
+        # Feedforward
+        mlp_hidden_states = self.mlp_fc1(norm_hidden_states)
+        mlp_hidden_states = self.act_mlp(mlp_hidden_states)
+        mlp_hidden_states = self.mlp_fc2(mlp_hidden_states)
+
+        # Attention
         joint_attention_kwargs = joint_attention_kwargs or {}
         attn_output = self.attn(
-            hidden_states=norm_hidden_states,
-            image_rotary_emb=image_rotary_emb,
-            **joint_attention_kwargs,
+            hidden_states=norm_hidden_states, image_rotary_emb=image_rotary_emb, **joint_attention_kwargs
         )
 
-        hidden_states = torch.cat([attn_output, mlp_hidden_states], dim=2)
+        hidden_states = attn_output + mlp_hidden_states
         gate = gate.unsqueeze(1)
-        hidden_states = gate * self.proj_out(hidden_states)
+        hidden_states = gate * hidden_states
         hidden_states = residual + hidden_states
         if hidden_states.dtype == torch.float16:
             hidden_states = hidden_states.clip(-65504, 65504)
@@ -271,7 +274,7 @@ class NunchakuFluxTransformer2DModelV2(FluxTransformer2DModel, NunchakuModelLoad
         offload = kwargs.get("offload", False)
 
         if offload:
-            raise NotImplementedError("offload is not supported")
+            raise NotImplementedError("Offload is not supported for FluxTransformer2DModelV2")
 
         torch_dtype = kwargs.get("torch_dtype", torch.bfloat16)
 

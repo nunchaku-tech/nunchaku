@@ -1,9 +1,8 @@
+import torch
 from diffusers.models.attention import FeedForward
-
 from torch import nn
 
 from .linear import SVDQW4A4Linear
-import torch
 
 
 def _patch_linear(module: nn.Module, linear_cls, **kwargs) -> nn.Module:
