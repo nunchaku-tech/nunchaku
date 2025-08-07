@@ -19,8 +19,11 @@ if "%TORCH_VERSION%"=="2.5" (
 ) else if "%TORCH_VERSION%"=="2.7" (
     set TORCHVISION_VERSION=0.22
     set TORCHAUDIO_VERSION=2.7
+) else if "%TORCH_VERSION%"=="2.8" (
+    set TORCHVISION_VERSION=0.23
+    set TORCHAUDIO_VERSION=2.8
 ) else (
-    echo TORCH_VERSION is not 2.5, 2.6 or 2.7, no changes to versions.
+    echo TORCH_VERSION is not 2.5, 2.6, 2.7 or 2.8, no changes to versions.
 )
 echo setting TORCHVISION_VERSION to %TORCHVISION_VERSION% and TORCHAUDIO_VERSION to %TORCHAUDIO_VERSION%
 
