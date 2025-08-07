@@ -7,13 +7,13 @@ CUDA_VERSION=$3
 MAX_JOBS=${4:-} # optional
 PYTHON_ROOT_PATH=/opt/python/cp${PYTHON_VERSION//.}-cp${PYTHON_VERSION//.}
 
-if [ "$TORCH_VERSION" == "2.8" ]; then
-  TORCHVISION_VERSION="0.23"
-  TORCHAUDIO_VERSION="2.8"
-  echo "TORCH_VERSION is 2.8, setting TORCHVISION_VERSION to $TORCHVISION_VERSION and TORCHAUDIO_VERSION to $TORCHAUDIO_VERSION"
-else
-  echo "TORCH_VERSION is not 2.8, no changes to versions."
-fi
+# if [ "$TORCH_VERSION" == "2.9" ]; then
+#   TORCHVISION_VERSION="0.24"
+#   TORCHAUDIO_VERSION="2.9"
+#   echo "TORCH_VERSION is 2.8, setting TORCHVISION_VERSION to $TORCHVISION_VERSION and TORCHAUDIO_VERSION to $TORCHAUDIO_VERSION"
+# else
+#   echo "TORCH_VERSION is not 2.8, no changes to versions."
+# fi
 
 docker run --rm \
     -v "$(pwd)":/nunchaku \
