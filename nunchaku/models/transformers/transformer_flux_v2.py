@@ -153,7 +153,7 @@ class NunchakuFluxTransformerBlock(FluxTransformerBlock):
         image_rotary_emb: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
         joint_attention_kwargs: Optional[Dict[str, Any]] = None,
     ):
-        if joint_attention_kwargs is not None:
+        if joint_attention_kwargs is not None and len(joint_attention_kwargs) > 0:
             raise NotImplementedError("joint_attention_kwargs is not supported")
 
         norm_hidden_states, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.norm1(hidden_states, emb=temb)

@@ -148,10 +148,10 @@ class AWQW4A16Linear(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return awq_gemv_w4a16_cuda(
-            act=x,
-            wgt=self.qweight,
-            ascales=self.ascales,
-            wscales=self.wscales,
+            in_feats=x,
+            kernel=self.qweight,
+            scaling_factors=self.wscales,
+            zeros=self.wzeros,
             m=x.shape[0],
             n=self.out_features,
             k=self.in_features,
