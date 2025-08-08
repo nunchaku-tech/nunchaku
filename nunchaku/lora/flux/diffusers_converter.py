@@ -1,6 +1,8 @@
 import argparse
 import logging
 import os
+import re
+from collections import OrderedDict
 
 import torch
 from diffusers.loaders import FluxLoraLoaderMixin
@@ -56,6 +58,71 @@ def handle_kohya_lora(state_dict: dict[str, torch.Tensor]) -> dict[str, torch.Te
         return new_state_dict
 
 
+def convert_keys_to_diffusers(source_state_dict: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
+    """
+    A LoRA format patch for FLUX.1 Kontext.
+
+    Example LoRA: https://huggingface.co/nunchaku-tech/nunchaku-test-models/blob/main/relight-kontext-lora-single-caption_comfy.safetensors
+
+    Related issue: https://github.com/nunchaku-tech/ComfyUI-nunchaku/issues/354
+
+    This function handles two formats:
+    1. ComfyUI format: lora_unet_* keys that need conversion
+    2. Diffusers/PEFT format: base_model.model.* keys that need prefix stripping
+    """
+    converted_state_dict = OrderedDict()
+    skipped_keys = []
+
+    for key, tensor in source_state_dict.items():
+        original_key = key
+
+        # Handle Diffusers/PEFT format with base_model.model. prefix
+        if key.startswith("base_model.model."):
+            # Simply strip the prefix - the rest is already in correct format
+            new_key = key.replace("base_model.model.", "")
+            converted_state_dict[new_key] = tensor
+            continue
+
+        # Handle ComfyUI format with lora_unet_ prefix
+        if not key.startswith("lora_unet_"):
+            skipped_keys.append(original_key)
+            converted_state_dict[original_key] = tensor
+            continue
+
+        if key.endswith(".lora_down.weight"):
+            base_key = key.removesuffix(".lora_down.weight")
+            lora_suffix = ".lora_A.weight"
+        elif key.endswith(".lora_up.weight"):
+            base_key = key.removesuffix(".lora_up.weight")
+            lora_suffix = ".lora_B.weight"
+        else:
+            skipped_keys.append(original_key)
+            converted_state_dict[original_key] = tensor
+            continue
+
+        body = base_key.removeprefix("lora_unet_")
+
+        new_body = ""
+        if body.startswith("final_layer"):
+            new_body = body.replace("_", ".")
+        else:
+            match = re.match(r"((?:double|single)_blocks)_(\d+)_(.*)", body)
+            if match:
+                block_type, block_idx, layer_path_raw = match.groups()
+                layer_path_final = re.sub(r"_(?=\d+$)", ".", layer_path_raw)
+                new_body = f"{block_type}.{block_idx}.{layer_path_final}"
+            else:
+                skipped_keys.append(original_key)
+                converted_state_dict[original_key] = tensor
+                continue
+
+        final_key = f"{new_body}{lora_suffix}"
+
+        converted_state_dict[final_key] = tensor
+
+    return converted_state_dict
+
+
 def to_diffusers(input_lora: str | dict[str, torch.Tensor], output_path: str | None = None) -> dict[str, torch.Tensor]:
     if isinstance(input_lora, str):
         tensors = load_state_dict_in_safetensors(input_lora, device="cpu")
@@ -68,6 +135,9 @@ def to_diffusers(input_lora: str | dict[str, torch.Tensor], output_path: str | N
     for k, v in tensors.items():
         if v.dtype not in [torch.float64, torch.float32, torch.bfloat16, torch.float16]:
             tensors[k] = v.to(torch.bfloat16)
+
+    # Apply Kontext-specific key conversion
+    tensors = convert_keys_to_diffusers(tensors)
 
     new_tensors, alphas = FluxLoraLoaderMixin.lora_state_dict(tensors, return_alphas=True)
     new_tensors = convert_unet_state_dict_to_peft(new_tensors)

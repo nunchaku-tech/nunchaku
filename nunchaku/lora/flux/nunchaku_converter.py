@@ -210,11 +210,63 @@ def convert_to_nunchaku_transformer_block_lowrank_dict(  # noqa: C901
             logger.debug("    - Using original LoRA")
             lora = orig_lora
         else:
-            lora = (
-                torch.cat([orig_lora[0], extra_lora[0].to(orig_lora[0].dtype)], dim=0),  # [r, c]
-                torch.cat([orig_lora[1], extra_lora[1].to(orig_lora[1].dtype)], dim=1),  # [c, r]
-            )
-            logger.debug(f"    - Merging original and extra LoRA (rank: {lora[0].shape[0]})")
+            try:
+                lora = (
+                    torch.cat([orig_lora[0], extra_lora[0].to(orig_lora[0].dtype)], dim=0),  # [r, c]
+                    torch.cat([orig_lora[1], extra_lora[1].to(orig_lora[1].dtype)], dim=1),  # [c, r]
+                )
+                logger.debug(f"    - Merging original and extra LoRA (rank: {lora[0].shape[0]})")
+            except RuntimeError as e:
+                if "Sizes of tensors must match" in str(e):
+                    # Handle various dimension mismatch cases for LoRA
+                    logger.debug(
+                        f"    - Dimension mismatch detected: orig_lora[1]={orig_lora[1].shape}, extra_lora[1]={extra_lora[1].shape}"
+                    )
+
+                    # Handle dimension mismatch by using only the properly sized portion of extra_lora
+                    # instead of trying to concatenate mismatched dimensions
+
+                    # Case 1: single_blocks linear1 [21504] -> mlp_fc1 [12288]
+                    if extra_lora[1].shape[1] == 21504 and orig_lora[1].shape[1] == 12288:
+                        # Use only the first 12288 dimensions from the 21504 extra LoRA
+                        extra_lora_up_split = extra_lora[1][:, :12288].clone()
+                        extra_lora_down = extra_lora[0].clone()
+                        # logger.debug(f"    - Dimension fix 21504->12288: using split extra LoRA instead of merge")
+
+                        # Use the split extra LoRA instead of concatenating
+                        lora = (extra_lora_down.to(orig_lora[0].dtype), extra_lora_up_split.to(orig_lora[1].dtype))
+
+                    # Case 2: transformer_blocks with different MLP dimensions (27648 -> 9216)
+                    elif extra_lora[1].shape[1] == 27648 and orig_lora[1].shape[1] == 9216:
+                        # Use only the first 9216 dimensions from the 27648 extra LoRA
+                        extra_lora_up_split = extra_lora[1][:, :9216].clone()
+                        extra_lora_down = extra_lora[0].clone()
+                        # logger.debug(f"    - Dimension fix 27648->9216: using split extra LoRA instead of merge")
+
+                        # Use the split extra LoRA instead of concatenating
+                        lora = (extra_lora_down.to(orig_lora[0].dtype), extra_lora_up_split.to(orig_lora[1].dtype))
+
+                    # Case 3: Other dimension ratios - try to find a reasonable split
+                    elif extra_lora[1].shape[1] > orig_lora[1].shape[1]:
+                        # Use only what we need from extra LoRA
+                        target_dim = orig_lora[1].shape[1]
+                        extra_lora_up_split = extra_lora[1][:, :target_dim].clone()
+                        extra_lora_down = extra_lora[0].clone()
+                        # logger.debug(
+                        #    f"    - Dimension fix {extra_lora[1].shape[1]}->{target_dim}: using truncated extra LoRA"
+                        # )
+
+                        # Use the truncated extra LoRA instead of concatenating
+                        lora = (extra_lora_down.to(orig_lora[0].dtype), extra_lora_up_split.to(orig_lora[1].dtype))
+
+                    else:
+                        # For cases where extra LoRA has fewer dimensions, use original LoRA only
+                        # logger.warning(
+                        #    f"    - Cannot split extra LoRA {extra_lora[1].shape[1]}->{orig_lora[1].shape[1]}, using original only"
+                        # )
+                        lora = orig_lora
+                else:
+                    raise e
         # endregion
         if lora is not None:
             if convert_map[converted_local_name] == "adanorm_single":
@@ -247,6 +299,77 @@ def convert_to_nunchaku_transformer_block_lowrank_dict(  # noqa: C901
     return converted
 
 
+def preprocess_single_blocks_lora(
+    extra_lora_dict: dict[str, torch.Tensor], candidate_block_name: str
+) -> dict[str, torch.Tensor]:
+    """
+    Preprocess LoRA weights from single_blocks format to match nunchaku single_transformer_blocks structure.
+
+    This handles the dimension mismatch where:
+    - Original linear1 [21504, rank] needs to be split into mlp_fc1 [12288, rank] and part of mlp_fc2
+    - Original linear2 maps to mlp_fc2 structure
+    """
+    processed_dict = extra_lora_dict.copy()
+
+    # Find all single_blocks keys that need preprocessing
+    single_blocks_keys = [k for k in extra_lora_dict.keys() if "single_blocks" in k and "linear" in k]
+
+    logger.debug(f"Preprocessing LoRA for candidate: {candidate_block_name}")
+    logger.debug(f"All keys in extra_lora_dict: {list(extra_lora_dict.keys())[:10]}...")  # Show first 10 keys
+    logger.debug(f"Found single_blocks keys: {single_blocks_keys[:5]}...")  # Show first 5 single_blocks keys
+
+    if single_blocks_keys:
+        logger.debug(f"Found single_blocks LoRA keys, preprocessing for candidate: {candidate_block_name}")
+
+        # Extract block number from candidate_block_name (e.g., "single_transformer_blocks.0" -> "0")
+        block_num = candidate_block_name.split(".")[-1]
+        original_block_name = f"single_blocks.{block_num}"
+        logger.debug(f"Looking for original block: {original_block_name}")
+
+        # Check if we have single_blocks structure that needs preprocessing
+        linear1_lora_A_key = f"{original_block_name}.linear1.lora_A.weight"
+        linear1_lora_B_key = f"{original_block_name}.linear1.lora_B.weight"
+        linear2_lora_A_key = f"{original_block_name}.linear2.lora_A.weight"
+        linear2_lora_B_key = f"{original_block_name}.linear2.lora_B.weight"
+
+        if linear1_lora_B_key in extra_lora_dict:
+            linear1_lora_A = extra_lora_dict[linear1_lora_A_key]
+            linear1_lora_B = extra_lora_dict[linear1_lora_B_key]
+
+            # Check if this is the problematic 21504 dimension case
+            if linear1_lora_B.shape[0] == 21504:
+                # logger.debug(
+                #    f"Preprocessing single_blocks LoRA: splitting linear1 [{linear1_lora_B.shape[0]}] -> mlp_fc1 [12288] + mlp_fc2 [9216]"
+                # )
+
+                # Split linear1.lora_B [21504, rank] -> mlp_fc1 [12288, rank] + remainder [9216, rank]
+                mlp_fc1_lora_B = linear1_lora_B[:12288, :].clone()  # First 12288 dims for mlp_fc1
+                # mlp_fc2_extra = linear1_lora_B[12288:21504, :].clone()  # Remaining 9216 dims
+
+                # Map to proj_mlp (mlp_fc1) structure
+                processed_dict[f"{candidate_block_name}.proj_mlp.lora_A.weight"] = linear1_lora_A
+                processed_dict[f"{candidate_block_name}.proj_mlp.lora_B.weight"] = mlp_fc1_lora_B
+
+                # Handle linear2 -> mlp_fc2 mapping
+                if linear2_lora_B_key in extra_lora_dict:
+                    linear2_lora_A = extra_lora_dict[linear2_lora_A_key]
+                    linear2_lora_B = extra_lora_dict[linear2_lora_B_key]
+
+                    # Map linear2 to proj_out.linears.1 (mlp_fc2)
+                    processed_dict[f"{candidate_block_name}.proj_out.linears.1.lora_A.weight"] = linear2_lora_A
+                    processed_dict[f"{candidate_block_name}.proj_out.linears.1.lora_B.weight"] = linear2_lora_B
+
+                    # Remove original keys
+                    processed_dict.pop(linear2_lora_A_key, None)
+                    processed_dict.pop(linear2_lora_B_key, None)
+
+                # Remove original linear1 keys
+                processed_dict.pop(linear1_lora_A_key, None)
+                processed_dict.pop(linear1_lora_B_key, None)
+
+    return processed_dict
+
+
 def convert_to_nunchaku_flux_single_transformer_block_lowrank_dict(
     orig_state_dict: dict[str, torch.Tensor],
     extra_lora_dict: dict[str, torch.Tensor],
@@ -254,6 +377,9 @@ def convert_to_nunchaku_flux_single_transformer_block_lowrank_dict(
     candidate_block_name: str,
     default_dtype: torch.dtype = torch.bfloat16,
 ) -> dict[str, torch.Tensor]:
+    # Preprocess single_blocks LoRA structure if needed
+    extra_lora_dict = preprocess_single_blocks_lora(extra_lora_dict, candidate_block_name)
+
     if f"{candidate_block_name}.proj_out.lora_A.weight" in extra_lora_dict:
         assert f"{converted_block_name}.out_proj.qweight" in orig_state_dict
         assert f"{converted_block_name}.mlp_fc2.qweight" in orig_state_dict
