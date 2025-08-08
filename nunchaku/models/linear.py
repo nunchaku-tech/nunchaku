@@ -146,7 +146,7 @@ class AWQW4A16Linear(nn.Module):
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return awq_gemv_w4a16_cuda(
+        output = awq_gemv_w4a16_cuda(
             in_feats=x,
             kernel=self.qweight,
             scaling_factors=self.wscales,
@@ -156,6 +156,10 @@ class AWQW4A16Linear(nn.Module):
             k=self.in_features,
             group_size=self.group_size,
         )
+        if self.bias is not None:
+            view_shape = [1] * (output.ndim - 1) + [-1]
+            output.add_(self.bias.view(view_shape))
+        return output
 
     @classmethod
     def from_linear(

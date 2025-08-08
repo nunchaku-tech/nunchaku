@@ -31,7 +31,7 @@ def svdq_quantize_w4a4_act_fuse_lora_cuda(
     G : int
         Number of groups. 64 for INT4 and 16 for NVFP4.
     R : int
-        Rank.
+        Rank of the low-rank branch.
     """
     batch_size, channels = input.shape
     rank = lora_down.shape[1]
