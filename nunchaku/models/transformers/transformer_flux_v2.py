@@ -43,8 +43,8 @@ class NunchakuFluxAttention(nn.Module):
 
         # fuse the qkv
         with torch.device("meta"):
-            fused_qkv = fuse_linears([flux_attention.to_q, flux_attention.to_k, flux_attention.to_v])
-        self.to_qkv = SVDQW4A4Linear.from_linear(fused_qkv, **kwargs)
+            to_qkv = fuse_linears([flux_attention.to_q, flux_attention.to_k, flux_attention.to_v])
+        self.to_qkv = SVDQW4A4Linear.from_linear(to_qkv, **kwargs)
 
         if not self.pre_only:
             self.to_out = flux_attention.to_out
@@ -56,10 +56,10 @@ class NunchakuFluxAttention(nn.Module):
 
             # fuse the add_qkv
             with torch.device("meta"):
-                fused_add_qkv = fuse_linears(
+                add_qkv_proj = fuse_linears(
                     [flux_attention.add_q_proj, flux_attention.add_k_proj, flux_attention.add_v_proj]
                 )
-            self.add_qkv = SVDQW4A4Linear.from_linear(fused_add_qkv, **kwargs)
+            self.add_qkv_proj = SVDQW4A4Linear.from_linear(add_qkv_proj, **kwargs)
             self.to_add_out = SVDQW4A4Linear.from_linear(flux_attention.to_add_out, **kwargs)
 
         self.processor = processor
@@ -76,7 +76,12 @@ class NunchakuFluxAttention(nn.Module):
             raise NotImplementedError("attention_mask is not supported")
 
         query, key, value = self.to_qkv(hidden_states).chunk(3, dim=-1)
-        encoder_query, encoder_key, encoder_value = self.to_added_qkv(encoder_hidden_states).chunk(3, dim=-1)
+        encoder_query = encoder_key = encoder_value = None
+        if self.added_kv_proj_dim is not None:
+            assert encoder_hidden_states is not None
+            encoder_query, encoder_key, encoder_value = self.add_qkv_proj(encoder_hidden_states).chunk(3, dim=-1)
+        else:
+            assert encoder_hidden_states is None
 
         query = query.unflatten(-1, (self.heads, -1))
         key = key.unflatten(-1, (self.heads, -1))
@@ -296,22 +301,16 @@ class NunchakuFluxTransformer2DModelV2(FluxTransformer2DModel, NunchakuModelLoad
         converted_state_dict = convert_flux_state_dict(model_state_dict)
 
         state_dict = transformer.state_dict()
-        with open("model_sd.txt", "w") as f:
-            for k, v in sorted(state_dict.items()):
-                f.write(f"{k} {v.shape} {v.dtype}\n")
-
-        with open("loaded_sd.txt", "w") as f:
-            for k, v in sorted(converted_state_dict.items()):
-                f.write(f"{k} {v.shape} {v.dtype}\n")
 
         for k in state_dict.keys():
             if k not in converted_state_dict:
                 assert ".wtscale" in k or ".wcscales" in k
+                converted_state_dict[k] = torch.ones_like(state_dict[k])
             else:
                 if state_dict[k].dtype != converted_state_dict[k].dtype:
                     assert state_dict[k].dtype == converted_state_dict[k].dtype
 
-        transformer.load_state_dict(converted_state_dict, strict=False)
+        transformer.load_state_dict(converted_state_dict)
 
         return transformer
 
@@ -346,7 +345,7 @@ def convert_flux_state_dict(state_dict: dict[str, torch.Tensor]) -> dict[str, to
             elif ".mlp_fc2" in k:
                 new_k = k.replace(".mlp_fc2.", ".ff.net.2.")
             elif ".qkv_proj_context." in k:
-                new_k = k.replace(".qkv_proj_context.", ".attn.add_qkv.")
+                new_k = k.replace(".qkv_proj_context.", ".attn.add_qkv_proj.")
             elif ".qkv_proj." in k:
                 new_k = k.replace(".qkv_proj.", ".attn.to_qkv.")
             elif ".norm_q." in k or ".norm_k." in k:

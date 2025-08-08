@@ -120,7 +120,7 @@ def svdq_gemm_w4a4_cuda(
 
     """
     if out is None:
-        out = torch.empty(act.shape[0], wgt.shape[0], dtype=act.dtype, device=act.device)
+        out = torch.empty(act.shape[0], wgt.shape[0], dtype=lora_up.dtype, device=act.device)
     ops.gemm_w4a4(
         act,
         wgt,
