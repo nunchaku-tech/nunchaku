@@ -63,13 +63,13 @@ jobs:
         run: git log -1 --oneline
       - name: Build wheels
         run: |
-          if [[ "${{ matrix.torch }}" == "2.7" ]]; then
+          if [[ "${{ matrix.torch }}" == "2.7" || "${{ matrix.torch }}" == "2.8" ]]; then
             cuda_version="12.8"
           else
             cuda_version="12.4"
           fi
-          if [[ "${{ matrix.torch }}" == "2.8" ]]; then
-            bash scripts/build_linux_wheel_torch2.8.sh ${{ matrix.python }} ${{ matrix.torch }} 12.8
+          if [[ "${{ matrix.torch }}" == "2.9" ]]; then
+            bash scripts/build_linux_wheel_torch_nightly.sh ${{ matrix.python }} ${{ matrix.torch }} 12.8
           else
             bash scripts/build_linux_wheel.sh ${{ matrix.python }} ${{ matrix.torch }} $cuda_version
           fi
@@ -115,8 +115,8 @@ jobs:
             SET CUDA_VERSION=12.4
           )
           call C:\Users\muyangl\miniconda3\condabin\activate.bat activate
-          IF "%TORCH_VERSION%"=="2.8" (
-            call scripts\build_windows_wheel_torch2.8.cmd %PYTHON_VERSION% %TORCH_VERSION% %CUDA_VERSION%
+          IF "%TORCH_VERSION%"=="2.9" (
+            call scripts\build_windows_wheel_torch_nightly.cmd %PYTHON_VERSION% %TORCH_VERSION% %CUDA_VERSION%
           ) ELSE (
             call scripts\build_windows_wheel.cmd %PYTHON_VERSION% %TORCH_VERSION% %CUDA_VERSION%
           )
