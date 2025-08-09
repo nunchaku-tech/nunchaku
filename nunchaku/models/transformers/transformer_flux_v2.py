@@ -4,7 +4,7 @@ from typing import Any, Dict, Optional, Tuple
 
 import torch
 from diffusers.models.embeddings import apply_rotary_emb
-from diffusers.models.normalization import AdaLayerNormZero, AdaLayerNormZeroSingle
+from diffusers.models.normalization import AdaLayerNormZeroSingle
 from diffusers.models.transformers.transformer_flux import (
     FluxAttention,
     FluxSingleTransformerBlock,
@@ -18,6 +18,7 @@ from torch.nn import functional as F
 from ...utils import get_precision
 from ..attention import NunchakuFeedForward
 from ..linear import AWQW4A16Linear, SVDQW4A4Linear
+from ..normalization import NunchakuAdaLayerNormZero
 from ..utils import fuse_linears
 from .utils import NunchakuModelLoaderMixin
 
@@ -136,13 +137,10 @@ class NunchakuFluxTransformerBlock(FluxTransformerBlock):
     def __init__(self, block: FluxTransformerBlock, **kwargs):
         super(FluxTransformerBlock, self).__init__()
 
-        self.norm1 = block.norm1
-        self.norm1_context = block.norm1_context
-
-        if isinstance(self.norm1, AdaLayerNormZero):
-            self.norm1.linear = AWQW4A16Linear.from_linear(self.norm1.linear)
-        if isinstance(self.norm1_context, AdaLayerNormZero):
-            self.norm1_context.linear = AWQW4A16Linear.from_linear(self.norm1_context.linear)
+        # The scale_shift=1 from AdaLayerNormZero has already been fused into the linear weights,
+        # so we set scale_shift=0 here to avoid applying it again.
+        self.norm1 = NunchakuAdaLayerNormZero(block.norm1, scale_shift=0)
+        self.norm1_context = NunchakuAdaLayerNormZero(block.norm1_context, scale_shift=0)
 
         self.attn = NunchakuFluxAttention(block.attn, **kwargs)
         self.norm2 = block.norm2
