@@ -473,7 +473,6 @@ def convert_to_nunchaku_flux_single_transformer_block_lowrank_dict(
     candidate_block_name: str,
     default_dtype: torch.dtype = torch.bfloat16,
 ) -> dict[str, torch.Tensor]:
-
     """
     Convert LoRA weights for a single FLUX transformer block from Diffusers to Nunchaku format.
 
@@ -505,7 +504,7 @@ def convert_to_nunchaku_flux_single_transformer_block_lowrank_dict(
     - Handles both fused and unfused attention projections (e.g., qkv).
     - Applies special packing for W4A16 linear layers (e.g., ``"adanorm_single"`` and ``"adanorm_zero"``).
     """
-    
+
     # Preprocess single_blocks LoRA structure if needed
     extra_lora_dict = preprocess_single_blocks_lora(extra_lora_dict, candidate_block_name)
 
