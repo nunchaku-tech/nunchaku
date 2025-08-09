@@ -136,6 +136,8 @@ jobs:
           SET PYTHON_VERSION=${{ matrix.python }}
           IF "%TORCH_VERSION%"=="2.7" OR "%TORCH_VERSION%"=="2.8" (
             SET CUDA_VERSION=12.8
+          ) ELSE IF "%TORCH_VERSION%"=="2.8" (
+            SET CUDA_VERSION=12.8
           ) ELSE (
             SET CUDA_VERSION=12.4
           )
