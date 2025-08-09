@@ -35,8 +35,8 @@ class NunchakuAdaLayerNormZero(AdaLayerNormZero):
 
         norm_x = self.norm(x)
 
-        # if self.scale_shift != 0:
-        #     scale_msa.add_(self.scale_shift)
+        if self.scale_shift != 0:
+            scale_msa.add_(self.scale_shift)
 
         norm_x_scaled = norm_x * scale_msa[:, None] + shift_msa[:, None]
         # torch.addcmul(shift_msa[:, None], norm_x, scale_msa[:, None], value=1, out=norm_x)

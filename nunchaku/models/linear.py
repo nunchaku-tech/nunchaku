@@ -101,9 +101,11 @@ class SVDQW4A4Linear(nn.Module):
             norm_q=None,
             norm_k=None,
             rotary_emb=None,
-            bias=None,
+            bias=self.bias,
             act_unsigned=False,  # TODO: check this.
             fp4=self.precision == "nvfp4",
+            alpha=self.wtscale,
+            wcscales=self.wcscales,
         )
         output = output.view(batch_size, seq_len, -1)
         return output

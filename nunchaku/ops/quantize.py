@@ -36,7 +36,7 @@ def svdq_quantize_w4a4_act_fuse_lora_cuda(
     batch_size, channels = input.shape
     rank = lora_down.shape[1]
     if output is None:
-        output = torch.empty(batch_size, channels // 2, dtype=torch.int8, device=input.device)
+        output = torch.empty(batch_size, channels // 2, dtype=torch.uint8, device=input.device)
     if oscales is None:
         if fp4:
             oscales = torch.empty(channels // 16, batch_size, dtype=torch.float8_e4m3fn, device=input.device)

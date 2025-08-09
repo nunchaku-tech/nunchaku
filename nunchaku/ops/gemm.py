@@ -28,7 +28,7 @@ def svdq_gemm_w4a4_cuda(
     out_vk: torch.Tensor | None = None,
     out_linearattn: torch.Tensor | None = None,
     act_unsigned: bool = False,
-    lora_scales: list[float] = [],
+    lora_scales: list[float] | None = None,
     fuse_silu: bool = False,
     fp4: bool = False,
     alpha: float = 1.0,
@@ -121,6 +121,10 @@ def svdq_gemm_w4a4_cuda(
     """
     if out is None:
         out = torch.empty(act.shape[0], wgt.shape[0], dtype=lora_up.dtype, device=act.device)
+    if lora_scales is None:
+        rank = lora_up.shape[1]
+        lora_scales = [1.0] * rank
+
     ops.gemm_w4a4(
         act,
         wgt,
