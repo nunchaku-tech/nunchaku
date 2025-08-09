@@ -6,7 +6,7 @@ from nunchaku.utils import get_precision
 
 precision = get_precision()  # auto-detect your precision is 'int4' or 'fp4' based on your GPU
 transformer = NunchakuFluxTransformer2dModel.from_pretrained(
-    f"mit-han-lab/nunchaku-flux.1-dev/svdq-{precision}_r32-flux.1-dev.safetensors",
+    f"nunchaku-tech/nunchaku-flux.1-dev/svdq-{precision}_r32-flux.1-dev.safetensors",
     offload=True,
     torch_dtype=torch.float16,  # Turing GPUs only support fp16 precision
 )  # set offload to False if you want to disable offloading

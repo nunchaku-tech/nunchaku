@@ -1,3 +1,8 @@
+"""
+This module implements the functions to convert FLUX LoRA weights from various formats
+to the Diffusers format, which will later be converted to Nunchaku format.
+"""
+
 import argparse
 import logging
 import os
@@ -9,7 +14,7 @@ from diffusers.loaders import FluxLoraLoaderMixin
 from diffusers.utils.state_dict_utils import convert_unet_state_dict_to_peft
 from safetensors.torch import save_file
 
-from .utils import load_state_dict_in_safetensors
+from ...utils import load_state_dict_in_safetensors
 
 # Get log level from environment variable (default to INFO)
 log_level = os.getenv("LOG_LEVEL", "INFO").upper()
@@ -20,6 +25,19 @@ logger = logging.getLogger(__name__)
 
 
 def handle_kohya_lora(state_dict: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
+    """
+    Convert Kohya LoRA format keys to Diffusers format.
+
+    Parameters
+    ----------
+    state_dict : dict[str, torch.Tensor]
+        LoRA weights, possibly in Kohya format.
+
+    Returns
+    -------
+    dict[str, torch.Tensor]
+        LoRA weights in Diffusers format.
+    """
     # first check if the state_dict is in the kohya format
     # like: https://civitai.com/models/1118358?modelVersionId=1256866
     if any([not k.startswith("lora_transformer_") for k in state_dict.keys()]):
@@ -124,6 +142,21 @@ def convert_keys_to_diffusers(source_state_dict: dict[str, torch.Tensor]) -> dic
 
 
 def to_diffusers(input_lora: str | dict[str, torch.Tensor], output_path: str | None = None) -> dict[str, torch.Tensor]:
+    """
+    Convert LoRA weights to Diffusers format, which will later be converted to Nunchaku format.
+
+    Parameters
+    ----------
+    input_lora : str or dict[str, torch.Tensor]
+        Path to a safetensors file or a LoRA weight dictionary.
+    output_path : str, optional
+        If given, save the converted weights to this path.
+
+    Returns
+    -------
+    dict[str, torch.Tensor]
+        LoRA weights in Diffusers format.
+    """
     if isinstance(input_lora, str):
         tensors = load_state_dict_in_safetensors(input_lora, device="cpu")
     else:
@@ -131,7 +164,7 @@ def to_diffusers(input_lora: str | dict[str, torch.Tensor], output_path: str | N
 
     tensors = handle_kohya_lora(tensors)
 
-    ### convert the FP8 tensors to BF16
+    # Convert FP8 tensors to BF16
     for k, v in tensors.items():
         if v.dtype not in [torch.float64, torch.float32, torch.bfloat16, torch.float16]:
             tensors[k] = v.to(torch.bfloat16)

@@ -15,7 +15,7 @@ controlnet = FluxMultiControlNetModel([controlnet_union])  # we always recommend
 precision = get_precision()
 need_offload = get_gpu_memory() < 36
 transformer = NunchakuFluxTransformer2dModel.from_pretrained(
-    f"mit-han-lab/nunchaku-flux.1-dev/svdq-{precision}_r32-flux.1-dev.safetensors",
+    f"nunchaku-tech/nunchaku-flux.1-dev/svdq-{precision}_r32-flux.1-dev.safetensors",
     torch_dtype=torch.bfloat16,
     offload=need_offload,
 )

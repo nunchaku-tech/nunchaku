@@ -8,7 +8,7 @@ from nunchaku.utils import get_precision
 precision = get_precision()
 
 transformer = NunchakuFluxTransformer2dModel.from_pretrained(
-    f"mit-han-lab/nunchaku-flux.1-dev/svdq-{precision}_r32-flux.1-dev.safetensors"
+    f"nunchaku-tech/nunchaku-flux.1-dev/svdq-{precision}_r32-flux.1-dev.safetensors"
 )
 
 pipeline = FluxPipeline.from_pretrained(

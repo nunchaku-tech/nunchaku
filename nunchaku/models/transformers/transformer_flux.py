@@ -1,3 +1,7 @@
+"""
+Implements the :class:`NunchakuFluxTransformer2dModel`, a quantized transformer for Diffusers with efficient inference and LoRA support.
+"""
+
 import json
 import logging
 import os
@@ -32,6 +36,20 @@ logger = logging.getLogger(__name__)
 
 
 class NunchakuFluxTransformerBlocks(nn.Module):
+    """
+    Wrapper for quantized Nunchaku FLUX transformer blocks.
+
+    This class manages the forward pass, rotary embedding packing, and optional
+    residual callbacks for ID embeddings.
+
+    Parameters
+    ----------
+    m : QuantizedFluxModel
+        The quantized transformer model.
+    device : str or torch.device
+        Device to run the model on.
+    """
+
     def __init__(self, m: QuantizedFluxModel, device: str | torch.device):
         super(NunchakuFluxTransformerBlocks, self).__init__()
         self.m = m
@@ -40,6 +58,19 @@ class NunchakuFluxTransformerBlocks(nn.Module):
 
     @staticmethod
     def pack_rotemb(rotemb: torch.Tensor) -> torch.Tensor:
+        """
+        Packs rotary embeddings for efficient computation.
+
+        Parameters
+        ----------
+        rotemb : torch.Tensor
+            Rotary embedding tensor of shape (B, M, D//2, 1, 2), dtype float32.
+
+        Returns
+        -------
+        torch.Tensor
+            Packed rotary embedding tensor of shape (B, M, D).
+        """
         assert rotemb.dtype == torch.float32
         B = rotemb.shape[0]
         M = rotemb.shape[1]
@@ -73,6 +104,38 @@ class NunchakuFluxTransformerBlocks(nn.Module):
         controlnet_single_block_samples=None,
         skip_first_layer=False,
     ):
+        """
+        Forward pass for the quantized transformer blocks.
+        It will call the forward method of ``m`` on the C backend.
+
+        Parameters
+        ----------
+        hidden_states : torch.Tensor
+            Input hidden states for image tokens.
+        temb : torch.Tensor
+            Temporal embedding tensor.
+        encoder_hidden_states : torch.Tensor
+            Input hidden states for text tokens.
+        image_rotary_emb : torch.Tensor
+            Rotary embedding tensor for all tokens.
+        id_embeddings : torch.Tensor, optional
+            Optional ID embeddings for residual callback.
+        id_weight : float, optional
+            Weight for ID embedding residual.
+        joint_attention_kwargs : dict, optional
+            Additional kwargs for joint attention.
+        controlnet_block_samples : list[torch.Tensor], optional
+            ControlNet block samples.
+        controlnet_single_block_samples : list[torch.Tensor], optional
+            ControlNet single block samples.
+        skip_first_layer : bool, optional
+            Whether to skip the first layer.
+
+        Returns
+        -------
+        tuple[torch.Tensor, torch.Tensor]
+            (encoder_hidden_states, hidden_states) after transformer blocks.
+        """
         # batch_size = hidden_states.shape[0]
         txt_tokens = encoder_hidden_states.shape[1]
         img_tokens = hidden_states.shape[1]
@@ -149,6 +212,33 @@ class NunchakuFluxTransformerBlocks(nn.Module):
         controlnet_block_samples=None,
         controlnet_single_block_samples=None,
     ):
+        """
+        Forward pass for a specific transformer layer in ``m``.
+
+        Parameters
+        ----------
+        idx : int
+            Index of the transformer layer.
+        hidden_states : torch.Tensor
+            Input hidden states for image tokens.
+        encoder_hidden_states : torch.Tensor
+            Input hidden states for text tokens.
+        temb : torch.Tensor
+            Temporal embedding tensor.
+        image_rotary_emb : torch.Tensor
+            Rotary embedding tensor for all tokens.
+        joint_attention_kwargs : dict, optional
+            Additional kwargs for joint attention.
+        controlnet_block_samples : list[torch.Tensor], optional
+            ControlNet block samples.
+        controlnet_single_block_samples : list[torch.Tensor], optional
+            ControlNet single block samples.
+
+        Returns
+        -------
+        tuple[torch.Tensor, torch.Tensor]
+            (encoder_hidden_states, hidden_states) after the specified layer.
+        """
         # batch_size = hidden_states.shape[0]
         txt_tokens = encoder_hidden_states.shape[1]
         img_tokens = hidden_states.shape[1]
@@ -195,6 +285,9 @@ class NunchakuFluxTransformerBlocks(nn.Module):
         return encoder_hidden_states, hidden_states
 
     def set_pulid_residual_callback(self):
+        """
+        Sets the residual callback for PulID (personalized ID) embeddings.
+        """
         id_embeddings = self.id_embeddings
         pulid_ca = self.pulid_ca
         pulid_ca_idx = [self.pulid_ca_idx]
@@ -209,10 +302,16 @@ class NunchakuFluxTransformerBlocks(nn.Module):
         self.m.set_residual_callback(callback)
 
     def reset_pulid_residual_callback(self):
+        """
+        Resets the PulID residual callback to None.
+        """
         self.callback_holder = None
         self.m.set_residual_callback(None)
 
     def __del__(self):
+        """
+        Destructor to reset the quantized model.
+        """
         self.m.reset()
 
     def norm1(
@@ -221,11 +320,44 @@ class NunchakuFluxTransformerBlocks(nn.Module):
         emb: torch.Tensor,
         idx: int = 0,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        """
+        Runs the norm_one_forward for a specific layer in ``m``.
+
+        Parameters
+        ----------
+        hidden_states : torch.Tensor
+            Input hidden states.
+        emb : torch.Tensor
+            Embedding tensor.
+        idx : int, optional
+            Layer index (default: 0).
+
+        Returns
+        -------
+        tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]
+            Output tensors from norm_one_forward.
+        """
         return self.m.norm_one_forward(idx, hidden_states, emb)
 
 
-## copied from diffusers 0.30.3
 def rope(pos: torch.Tensor, dim: int, theta: int) -> torch.Tensor:
+    """
+    Rotary positional embedding function.
+
+    Parameters
+    ----------
+    pos : torch.Tensor
+        Position tensor of shape (..., n).
+    dim : int
+        Embedding dimension (must be even).
+    theta : int
+        Rotary base.
+
+    Returns
+    -------
+    torch.Tensor
+        Rotary embedding tensor.
+    """
     assert dim % 2 == 0, "The dimension must be even."
 
     scale = torch.arange(0, dim, 2, dtype=torch.float64, device=pos.device) / dim
@@ -247,6 +379,19 @@ def rope(pos: torch.Tensor, dim: int, theta: int) -> torch.Tensor:
 
 
 class EmbedND(nn.Module):
+    """
+    Multi-dimensional rotary embedding module.
+
+    Parameters
+    ----------
+    dim : int
+        Embedding dimension.
+    theta : int
+        Rotary base.
+    axes_dim : list[int]
+        List of axis dimensions for each spatial axis.
+    """
+
     def __init__(self, dim: int, theta: int, axes_dim: list[int]):
         super(EmbedND, self).__init__()
         self.dim = dim
@@ -254,6 +399,19 @@ class EmbedND(nn.Module):
         self.axes_dim = axes_dim
 
     def forward(self, ids: torch.Tensor) -> torch.Tensor:
+        """
+        Computes rotary embeddings for multi-dimensional positions.
+
+        Parameters
+        ----------
+        ids : torch.Tensor
+            Position indices tensor of shape (..., n_axes).
+
+        Returns
+        -------
+        torch.Tensor
+            Rotary embedding tensor.
+        """
         if Version(diffusers.__version__) >= Version("0.31.0"):
             ids = ids[None, ...]
         n_axes = ids.shape[-1]
@@ -268,6 +426,27 @@ def load_quantized_module(
     offload: bool = False,
     bf16: bool = True,
 ) -> QuantizedFluxModel:
+    """
+    Loads a quantized Nunchaku FLUX model from a state dict or file.
+
+    Parameters
+    ----------
+    path_or_state_dict : str, os.PathLike, or dict
+        Path to the quantized model file or a state dict.
+    device : str or torch.device, optional
+        Device to load the model on (default: "cuda").
+    use_fp4 : bool, optional
+        Whether to use FP4 quantization (default: False).
+    offload : bool, optional
+        Whether to offload weights to CPU (default: False).
+    bf16 : bool, optional
+        Whether to use bfloat16 (default: True).
+
+    Returns
+    -------
+    QuantizedFluxModel
+        Loaded quantized model.
+    """
     device = torch.device(device)
     assert device.type == "cuda"
     m = QuantizedFluxModel()
@@ -281,6 +460,38 @@ def load_quantized_module(
 
 
 class NunchakuFluxTransformer2dModel(FluxTransformer2DModel, NunchakuModelLoaderMixin):
+    """
+    Nunchaku FLUX Transformer 2D Model.
+
+    This class implements a quantized transformer model compatible with the Diffusers
+    library, supporting LoRA, rotary embeddings, and efficient inference.
+
+    Parameters
+    ----------
+    patch_size : int, optional
+        Patch size for input images (default: 1).
+    in_channels : int, optional
+        Number of input channels (default: 64).
+    out_channels : int or None, optional
+        Number of output channels (default: None).
+    num_layers : int, optional
+        Number of transformer layers (default: 19).
+    num_single_layers : int, optional
+        Number of single transformer layers (default: 38).
+    attention_head_dim : int, optional
+        Dimension of each attention head (default: 128).
+    num_attention_heads : int, optional
+        Number of attention heads (default: 24).
+    joint_attention_dim : int, optional
+        Joint attention dimension (default: 4096).
+    pooled_projection_dim : int, optional
+        Pooled projection dimension (default: 768).
+    guidance_embeds : bool, optional
+        Whether to use guidance embeddings (default: False).
+    axes_dims_rope : tuple[int], optional
+        Axes dimensions for rotary embeddings (default: (16, 56, 56)).
+    """
+
     @register_to_config
     def __init__(
         self,
@@ -323,6 +534,21 @@ class NunchakuFluxTransformer2dModel(FluxTransformer2DModel, NunchakuModelLoader
     @classmethod
     @utils.validate_hf_hub_args
     def from_pretrained(cls, pretrained_model_name_or_path: str | os.PathLike[str], **kwargs):
+        """
+        Loads a Nunchaku FLUX transformer model from pretrained weights.
+
+        Parameters
+        ----------
+        pretrained_model_name_or_path : str or os.PathLike
+            Path to the model directory or HuggingFace repo.
+        **kwargs
+            Additional keyword arguments for device, offload, torch_dtype, precision, etc.
+
+        Returns
+        -------
+        NunchakuFluxTransformer2dModel or (NunchakuFluxTransformer2dModel, dict)
+            The loaded model, and optionally metadata if `return_metadata=True`.
+        """
         device = kwargs.get("device", "cuda")
         if isinstance(device, str):
             device = torch.device(device)
@@ -395,6 +621,21 @@ class NunchakuFluxTransformer2dModel(FluxTransformer2DModel, NunchakuModelLoader
             return transformer
 
     def inject_quantized_module(self, m: QuantizedFluxModel, device: str | torch.device = "cuda"):
+        """
+        Injects a quantized module into the model and sets up transformer blocks.
+
+        Parameters
+        ----------
+        m : QuantizedFluxModel
+            The quantized transformer model.
+        device : str or torch.device, optional
+            Device to run the model on (default: "cuda").
+
+        Returns
+        -------
+        self : NunchakuFluxTransformer2dModel
+            The model with injected quantized module.
+        """
         print("Injecting quantized module")
         self.pos_embed = EmbedND(dim=self.inner_dim, theta=10000, axes_dim=[16, 56, 56])
 
@@ -405,6 +646,17 @@ class NunchakuFluxTransformer2dModel(FluxTransformer2DModel, NunchakuModelLoader
         return self
 
     def set_attention_impl(self, impl: str):
+        """
+        Set the attention implementation for the quantized transformer block.
+
+        Parameters
+        ----------
+        impl : str
+            Attention implementation to use. Supported values:
+
+            - ``"flashattn2"`` (default): Standard FlashAttention-2.
+            - ``"nunchaku-fp16"``: Uses FP16 attention accumulation, up to 1.2× faster than FlashAttention-2 on NVIDIA 30-, 40-, and 50-series GPUs.
+        """
         block = self.transformer_blocks[0]
         assert isinstance(block, NunchakuFluxTransformerBlocks)
         block.m.setAttentionImpl(impl)
@@ -412,6 +664,17 @@ class NunchakuFluxTransformer2dModel(FluxTransformer2DModel, NunchakuModelLoader
     ### LoRA Related Functions
 
     def _expand_module(self, module_name: str, new_shape: tuple[int, int]):
+        """
+        Expands a linear module to a new shape for LoRA compatibility.
+        Mostly for FLUX.1-tools LoRA which changes the input channels.
+
+        Parameters
+        ----------
+        module_name : str
+            Name of the module to expand.
+        new_shape : tuple[int, int]
+            New shape (out_features, in_features) for the module.
+        """
         module = self.get_submodule(module_name)
         assert isinstance(module, nn.Linear)
         weight_shape = module.weight.shape
@@ -443,6 +706,14 @@ class NunchakuFluxTransformer2dModel(FluxTransformer2DModel, NunchakuModelLoader
                 setattr(self.config, "in_channels", new_value)
 
     def _update_unquantized_part_lora_params(self, strength: float = 1):
+        """
+        Updates the unquantized part of the model with LoRA parameters.
+
+        Parameters
+        ----------
+        strength : float, optional
+            LoRA scaling strength (default: 1).
+        """
         # check if we need to expand the linear layers
         device = next(self.parameters()).device
         for k, v in self._unquantized_part_loras.items():
@@ -505,6 +776,18 @@ class NunchakuFluxTransformer2dModel(FluxTransformer2DModel, NunchakuModelLoader
         self.load_state_dict(new_state_dict, strict=True)
 
     def update_lora_params(self, path_or_state_dict: str | dict[str, torch.Tensor]):
+        """
+        Update the model with new LoRA parameters.
+
+        Parameters
+        ----------
+        path_or_state_dict : str or dict
+            Path to a LoRA weights file or a state dict. The path supports:
+
+            - Local file path, e.g., ``"/path/to/your/lora.safetensors"``
+            - HuggingFace repo with file, e.g., ``"user/repo/lora.safetensors"``
+              (automatically downloaded and cached)
+        """
         if isinstance(path_or_state_dict, dict):
             state_dict = {
                 k: v for k, v in path_or_state_dict.items()
@@ -543,9 +826,20 @@ class NunchakuFluxTransformer2dModel(FluxTransformer2DModel, NunchakuModelLoader
 
         block.m.loadDict(state_dict, True)
 
-    # This function can only be used with a single LoRA.
-    # For multiple LoRAs, please fuse the lora scale into the weights.
     def set_lora_strength(self, strength: float = 1):
+        """
+        Sets the LoRA scaling strength for the model.
+
+        Note: This function can only be used with a single LoRA. For multiple LoRAs,
+        please fuse the LoRA scale into the weights.
+
+        Parameters
+        ----------
+        strength : float, optional
+            LoRA scaling strength (default: 1).
+
+        Note: This function will change the strength of all the LoRAs. So only use it when you only have a single LoRA.
+        """
         block = self.transformer_blocks[0]
         assert isinstance(block, NunchakuFluxTransformerBlocks)
         block.m.setLoraScale(SVD_RANK, strength)
@@ -556,6 +850,10 @@ class NunchakuFluxTransformer2dModel(FluxTransformer2DModel, NunchakuModelLoader
             block.m.loadDict(vector_dict, True)
 
     def reset_x_embedder(self):
+        """
+        Resets the x_embedder module if the input channel count has changed.
+        This is used for removing the effect of FLUX.1-tools LoRA which changes the input channels.
+        """
         # if change the model in channels, we need to update the x_embedder
         if self._original_in_channels != self.config.in_channels:
             assert self._original_in_channels < self.config.in_channels
@@ -577,6 +875,9 @@ class NunchakuFluxTransformer2dModel(FluxTransformer2DModel, NunchakuModelLoader
             setattr(self.config, "in_channels", self._original_in_channels)
 
     def reset_lora(self):
+        """
+        Resets all LoRA parameters to their default state.
+        """
         unquantized_part_loras = {}
         if len(self._unquantized_part_loras) > 0 or len(unquantized_part_loras) > 0:
             self._unquantized_part_loras = unquantized_part_loras
@@ -606,30 +907,42 @@ class NunchakuFluxTransformer2dModel(FluxTransformer2DModel, NunchakuModelLoader
         controlnet_blocks_repeat: bool = False,
     ) -> Union[torch.FloatTensor, Transformer2DModelOutput]:
         """
-        Copied from diffusers.models.flux.transformer_flux.py
+        Forward pass for the Nunchaku FLUX transformer model.
 
-        Args:
-            hidden_states (`torch.FloatTensor` of shape `(batch size, channel, height, width)`):
-                Input `hidden_states`.
-            encoder_hidden_states (`torch.FloatTensor` of shape `(batch size, sequence_len, embed_dims)`):
-                Conditional embeddings (embeddings computed from the input conditions such as prompts) to use.
-            pooled_projections (`torch.FloatTensor` of shape `(batch_size, projection_dim)`): Embeddings projected
-                from the embeddings of input conditions.
-            timestep ( `torch.LongTensor`):
-                Used to indicate denoising step.
-            block_controlnet_hidden_states: (`list` of `torch.Tensor`):
-                A list of tensors that if specified are added to the residuals of transformer blocks.
-            joint_attention_kwargs (`dict`, *optional*):
-                A kwargs dictionary that if specified is passed along to the `AttentionProcessor` as defined under
-                `self.processor` in
-                [diffusers.models.attention_processor](https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/attention_processor.py).
-            return_dict (`bool`, *optional*, defaults to `True`):
-                Whether or not to return a [`~models.transformer_2d.Transformer2DModelOutput`] instead of a plain
-                tuple.
+        This method is compatible with the Diffusers pipeline and supports LoRA,
+        rotary embeddings, and ControlNet.
 
-        Returns:
-            If `return_dict` is True, an [`~models.transformer_2d.Transformer2DModelOutput`] is returned, otherwise a
-            `tuple` where the first element is the sample tensor.
+        Parameters
+        ----------
+        hidden_states : torch.FloatTensor
+            Input hidden states of shape (batch_size, channel, height, width).
+        encoder_hidden_states : torch.FloatTensor, optional
+            Conditional embeddings (e.g., prompt embeddings) of shape (batch_size, sequence_len, embed_dims).
+        pooled_projections : torch.FloatTensor, optional
+            Embeddings projected from the input conditions.
+        timestep : torch.LongTensor, optional
+            Denoising step.
+        img_ids : torch.Tensor, optional
+            Image token indices.
+        txt_ids : torch.Tensor, optional
+            Text token indices.
+        guidance : torch.Tensor, optional
+            Guidance tensor for classifier-free guidance.
+        joint_attention_kwargs : dict, optional
+            Additional kwargs for joint attention.
+        controlnet_block_samples : list[torch.Tensor], optional
+            ControlNet block samples.
+        controlnet_single_block_samples : list[torch.Tensor], optional
+            ControlNet single block samples.
+        return_dict : bool, optional
+            Whether to return a Transformer2DModelOutput (default: True).
+        controlnet_blocks_repeat : bool, optional
+            Whether to repeat ControlNet blocks (default: False).
+
+        Returns
+        -------
+        torch.FloatTensor or Transformer2DModelOutput
+            Output tensor or output object containing the sample.
         """
         hidden_states = self.x_embedder(hidden_states)
 
@@ -669,8 +982,6 @@ class NunchakuFluxTransformer2dModel(FluxTransformer2DModel, NunchakuModelLoader
             controlnet_block_samples=controlnet_block_samples,
             controlnet_single_block_samples=controlnet_single_block_samples,
         )
-        hidden_states = torch.cat([encoder_hidden_states, hidden_states], dim=1)
-        hidden_states = hidden_states[:, encoder_hidden_states.shape[1] :, ...]
         hidden_states = self.norm_out(hidden_states, temb)
         output = self.proj_out(hidden_states)
 

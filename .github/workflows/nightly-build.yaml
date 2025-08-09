@@ -7,18 +7,18 @@ permissions:
   contents: write
 jobs:
   tag:
-    name: Tag dev branch if dev version
+    name: Check if main branch is a dev version
     runs-on: ubuntu-latest
-    if: github.repository == 'mit-han-lab/nunchaku'
+    if: github.repository == 'nunchaku-tech/nunchaku'
     outputs:
       need_build: ${{ steps.check.outputs.need_build }}
       tag_name: ${{ steps.tag.outputs.tag_name }}
     steps:
-      - name: Checkout dev branch
+      - name: Checkout main branch
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: dev
+          ref: main
       - name: Extract version from __version__.py
         id: version
         run: |
@@ -73,11 +73,11 @@ jobs:
     name: Build the linux nightly wheels
     runs-on: [self-hosted, linux-build]
     needs: tag
-    if: needs.tag.outputs.need_build == 'true' && github.repository == 'mit-han-lab/nunchaku'
+    if: needs.tag.outputs.need_build == 'true' && github.repository == 'nunchaku-tech/nunchaku'
     strategy:
       matrix:
         python: ["3.10", "3.11", "3.12"]
-        torch: ["2.5", "2.6", "2.7", "2.8"]
+        torch: ["2.5", "2.6", "2.7", "2.8", "2.9"]
     steps:
       - name: Checkout to the tag
         uses: actions/checkout@v4
@@ -89,13 +89,13 @@ jobs:
         run: git log -1 --oneline
       - name: Build wheels
         run: |
-          if [[ "${{ matrix.torch }}" == "2.7" ]]; then
+          if [[ "${{ matrix.torch }}" == "2.7" || "${{ matrix.torch }}" == "2.8" ]]; then
             cuda_version="12.8"
           else
             cuda_version="12.4"
           fi
-          if [[ "${{ matrix.torch }}" == "2.8" ]]; then
-            bash scripts/build_linux_wheel_torch2.8.sh ${{ matrix.python }} ${{ matrix.torch }} 12.8
+          if [[ "${{ matrix.torch }}" == "2.9" ]]; then
+            bash scripts/build_linux_wheel_torch_nightly.sh ${{ matrix.python }} ${{ matrix.torch }} 12.8
           else
             bash scripts/build_linux_wheel.sh ${{ matrix.python }} ${{ matrix.torch }} $cuda_version
           fi
@@ -109,17 +109,17 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Clean up
-        if: always() && github.repository == 'mit-han-lab/nunchaku'
+        if: always()
         run: bash scripts/linux_cleanup.sh
   windows-wheels:
     name: Build the windows nightly wheels
     runs-on: [self-hosted, windows-build]
     needs: tag
-    if: needs.tag.outputs.need_build == 'true' && github.repository == 'mit-han-lab/nunchaku'
+    if: needs.tag.outputs.need_build == 'true' && github.repository == 'nunchaku-tech/nunchaku'
     strategy:
       matrix:
         python: ["3.10", "3.11", "3.12"]
-        torch: ["2.5", "2.6", "2.7", "2.8"]
+        torch: ["2.5", "2.6", "2.7", "2.8", "2.9"]
     steps:
       - name: Checkout to the tag
         uses: actions/checkout@v4
@@ -136,12 +136,14 @@ jobs:
           SET PYTHON_VERSION=${{ matrix.python }}
           IF "%TORCH_VERSION%"=="2.7" (
             SET CUDA_VERSION=12.8
+          ) ELSE IF "%TORCH_VERSION%"=="2.8" (
+            SET CUDA_VERSION=12.8
           ) ELSE (
             SET CUDA_VERSION=12.4
           )
           call C:\Users\muyangl\miniconda3\condabin\activate.bat activate
-          IF "%TORCH_VERSION%"=="2.8" (
-            call scripts\build_windows_wheel_torch2.8.cmd %PYTHON_VERSION% %TORCH_VERSION% %CUDA_VERSION%
+          IF "%TORCH_VERSION%"=="2.9" (
+            call scripts\build_windows_wheel_torch_nightly.cmd %PYTHON_VERSION% %TORCH_VERSION% %CUDA_VERSION%
           ) ELSE (
             call scripts\build_windows_wheel.cmd %PYTHON_VERSION% %TORCH_VERSION% %CUDA_VERSION%
           )
