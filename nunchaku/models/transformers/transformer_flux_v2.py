@@ -72,101 +72,69 @@ class NunchakuFluxAttention(nn.Module):
         image_rotary_emb: Optional[torch.Tensor] = None,
         **kwargs,
     ):
+        # Adapted from [diffusers v0.34.0](https://github.com/huggingface/diffusers/blob/50dea89dc6036e71a00bc3d57ac062a80206d9eb/src/diffusers/models/attention_processor.py#L2275)
         if attention_mask is not None:
             raise NotImplementedError("attention_mask is not supported")
 
-        # d = torch.load("dev/debug.pt")
+        batch_size, _, channels = hidden_states.shape
+        assert channels == self.heads * self.head_dim
 
         query, key, value = self.to_qkv(hidden_states).chunk(3, dim=-1)
-        # _qkv_raw = d["transformer_blocks.0.qkv_raw"].cuda()
-        # _query_raw, _key_raw, _value_raw = _qkv_raw.chunk(3, dim=-1)
-        # _qkv = d["transformer_blocks.0.qkv"].cuda()
-        # _query, _key, _value = _qkv.chunk(3, dim=-1)
+
+        query = query.view(batch_size, -1, self.heads, self.head_dim).transpose(1, 2)
+        key = key.view(batch_size, -1, self.heads, self.head_dim).transpose(1, 2)
+        value = value.view(batch_size, -1, self.heads, self.head_dim).transpose(1, 2)
+
+        if self.norm_q is not None:
+            query = self.norm_q(query)
+        if self.norm_k is not None:
+            key = self.norm_k(key)
 
         encoder_query = encoder_key = encoder_value = None
         if self.added_kv_proj_dim is not None:
             assert encoder_hidden_states is not None
             encoder_query, encoder_key, encoder_value = self.add_qkv_proj(encoder_hidden_states).chunk(3, dim=-1)
+            encoder_query = encoder_query.view(batch_size, -1, self.heads, self.head_dim).transpose(1, 2)
+            encoder_key = encoder_key.view(batch_size, -1, self.heads, self.head_dim).transpose(1, 2)
+            encoder_value = encoder_value.view(batch_size, -1, self.heads, self.head_dim).transpose(1, 2)
+
+            if self.norm_added_q is not None:
+                encoder_query = self.norm_added_q(encoder_query)
+            if self.norm_added_k is not None:
+                encoder_key = self.norm_added_k(encoder_key)
+
+            # attention
+            query = torch.cat([encoder_query, query], dim=2)
+            key = torch.cat([encoder_key, key], dim=2)
+            value = torch.cat([encoder_value, value], dim=2)
         else:
             assert encoder_hidden_states is None
-        # _encoder_qkv_raw = d["transformer_blocks.0.qkv_context_raw"].cuda()
-
-        query = query.unflatten(-1, (self.heads, -1))
-        key = key.unflatten(-1, (self.heads, -1))
-        value = value.unflatten(-1, (self.heads, -1))
-
-        query = self.norm_q(query)
-        key = self.norm_k(key)
-
-        if self.added_kv_proj_dim is not None:
-            encoder_query = encoder_query.unflatten(-1, (self.heads, -1))
-            encoder_key = encoder_key.unflatten(-1, (self.heads, -1))
-            encoder_value = encoder_value.unflatten(-1, (self.heads, -1))
-
-            encoder_query = self.norm_added_q(encoder_query)
-            encoder_key = self.norm_added_k(encoder_key)
-
-            query = torch.cat([encoder_query, query], dim=1)
-            key = torch.cat([encoder_key, key], dim=1)
-            value = torch.cat([encoder_value, value], dim=1)
 
         if image_rotary_emb is not None:
-            query = apply_rotary_emb(query, image_rotary_emb, sequence_dim=1)
-            key = apply_rotary_emb(key, image_rotary_emb, sequence_dim=1)
-
-        # _concat_qkv = d["transformer_blocks.0.concat"].cuda()
-        # _iqkv = _concat_qkv[:, :4096]
-        # _tqkv = _concat_qkv[:, 4096:]
-        # _concat_qkv = torch.cat([_tqkv, _iqkv], dim=1)
-        # _concat_query, _concat_key, _concat_value = _concat_qkv.chunk(3, dim=-1)
-        # _concat_query_view = _concat_query.unflatten(-1, (self.heads, -1))
-        # _concat_key_view = _concat_key.unflatten(-1, (self.heads, -1))
-        # _concat_value_view = _concat_value.unflatten(-1, (self.heads, -1))
-
-        # _iquery, _ikey, _ivalue = _iqkv.chunk(3, dim=-1)
-        # _tquery, _tkey, _tvalue = _tqkv.chunk(3, dim=-1)
-        # _iquery_view = _iquery.unflatten(-1, (self.heads, -1))
-        # _ikey_view = _ikey.unflatten(-1, (self.heads, -1))
-        # _ivalue_view = _ivalue.unflatten(-1, (self.heads, -1))
-        # _tquery_view = _tquery.unflatten(-1, (self.heads, -1))
-        # _tkey_view = _tkey.unflatten(-1, (self.heads, -1))
-        # _tvalue_view = _tvalue.unflatten(-1, (self.heads, -1))
+            query = apply_rotary_emb(query, image_rotary_emb)
+            key = apply_rotary_emb(key, image_rotary_emb)
 
         hidden_states = F.scaled_dot_product_attention(
             query, key, value, attn_mask=attention_mask, dropout_p=0.0, is_causal=False
         )
-        # hidden_states2 = F.scaled_dot_product_attention(
-        #     _concat_query_view,
-        #     _concat_key_view,
-        #     _concat_value_view,
-        #     attn_mask=attention_mask,
-        #     dropout_p=0.0,
-        #     is_causal=False,
-        # )
-
-        # _hidden_states = d["transformer_blocks.0.raw_attn_output"].cuda()
-        # _ihidden_states = _hidden_states[:, :4096]
-        # _thidden_states = _hidden_states[:, 4096:]
-        # _hidden_states = torch.cat([_thidden_states, _ihidden_states], dim=1)
-
-        hidden_states = hidden_states.flatten(2, 3)
+        hidden_states = hidden_states.transpose(1, 2).reshape(batch_size, -1, self.heads * self.head_dim)
         hidden_states = hidden_states.to(query.dtype)
 
-        if hasattr(self, "to_out"):
-            if isinstance(self.to_out, (nn.Linear, SVDQW4A4Linear)):
-                hidden_states = self.to_out(hidden_states)
-            else:
-                hidden_states = self.to_out[0](hidden_states)
-                hidden_states = self.to_out[1](hidden_states)
-
         if encoder_hidden_states is not None:
-            encoder_hidden_states, hidden_states = hidden_states.split_with_sizes(
-                [encoder_hidden_states.shape[1], hidden_states.shape[1] - encoder_hidden_states.shape[1]], dim=1
+            encoder_hidden_states, hidden_states = (
+                hidden_states[:, : encoder_hidden_states.shape[1]],
+                hidden_states[:, encoder_hidden_states.shape[1] :],
             )
+            # linear proj
+            hidden_states = self.to_out[0](hidden_states)
+            # dropout
+            hidden_states = self.to_out[1](hidden_states)
             encoder_hidden_states = self.to_add_out(encoder_hidden_states)
-
             return hidden_states, encoder_hidden_states
         else:
+            # for single transformer block, we split the proj_out into two linear layers
+            hidden_states = self.to_out[0](hidden_states)
+            hidden_states = self.to_out[1](hidden_states)
             return hidden_states
 
 
@@ -218,6 +186,10 @@ class NunchakuFluxTransformerBlock(FluxTransformerBlock):
             attn_output, context_attn_output = attention_outputs
         elif len(attention_outputs) == 3:
             attn_output, context_attn_output, ip_attn_output = attention_outputs
+
+        # d = torch.load("dev/debug.pt")
+        # _attn_output = d["transformer_blocks.0.img.attn_output"].cuda()
+        # _context_attn_output = d["transformer_blocks.0.context.attn_output"].cuda()
 
         # Process attention outputs for the `hidden_states`.
         attn_output = gate_msa.unsqueeze(1) * attn_output
