@@ -4,7 +4,6 @@ from typing import Any, Dict, Optional, Tuple
 
 import torch
 from diffusers.models.embeddings import apply_rotary_emb
-from diffusers.models.normalization import AdaLayerNormZeroSingle
 from diffusers.models.transformers.transformer_flux import (
     FluxAttention,
     FluxSingleTransformerBlock,
@@ -17,8 +16,8 @@ from torch.nn import functional as F
 
 from ...utils import get_precision
 from ..attention import NunchakuFeedForward
-from ..linear import AWQW4A16Linear, SVDQW4A4Linear
-from ..normalization import NunchakuAdaLayerNormZero
+from ..linear import SVDQW4A4Linear
+from ..normalization import NunchakuAdaLayerNormZero, NunchakuAdaLayerNormZeroSingle
 from ..utils import fuse_linears
 from .utils import NunchakuModelLoaderMixin
 
@@ -76,13 +75,21 @@ class NunchakuFluxAttention(nn.Module):
         if attention_mask is not None:
             raise NotImplementedError("attention_mask is not supported")
 
+        # d = torch.load("dev/debug.pt")
+
         query, key, value = self.to_qkv(hidden_states).chunk(3, dim=-1)
+        # _qkv_raw = d["transformer_blocks.0.qkv_raw"].cuda()
+        # _query_raw, _key_raw, _value_raw = _qkv_raw.chunk(3, dim=-1)
+        # _qkv = d["transformer_blocks.0.qkv"].cuda()
+        # _query, _key, _value = _qkv.chunk(3, dim=-1)
+
         encoder_query = encoder_key = encoder_value = None
         if self.added_kv_proj_dim is not None:
             assert encoder_hidden_states is not None
             encoder_query, encoder_key, encoder_value = self.add_qkv_proj(encoder_hidden_states).chunk(3, dim=-1)
         else:
             assert encoder_hidden_states is None
+        # _encoder_qkv_raw = d["transformer_blocks.0.qkv_context_raw"].cuda()
 
         query = query.unflatten(-1, (self.heads, -1))
         key = key.unflatten(-1, (self.heads, -1))
@@ -107,9 +114,40 @@ class NunchakuFluxAttention(nn.Module):
             query = apply_rotary_emb(query, image_rotary_emb, sequence_dim=1)
             key = apply_rotary_emb(key, image_rotary_emb, sequence_dim=1)
 
+        # _concat_qkv = d["transformer_blocks.0.concat"].cuda()
+        # _iqkv = _concat_qkv[:, :4096]
+        # _tqkv = _concat_qkv[:, 4096:]
+        # _concat_qkv = torch.cat([_tqkv, _iqkv], dim=1)
+        # _concat_query, _concat_key, _concat_value = _concat_qkv.chunk(3, dim=-1)
+        # _concat_query_view = _concat_query.unflatten(-1, (self.heads, -1))
+        # _concat_key_view = _concat_key.unflatten(-1, (self.heads, -1))
+        # _concat_value_view = _concat_value.unflatten(-1, (self.heads, -1))
+
+        # _iquery, _ikey, _ivalue = _iqkv.chunk(3, dim=-1)
+        # _tquery, _tkey, _tvalue = _tqkv.chunk(3, dim=-1)
+        # _iquery_view = _iquery.unflatten(-1, (self.heads, -1))
+        # _ikey_view = _ikey.unflatten(-1, (self.heads, -1))
+        # _ivalue_view = _ivalue.unflatten(-1, (self.heads, -1))
+        # _tquery_view = _tquery.unflatten(-1, (self.heads, -1))
+        # _tkey_view = _tkey.unflatten(-1, (self.heads, -1))
+        # _tvalue_view = _tvalue.unflatten(-1, (self.heads, -1))
+
         hidden_states = F.scaled_dot_product_attention(
             query, key, value, attn_mask=attention_mask, dropout_p=0.0, is_causal=False
         )
+        # hidden_states2 = F.scaled_dot_product_attention(
+        #     _concat_query_view,
+        #     _concat_key_view,
+        #     _concat_value_view,
+        #     attn_mask=attention_mask,
+        #     dropout_p=0.0,
+        #     is_causal=False,
+        # )
+
+        # _hidden_states = d["transformer_blocks.0.raw_attn_output"].cuda()
+        # _ihidden_states = _hidden_states[:, :4096]
+        # _thidden_states = _hidden_states[:, 4096:]
+        # _hidden_states = torch.cat([_thidden_states, _ihidden_states], dim=1)
 
         hidden_states = hidden_states.flatten(2, 3)
         hidden_states = hidden_states.to(query.dtype)
@@ -134,13 +172,14 @@ class NunchakuFluxAttention(nn.Module):
 
 class NunchakuFluxTransformerBlock(FluxTransformerBlock):
 
-    def __init__(self, block: FluxTransformerBlock, **kwargs):
+    def __init__(self, block: FluxTransformerBlock, scale_shift: float = 1, **kwargs):
         super(FluxTransformerBlock, self).__init__()
+        self.scale_shift = scale_shift
 
         # The scale_shift=1 from AdaLayerNormZero has already been fused into the linear weights,
         # so we set scale_shift=0 here to avoid applying it again.
-        self.norm1 = NunchakuAdaLayerNormZero(block.norm1, scale_shift=0)
-        self.norm1_context = NunchakuAdaLayerNormZero(block.norm1_context, scale_shift=0)
+        self.norm1 = NunchakuAdaLayerNormZero(block.norm1, scale_shift=scale_shift)
+        self.norm1_context = NunchakuAdaLayerNormZero(block.norm1_context, scale_shift=scale_shift)
 
         self.attn = NunchakuFluxAttention(block.attn, **kwargs)
         self.norm2 = block.norm2
@@ -185,7 +224,7 @@ class NunchakuFluxTransformerBlock(FluxTransformerBlock):
         hidden_states = hidden_states + attn_output
 
         norm_hidden_states = self.norm2(hidden_states)
-        norm_hidden_states = norm_hidden_states * (1 + scale_mlp[:, None]) + shift_mlp[:, None]
+        norm_hidden_states = norm_hidden_states * (self.scale_shift + scale_mlp[:, None]) + shift_mlp[:, None]
 
         ff_output = self.ff(norm_hidden_states)
         ff_output = gate_mlp.unsqueeze(1) * ff_output
@@ -199,7 +238,9 @@ class NunchakuFluxTransformerBlock(FluxTransformerBlock):
         encoder_hidden_states = encoder_hidden_states + context_attn_output
 
         norm_encoder_hidden_states = self.norm2_context(encoder_hidden_states)
-        norm_encoder_hidden_states = norm_encoder_hidden_states * (1 + c_scale_mlp[:, None]) + c_shift_mlp[:, None]
+        norm_encoder_hidden_states = (
+            norm_encoder_hidden_states * (self.scale_shift + c_scale_mlp[:, None]) + c_shift_mlp[:, None]
+        )
 
         context_ff_output = self.ff_context(norm_encoder_hidden_states)
         encoder_hidden_states = encoder_hidden_states + c_gate_mlp.unsqueeze(1) * context_ff_output
@@ -210,13 +251,11 @@ class NunchakuFluxTransformerBlock(FluxTransformerBlock):
 
 
 class NunchakuFluxSingleTransformerBlock(FluxSingleTransformerBlock):
-    def __init__(self, block: FluxSingleTransformerBlock, **kwargs):
+    def __init__(self, block: FluxSingleTransformerBlock, scale_shift: float = 1, **kwargs):
         super(FluxSingleTransformerBlock, self).__init__()
         self.mlp_hidden_dim = block.mlp_hidden_dim
         self.norm = block.norm
-
-        if isinstance(self.norm, AdaLayerNormZeroSingle):
-            self.norm.linear = AWQW4A16Linear.from_linear(self.norm.linear, **kwargs)
+        self.norm = NunchakuAdaLayerNormZeroSingle(block.norm, scale_shift=scale_shift)
 
         self.mlp_fc1 = SVDQW4A4Linear.from_linear(block.proj_mlp, **kwargs)
         self.act_mlp = block.act_mlp
@@ -265,9 +304,9 @@ class NunchakuFluxTransformer2DModelV2(FluxTransformer2DModel, NunchakuModelLoad
 
     def _patch_model(self, **kwargs):
         for i, block in enumerate(self.transformer_blocks):
-            self.transformer_blocks[i] = NunchakuFluxTransformerBlock(block, **kwargs)
+            self.transformer_blocks[i] = NunchakuFluxTransformerBlock(block, scale_shift=0, **kwargs)
         for i, block in enumerate(self.single_transformer_blocks):
-            self.single_transformer_blocks[i] = NunchakuFluxSingleTransformerBlock(block, **kwargs)
+            self.single_transformer_blocks[i] = NunchakuFluxSingleTransformerBlock(block, scale_shift=0, **kwargs)
         return self
 
     @classmethod
@@ -305,8 +344,7 @@ class NunchakuFluxTransformer2DModelV2(FluxTransformer2DModel, NunchakuModelLoad
                 assert ".wtscale" in k or ".wcscales" in k
                 converted_state_dict[k] = torch.ones_like(state_dict[k])
             else:
-                if state_dict[k].dtype != converted_state_dict[k].dtype:
-                    assert state_dict[k].dtype == converted_state_dict[k].dtype
+                assert state_dict[k].dtype == converted_state_dict[k].dtype
 
         transformer.load_state_dict(converted_state_dict)
 
