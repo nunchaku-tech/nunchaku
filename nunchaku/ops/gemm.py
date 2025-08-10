@@ -119,8 +119,6 @@ def svdq_gemm_w4a4_cuda(
         The results are written in-place to the provided output tensors.
 
     """
-    if out is None:
-        out = torch.empty(act.shape[0], wgt.shape[0], dtype=lora_up.dtype, device=act.device)
     if lora_scales is None:
         rank = lora_up.shape[1]
         lora_scales = [1.0] * rank
@@ -156,4 +154,3 @@ def svdq_gemm_w4a4_cuda(
         out_v,
         attn_tokens,
     )
-    return out

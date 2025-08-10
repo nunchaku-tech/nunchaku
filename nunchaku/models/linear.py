@@ -81,33 +81,49 @@ class SVDQW4A4Linear(nn.Module):
             **kwargs,
         )
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, output: torch.Tensor | None = None) -> torch.Tensor:
         # quantize the input run the down projection
         batch_size, seq_len, channels = x.shape
         x = x.view(batch_size * seq_len, channels)
+        if output is None:
+            output = torch.empty(batch_size * seq_len, self.out_features, dtype=x.dtype, device=x.device)
+        quantized_x, ascales, lora_act_out = self.quantize(x)
+        output = self.forward_quant(quantized_x, ascales, lora_act_out, output)
+        output = output.view(batch_size, seq_len, -1)
+        return output
+
+    def quantize(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         quantized_x, ascales, lora_act_out = svdq_quantize_w4a4_act_fuse_lora_cuda(
             x, lora_down=self.proj_down, smooth=self.smooth_factor, fp4=self.precision == "nvfp4"
         )
+        return quantized_x, ascales, lora_act_out
 
-        output = svdq_gemm_w4a4_cuda(
+    def forward_quant(
+        self,
+        quantized_x: torch.Tensor,
+        ascales: torch.Tensor,
+        lora_act: torch.Tensor,
+        output: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        if output is None:
+            output = torch.empty(
+                quantized_x.shape[0], self.out_features, dtype=self.proj_up.dtype, device=quantized_x.device
+            )
+
+        svdq_gemm_w4a4_cuda(
             act=quantized_x,
             wgt=self.qweight,
+            out=output,
             ascales=ascales,
             wscales=self.wscales,
-            lora_act_in=lora_act_out,
+            lora_act_in=lora_act,
             lora_up=self.proj_up,
-            lora_down=None,
-            lora_act_out=None,
-            norm_q=None,
-            norm_k=None,
-            rotary_emb=None,
             bias=self.bias,
             act_unsigned=False,  # TODO: check this.
             fp4=self.precision == "nvfp4",
             alpha=self.wtscale,
             wcscales=self.wcscales,
         )
-        output = output.view(batch_size, seq_len, -1)
         return output
 
     def __repr__(self):

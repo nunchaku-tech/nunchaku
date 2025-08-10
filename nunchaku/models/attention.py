@@ -1,4 +1,5 @@
 import torch
+from diffusers.models.activations import GELU
 from diffusers.models.attention import FeedForward
 from torch import nn
 
@@ -20,6 +21,10 @@ class NunchakuFeedForward(FeedForward):
         self.net = _patch_linear(ff.net, SVDQW4A4Linear, **kwargs)
 
     def forward(self, hidden_states: torch.Tensor) -> torch.Tensor:
-        for module in self.net:
-            hidden_states = module(hidden_states)
-        return hidden_states
+        if False and isinstance(self.net[0], GELU):
+            pass
+        else:
+            # fallback to original implementation
+            for module in self.net:
+                hidden_states = module(hidden_states)
+            return hidden_states
