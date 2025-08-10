@@ -133,8 +133,7 @@ class NunchakuFluxAttention(nn.Module):
             return hidden_states, encoder_hidden_states
         else:
             # for single transformer block, we split the proj_out into two linear layers
-            hidden_states = self.to_out[0](hidden_states)
-            hidden_states = self.to_out[1](hidden_states)
+            hidden_states = self.to_out(hidden_states)
             return hidden_states
 
 
@@ -196,7 +195,7 @@ class NunchakuFluxTransformerBlock(FluxTransformerBlock):
         hidden_states = hidden_states + attn_output
 
         norm_hidden_states = self.norm2(hidden_states)
-        norm_hidden_states = norm_hidden_states * (self.scale_shift + scale_mlp[:, None]) + shift_mlp[:, None]
+        norm_hidden_states = norm_hidden_states * scale_mlp[:, None] + shift_mlp[:, None]
 
         ff_output = self.ff(norm_hidden_states)
         ff_output = gate_mlp.unsqueeze(1) * ff_output
@@ -210,9 +209,7 @@ class NunchakuFluxTransformerBlock(FluxTransformerBlock):
         encoder_hidden_states = encoder_hidden_states + context_attn_output
 
         norm_encoder_hidden_states = self.norm2_context(encoder_hidden_states)
-        norm_encoder_hidden_states = (
-            norm_encoder_hidden_states * (self.scale_shift + c_scale_mlp[:, None]) + c_shift_mlp[:, None]
-        )
+        norm_encoder_hidden_states = norm_encoder_hidden_states * c_scale_mlp[:, None] + c_shift_mlp[:, None]
 
         context_ff_output = self.ff_context(norm_encoder_hidden_states)
         encoder_hidden_states = encoder_hidden_states + c_gate_mlp.unsqueeze(1) * context_ff_output
