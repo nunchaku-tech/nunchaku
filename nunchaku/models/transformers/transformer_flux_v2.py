@@ -12,8 +12,10 @@ from diffusers.models.transformers.transformer_flux import (
 )
 from huggingface_hub import utils
 from torch import nn
+from torch.nn import GELU
 from torch.nn import functional as F
 
+from ...ops.fused import fused_gelu_mlp
 from ...utils import get_precision
 from ..attention import NunchakuFeedForward
 from ..linear import SVDQW4A4Linear
@@ -248,9 +250,14 @@ class NunchakuFluxSingleTransformerBlock(FluxSingleTransformerBlock):
         norm_hidden_states, gate = self.norm(hidden_states, emb=temb)
 
         # Feedforward
-        mlp_hidden_states = self.mlp_fc1(norm_hidden_states)
-        mlp_hidden_states = self.act_mlp(mlp_hidden_states)
-        mlp_hidden_states = self.mlp_fc2(mlp_hidden_states)
+        if isinstance(self.act_mlp, GELU):
+            # use fused gelu mlp
+            mlp_hidden_states = fused_gelu_mlp(norm_hidden_states, self.mlp_fc1, self.mlp_fc2)
+        else:
+            # fallback to original gelu mlp
+            mlp_hidden_states = self.mlp_fc1(norm_hidden_states)
+            mlp_hidden_states = self.act_mlp(mlp_hidden_states)
+            mlp_hidden_states = self.mlp_fc2(mlp_hidden_states)
 
         # Attention
         joint_attention_kwargs = joint_attention_kwargs or {}

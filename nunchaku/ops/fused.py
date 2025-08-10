@@ -6,18 +6,20 @@ from nunchaku.models.linear import SVDQW4A4Linear
 from .gemm import svdq_gemm_w4a4_cuda
 
 
-def fused_mlp_gelu(x: torch.Tensor, fc1: SVDQW4A4Linear, fc2: SVDQW4A4Linear):
+def fused_gelu_mlp(x: torch.Tensor, fc1: SVDQW4A4Linear, fc2: SVDQW4A4Linear):
     # a fused operator of fc1 and fc2 with gelu
     batch_size, seq_len, channels = x.shape
     x = x.view(batch_size * seq_len, channels)
     quantized_x, ascales, lora_act = fc1.quantize(x)
 
-    qout_act = torch.empty(batch_size, fc1.out_features // 2, dtype=torch.uint8, device=x.device)
+    qout_act = torch.empty(batch_size * seq_len, fc1.out_features // 2, dtype=torch.uint8, device=x.device)
     if fc2.precision == "nvfp4":
-        qout_ascales = torch.empty(fc1.out_features // 16, batch_size, dtype=torch.float8_e4m3fn, device=x.device)
+        qout_ascales = torch.empty(
+            fc1.out_features // 16, batch_size * seq_len, dtype=torch.float8_e4m3fn, device=x.device
+        )
     else:
-        qout_ascales = torch.empty(fc1.out_features // 64, batch_size, dtype=x.dtype, device=x.device)
-    qout_lora_act = torch.empty(batch_size, fc2.proj_down.shape[1], dtype=torch.float32, device=x.device)
+        qout_ascales = torch.empty(fc1.out_features // 64, batch_size * seq_len, dtype=x.dtype, device=x.device)
+    qout_lora_act = torch.empty(batch_size * seq_len, fc2.proj_down.shape[1], dtype=torch.float32, device=x.device)
 
     # for int4, we shift the activation after gelu to make it all positive to improve quality.
     is_unsigned = fc2.precision != "nvfp4"

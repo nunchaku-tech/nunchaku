@@ -3,6 +3,7 @@ from diffusers.models.activations import GELU
 from diffusers.models.attention import FeedForward
 from torch import nn
 
+from ..ops.fused import fused_gelu_mlp
 from .linear import SVDQW4A4Linear
 
 
@@ -21,8 +22,8 @@ class NunchakuFeedForward(FeedForward):
         self.net = _patch_linear(ff.net, SVDQW4A4Linear, **kwargs)
 
     def forward(self, hidden_states: torch.Tensor) -> torch.Tensor:
-        if False and isinstance(self.net[0], GELU):
-            pass
+        if isinstance(self.net[0], GELU):
+            return fused_gelu_mlp(hidden_states, self.net[0].proj, self.net[2])
         else:
             # fallback to original implementation
             for module in self.net:
