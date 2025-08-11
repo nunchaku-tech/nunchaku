@@ -138,9 +138,9 @@ class NunchakuFP16AttnProcessor:
                 attn.norm_k,
                 image_rotary_emb[0],
                 output=(
-                    query[:, :, :num_img_tokens_pad],
-                    key[:, :, :num_img_tokens_pad],
-                    value[:, :, :num_img_tokens_pad],
+                    query[:, :, num_txt_tokens_pad:],
+                    key[:, :, num_txt_tokens_pad:],
+                    value[:, :, num_txt_tokens_pad:],
                 ),
                 attn_tokens=num_img_tokens,
             )
@@ -151,9 +151,9 @@ class NunchakuFP16AttnProcessor:
                 attn.norm_added_k,
                 image_rotary_emb[1],
                 output=(
-                    query[:, :, num_img_tokens_pad:],
-                    key[:, :, num_img_tokens_pad:],
-                    value[:, :, num_img_tokens_pad:],
+                    query[:, :, :num_txt_tokens_pad],
+                    key[:, :, :num_txt_tokens_pad],
+                    value[:, :, :num_txt_tokens_pad],
                 ),
                 attn_tokens=num_txt_tokens,
             )
