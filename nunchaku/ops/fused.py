@@ -56,7 +56,7 @@ def fused_qkv_norm_rottary(
     norm_k: RMSNorm,
     rotary_emb: torch.Tensor,
     output: torch.Tensor | tuple[torch.Tensor, torch.Tensor, torch.Tensor] | None = None,
-    num_tokens: int = 0,
+    attn_tokens: int = 0,
 ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     assert isinstance(norm_q, RMSNorm)
     assert isinstance(norm_k, RMSNorm)
@@ -88,7 +88,7 @@ def fused_qkv_norm_rottary(
             out_q=output_q,
             out_k=output_k,
             out_v=output_v,
-            num_tokens=num_tokens,
+            attn_tokens=attn_tokens,
         )
         return output_q, output_k, output_v
     else:

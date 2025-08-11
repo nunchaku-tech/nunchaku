@@ -83,7 +83,6 @@ class NunchakuFP16AttnProcessor:
         **kwargs,
     ) -> torch.Tensor | Tuple[torch.Tensor, torch.Tensor]:
         pad_size = self.pad_size
-
         batch_size, _, channels = hidden_states.shape
         assert channels == attn.heads * attn.head_dim
         if encoder_hidden_states is None:
@@ -110,7 +109,7 @@ class NunchakuFP16AttnProcessor:
                 attn.norm_k,
                 image_rotary_emb,
                 output=(query, key, value),
-                num_tokens=num_tokens,
+                attn_tokens=num_tokens,
             )
         else:
             # joint transformer block
@@ -138,8 +137,12 @@ class NunchakuFP16AttnProcessor:
                 attn.norm_q,
                 attn.norm_k,
                 image_rotary_emb[0],
-                output=(query[:, :num_img_tokens_pad], key[:, :num_img_tokens_pad], value[:, :num_img_tokens_pad]),
-                num_tokens=num_img_tokens,
+                output=(
+                    query[:, :, :num_img_tokens_pad],
+                    key[:, :, :num_img_tokens_pad],
+                    value[:, :, :num_img_tokens_pad],
+                ),
+                attn_tokens=num_img_tokens,
             )
             fused_qkv_norm_rottary(
                 encoder_hidden_states,
@@ -147,8 +150,12 @@ class NunchakuFP16AttnProcessor:
                 attn.norm_added_q,
                 attn.norm_added_k,
                 image_rotary_emb[1],
-                output=(query[:, num_img_tokens_pad:], key[:, num_img_tokens_pad:], value[:, num_img_tokens_pad:]),
-                num_tokens=num_txt_tokens,
+                output=(
+                    query[:, :, num_img_tokens_pad:],
+                    key[:, :, num_img_tokens_pad:],
+                    value[:, :, num_img_tokens_pad:],
+                ),
+                attn_tokens=num_txt_tokens,
             )
         attention_output = torch.empty(
             batch_size,
@@ -158,7 +165,7 @@ class NunchakuFP16AttnProcessor:
             device=hidden_states.device,
         )
         attention_fp16(query, key, value, attention_output, attn.head_dim ** (-0.5))
-        hidden_states = attention_output.view(batch_size, num_tokens_pad, attn.heads, attn.head_dim)
+        hidden_states = attention_output
 
         if encoder_hidden_states is None:
             # for single transformer block, we split the proj_out into two linear layers
