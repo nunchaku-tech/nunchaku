@@ -26,7 +26,7 @@ from .utils import NunchakuModelLoaderMixin, pad_tensor
 
 
 class NunchakuFluxAttention(nn.Module):
-    def __init__(self, flux_attention: FluxAttention, processor: str = "flashattn2", **kwargs):
+    def __init__(self, flux_attention: FluxAttention, processor: str = "nunchaku-fp16", **kwargs):
         super(NunchakuFluxAttention, self).__init__()
 
         self.head_dim = flux_attention.head_dim
@@ -65,7 +65,16 @@ class NunchakuFluxAttention(nn.Module):
             self.add_qkv_proj = SVDQW4A4Linear.from_linear(add_qkv_proj, **kwargs)
             self.to_add_out = SVDQW4A4Linear.from_linear(flux_attention.to_add_out, **kwargs)
 
-        self.processor = NunchakuFA2Processor()
+        self.processor = None
+        self.set_processor(processor)
+
+    def set_processor(self, processor: str):
+        if processor == "flashattn2":
+            self.processor = NunchakuFA2Processor()
+        elif processor == "nunchaku-fp16":
+            self.processor = NunchakuFP16AttnProcessor()
+        else:
+            raise ValueError(f"Processor {processor} is not supported")
 
     def forward(
         self,

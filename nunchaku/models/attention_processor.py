@@ -85,15 +85,17 @@ class NunchakuFP16AttnProcessor:
         pad_size = self.pad_size
 
         batch_size, _, channels = hidden_states.shape
-        assert channels == self.heads * self.head_dim
+        assert channels == attn.heads * attn.head_dim
         if encoder_hidden_states is None:
+            # single transformer block
+            assert attn.added_kv_proj_dim is None
             num_tokens = hidden_states.shape[1]
             num_tokens_pad = math.ceil(num_tokens / pad_size) * pad_size
             query = torch.empty(
                 batch_size,
-                self.heads,
+                attn.heads,
                 num_tokens_pad,
-                self.head_dim,
+                attn.head_dim,
                 dtype=torch.float16,
                 device=hidden_states.device,
             )
@@ -103,15 +105,16 @@ class NunchakuFP16AttnProcessor:
             assert torch.is_tensor(image_rotary_emb)
             fused_qkv_norm_rottary(
                 hidden_states,
-                self.to_qkv,
-                self.norm_q,
-                self.norm_k,
+                attn.to_qkv,
+                attn.norm_q,
+                attn.norm_k,
                 image_rotary_emb,
                 output=(query, key, value),
                 num_tokens=num_tokens,
             )
-
         else:
+            # joint transformer block
+            assert attn.added_kv_proj_dim is not None
             num_txt_tokens = encoder_hidden_states.shape[1]
             num_img_tokens = hidden_states.shape[1]
             num_txt_tokens_pad = math.ceil(num_txt_tokens / pad_size) * pad_size
@@ -119,9 +122,9 @@ class NunchakuFP16AttnProcessor:
             num_tokens_pad = num_txt_tokens_pad + num_img_tokens_pad
             query = torch.empty(
                 batch_size,
-                self.heads,
+                attn.heads,
                 num_tokens_pad,
-                self.head_dim,
+                attn.head_dim,
                 dtype=torch.float16,
                 device=hidden_states.device,
             )
@@ -131,18 +134,18 @@ class NunchakuFP16AttnProcessor:
             assert isinstance(image_rotary_emb, tuple)
             fused_qkv_norm_rottary(
                 hidden_states,
-                self.to_qkv,
-                self.norm_q,
-                self.norm_k,
+                attn.to_qkv,
+                attn.norm_q,
+                attn.norm_k,
                 image_rotary_emb[0],
                 output=(query[:, :num_img_tokens_pad], key[:, :num_img_tokens_pad], value[:, :num_img_tokens_pad]),
                 num_tokens=num_img_tokens,
             )
             fused_qkv_norm_rottary(
                 encoder_hidden_states,
-                self.add_qkv_proj,
-                self.norm_added_q,
-                self.norm_added_k,
+                attn.add_qkv_proj,
+                attn.norm_added_q,
+                attn.norm_added_k,
                 image_rotary_emb[1],
                 output=(query[:, num_img_tokens_pad:], key[:, num_img_tokens_pad:], value[:, num_img_tokens_pad:]),
                 num_tokens=num_txt_tokens,
@@ -150,24 +153,26 @@ class NunchakuFP16AttnProcessor:
         attention_output = torch.empty(
             batch_size,
             num_tokens_pad,
-            self.heads * self.head_dim,
+            attn.heads * attn.head_dim,
             dtype=hidden_states.dtype,
             device=hidden_states.device,
         )
-        attention_fp16(query, key, value, attention_output, self.head_dim ** (-0.5))
+        attention_fp16(query, key, value, attention_output, attn.head_dim ** (-0.5))
+        hidden_states = attention_output.view(batch_size, num_tokens_pad, attn.heads, attn.head_dim)
 
-        if encoder_hidden_states is not None:
+        if encoder_hidden_states is None:
+            # for single transformer block, we split the proj_out into two linear layers
+            hidden_states = hidden_states[:, :num_tokens]
+            hidden_states = attn.to_out(hidden_states)
+            return hidden_states
+        else:
             encoder_hidden_states, hidden_states = (
-                hidden_states[:, : encoder_hidden_states.shape[1]],
-                hidden_states[:, encoder_hidden_states.shape[1] :],
+                hidden_states[:, :num_txt_tokens],
+                hidden_states[:, num_txt_tokens_pad : num_txt_tokens_pad + num_img_tokens],
             )
             # linear proj
-            hidden_states = self.to_out[0](hidden_states)
+            hidden_states = attn.to_out[0](hidden_states)
             # dropout
-            hidden_states = self.to_out[1](hidden_states)
-            encoder_hidden_states = self.to_add_out(encoder_hidden_states)
+            hidden_states = attn.to_out[1](hidden_states)
+            encoder_hidden_states = attn.to_add_out(encoder_hidden_states)
             return hidden_states, encoder_hidden_states
-        else:
-            # for single transformer block, we split the proj_out into two linear layers
-            hidden_states = self.to_out(hidden_states)
-            return hidden_states
