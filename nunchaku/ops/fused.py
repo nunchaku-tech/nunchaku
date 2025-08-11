@@ -1,5 +1,5 @@
 import torch
-from diffusers.models.normalization import RMSNorm
+from torch.nn import RMSNorm
 
 from nunchaku.models.linear import SVDQW4A4Linear
 
@@ -50,6 +50,38 @@ def fused_gelu_mlp(x: torch.Tensor, fc1: SVDQW4A4Linear, fc2: SVDQW4A4Linear):
 
 
 def fused_qkv_norm_rottary(
-    x: torch.Tensor, proj: SVDQW4A4Linear, norm_q: RMSNorm, norm_k: RMSNorm, rotary_emb: torch.Tensor
+    x: torch.Tensor,
+    proj: SVDQW4A4Linear,
+    norm_q: RMSNorm,
+    norm_k: RMSNorm,
+    rotary_emb: torch.Tensor,
+    output: torch.Tensor | None = None,
 ):
-    pass
+    assert isinstance(norm_q, RMSNorm)
+    assert isinstance(norm_k, RMSNorm)
+
+    batch_size, seq_len, channels = x.shape
+    x = x.view(batch_size * seq_len, channels)
+    quantized_x, ascales, lora_act = proj.quantize(x)
+
+    if output is None:
+        output = torch.empty(quantized_x.shape[0], proj.out_features, dtype=x.dtype, device=x.device)
+
+    svdq_gemm_w4a4_cuda(
+        act=quantized_x,
+        wgt=proj.qweight,
+        out=output,
+        ascales=ascales,
+        wscales=proj.wscales,
+        lora_act_in=lora_act,
+        lora_up=proj.proj_up,
+        bias=proj.bias,
+        fp4=proj.precision == "nvfp4",
+        alpha=proj.wtscale,
+        wcscales=proj.wcscales,
+        norm_q=norm_q.weight,
+        norm_k=norm_k.weight,
+        rotary_emb=rotary_emb,
+    )
+    output = output.view(batch_size, seq_len, -1)
+    return output

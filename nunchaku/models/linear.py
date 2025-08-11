@@ -119,7 +119,6 @@ class SVDQW4A4Linear(nn.Module):
             lora_act_in=lora_act,
             lora_up=self.proj_up,
             bias=self.bias,
-            act_unsigned=False,  # TODO: check this.
             fp4=self.precision == "nvfp4",
             alpha=self.wtscale,
             wcscales=self.wcscales,
