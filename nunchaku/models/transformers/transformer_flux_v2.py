@@ -188,13 +188,10 @@ class NunchakuFluxSingleTransformerBlock(FluxSingleTransformerBlock):
     def forward(
         self,
         hidden_states: torch.Tensor,
-        encoder_hidden_states: torch.Tensor,
         temb: torch.Tensor,
         image_rotary_emb: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
         joint_attention_kwargs: Optional[Dict[str, Any]] = None,
     ) -> torch.Tensor:
-        text_seq_len = encoder_hidden_states.shape[1]
-        hidden_states = torch.cat([encoder_hidden_states, hidden_states], dim=1)
 
         residual = hidden_states
         norm_hidden_states, gate = self.norm(hidden_states, emb=temb)
@@ -222,8 +219,7 @@ class NunchakuFluxSingleTransformerBlock(FluxSingleTransformerBlock):
         if hidden_states.dtype == torch.float16:
             hidden_states = hidden_states.clip(-65504, 65504)
 
-        encoder_hidden_states, hidden_states = hidden_states[:, :text_seq_len], hidden_states[:, text_seq_len:]
-        return encoder_hidden_states, hidden_states
+        return hidden_states
 
 
 class NunchakuFluxTransformer2DModelV2(FluxTransformer2DModel, NunchakuModelLoaderMixin):
@@ -374,10 +370,10 @@ class NunchakuFluxTransformer2DModelV2(FluxTransformer2DModel, NunchakuModelLoad
             if controlnet_block_samples is not None:
                 raise NotImplementedError("Controlnet is not supported for FluxTransformer2DModelV2 for now")
 
+        hidden_states = torch.cat([encoder_hidden_states, hidden_states], dim=1)
         for index_block, block in enumerate(self.single_transformer_blocks):
-            encoder_hidden_states, hidden_states = block(
+            hidden_states = block(
                 hidden_states=hidden_states,
-                encoder_hidden_states=encoder_hidden_states,
                 temb=temb,
                 image_rotary_emb=rotary_emb_single,
                 joint_attention_kwargs=joint_attention_kwargs,
@@ -387,6 +383,7 @@ class NunchakuFluxTransformer2DModelV2(FluxTransformer2DModel, NunchakuModelLoad
             if controlnet_single_block_samples is not None:
                 raise NotImplementedError("Controlnet is not supported for FluxTransformer2DModelV2 for now")
 
+        hidden_states = hidden_states[:, txt_tokens:]
         hidden_states = self.norm_out(hidden_states, temb)
         output = self.proj_out(hidden_states)
 
