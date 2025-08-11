@@ -181,6 +181,8 @@ class NunchakuFluxSingleTransformerBlock(FluxSingleTransformerBlock):
         self.mlp_fc1 = SVDQW4A4Linear.from_linear(block.proj_mlp, **kwargs)
         self.act_mlp = block.act_mlp
         self.mlp_fc2 = SVDQW4A4Linear.from_linear(block.proj_out, in_features=self.mlp_hidden_dim, **kwargs)
+        # for int4, we shift the activation of mlp_fc2 to make it unsigned
+        self.mlp_fc2.act_unsigned = self.mlp_fc2.precision != "nvfp4"
 
         self.attn = NunchakuFluxAttention(block.attn, **kwargs)
         self.attn.to_out = SVDQW4A4Linear.from_linear(block.proj_out, in_features=self.mlp_fc1.in_features, **kwargs)

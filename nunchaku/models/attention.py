@@ -20,6 +20,8 @@ class NunchakuFeedForward(FeedForward):
     def __init__(self, ff: FeedForward, **kwargs):
         super(FeedForward, self).__init__()
         self.net = _patch_linear(ff.net, SVDQW4A4Linear, **kwargs)
+        # for int4, we shift the activation of mlp_fc2 to make it unsigned
+        self.net[2].act_unsigned = self.net[2].precision != "nvfp4"
 
     def forward(self, hidden_states: torch.Tensor) -> torch.Tensor:
         if isinstance(self.net[0], GELU):

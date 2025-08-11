@@ -69,6 +69,8 @@ class SVDQW4A4Linear(nn.Module):
                 torch.ones(out_features, dtype=torch_dtype, device=device), requires_grad=False
             )
 
+        self.act_unsigned = False
+
     @classmethod
     def from_linear(cls, linear: nn.Linear, **kwargs):
         in_features = kwargs.pop("in_features", linear.in_features)
@@ -122,11 +124,12 @@ class SVDQW4A4Linear(nn.Module):
             fp4=self.precision == "nvfp4",
             alpha=self.wtscale,
             wcscales=self.wcscales,
+            act_unsigned=self.act_unsigned,
         )
         return output
 
     def __repr__(self):
-        return f"SVDQW4A4Linear(in_features={self.in_features}, out_features={self.out_features}, rank={self.rank}, precision={self.precision})"
+        return f"SVDQW4A4Linear(in_features={self.in_features}, out_features={self.out_features}, rank={self.rank}, precision={self.precision}, act_unsigned={self.act_unsigned})"
 
 
 class AWQW4A16Linear(nn.Module):
