@@ -17,7 +17,7 @@ from torch.nn import GELU
 from ...ops.fused import fused_gelu_mlp
 from ...utils import get_precision
 from ..attention import NunchakuFeedForward
-from ..attention_processor import NunchakuFA2Processor
+from ..attention_processor import NunchakuFA2Processor, NunchakuFP16AttnProcessor
 from ..embeddings import NunchakuFluxPosEmbed, pack_rotemb
 from ..linear import SVDQW4A4Linear
 from ..normalization import NunchakuAdaLayerNormZero, NunchakuAdaLayerNormZeroSingle
@@ -26,7 +26,7 @@ from .utils import NunchakuModelLoaderMixin, pad_tensor
 
 
 class NunchakuFluxAttention(nn.Module):
-    def __init__(self, flux_attention: FluxAttention, **kwargs):
+    def __init__(self, flux_attention: FluxAttention, processor: str = "flashattn2", **kwargs):
         super(NunchakuFluxAttention, self).__init__()
 
         self.head_dim = flux_attention.head_dim
@@ -75,7 +75,6 @@ class NunchakuFluxAttention(nn.Module):
         image_rotary_emb: Tuple[torch.Tensor, torch.Tensor] | torch.Tensor = None,
         **kwargs,
     ):
-        # Adapted from [diffusers v0.34.0](https://github.com/huggingface/diffusers/blob/50dea89dc6036e71a00bc3d57ac062a80206d9eb/src/diffusers/models/attention_processor.py#L2275)
         return self.processor(
             attn=self,
             hidden_states=hidden_states,
