@@ -2,6 +2,8 @@
 Python wrappers for Nunchaku's quantized GEMM operations.
 """
 
+import math
+
 import torch
 
 from .._C import ops
@@ -121,7 +123,7 @@ def svdq_gemm_w4a4_cuda(
     """
     if lora_scales is None:
         rank = lora_up.shape[1]
-        lora_scales = [1.0] * rank
+        lora_scales = [1.0] * math.ceil(rank / 16)
 
     ops.gemm_w4a4(
         act,
