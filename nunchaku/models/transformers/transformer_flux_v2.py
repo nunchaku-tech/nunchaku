@@ -11,13 +11,11 @@ from diffusers.models.transformers.transformer_flux import (
     FluxTransformerBlock,
 )
 from huggingface_hub import utils
-from torch import nn
 from torch.nn import GELU
 
 from ...ops.fused import fused_gelu_mlp
 from ...utils import get_precision
-from ..attention import NunchakuFeedForward
-from ..attention_processor import NunchakuFA2Processor, NunchakuFP16AttnProcessor
+from ..attention import NunchakuBaseAttention, NunchakuFeedForward
 from ..embeddings import NunchakuFluxPosEmbed, pack_rotemb
 from ..linear import SVDQW4A4Linear
 from ..normalization import NunchakuAdaLayerNormZero, NunchakuAdaLayerNormZeroSingle
@@ -25,56 +23,43 @@ from ..utils import fuse_linears
 from .utils import NunchakuModelLoaderMixin, pad_tensor
 
 
-class NunchakuFluxAttention(nn.Module):
-    def __init__(self, flux_attention: FluxAttention, processor: str = "nunchaku-fp16", **kwargs):
-        super(NunchakuFluxAttention, self).__init__()
+class NunchakuFluxAttention(NunchakuBaseAttention):
+    def __init__(self, other: FluxAttention, processor: str = "nunchaku-fp16", **kwargs):
+        super(NunchakuFluxAttention, self).__init__(processor)
 
-        self.head_dim = flux_attention.head_dim
-        self.inner_dim = flux_attention.inner_dim
-        self.query_dim = flux_attention.query_dim
-        self.use_bias = flux_attention.use_bias
-        self.dropout = flux_attention.dropout
-        self.out_dim = flux_attention.out_dim
-        self.context_pre_only = flux_attention.context_pre_only
-        self.pre_only = flux_attention.pre_only
-        self.heads = flux_attention.heads
-        self.added_kv_proj_dim = flux_attention.added_kv_proj_dim
-        self.added_proj_bias = flux_attention.added_proj_bias
+        self.head_dim = other.head_dim
+        self.inner_dim = other.inner_dim
+        self.query_dim = other.query_dim
+        self.use_bias = other.use_bias
+        self.dropout = other.dropout
+        self.out_dim = other.out_dim
+        self.context_pre_only = other.context_pre_only
+        self.pre_only = other.pre_only
+        self.heads = other.heads
+        self.added_kv_proj_dim = other.added_kv_proj_dim
+        self.added_proj_bias = other.added_proj_bias
 
-        self.norm_q = flux_attention.norm_q
-        self.norm_k = flux_attention.norm_k
+        self.norm_q = other.norm_q
+        self.norm_k = other.norm_k
 
         # fuse the qkv
         with torch.device("meta"):
-            to_qkv = fuse_linears([flux_attention.to_q, flux_attention.to_k, flux_attention.to_v])
+            to_qkv = fuse_linears([other.to_q, other.to_k, other.to_v])
         self.to_qkv = SVDQW4A4Linear.from_linear(to_qkv, **kwargs)
 
         if not self.pre_only:
-            self.to_out = flux_attention.to_out
+            self.to_out = other.to_out
             self.to_out[0] = SVDQW4A4Linear.from_linear(self.to_out[0], **kwargs)
 
         if self.added_kv_proj_dim is not None:
-            self.norm_added_q = flux_attention.norm_added_q
-            self.norm_added_k = flux_attention.norm_added_k
+            self.norm_added_q = other.norm_added_q
+            self.norm_added_k = other.norm_added_k
 
             # fuse the add_qkv
             with torch.device("meta"):
-                add_qkv_proj = fuse_linears(
-                    [flux_attention.add_q_proj, flux_attention.add_k_proj, flux_attention.add_v_proj]
-                )
+                add_qkv_proj = fuse_linears([other.add_q_proj, other.add_k_proj, other.add_v_proj])
             self.add_qkv_proj = SVDQW4A4Linear.from_linear(add_qkv_proj, **kwargs)
-            self.to_add_out = SVDQW4A4Linear.from_linear(flux_attention.to_add_out, **kwargs)
-
-        self.processor = None
-        self.set_processor(processor)
-
-    def set_processor(self, processor: str):
-        if processor == "flashattn2":
-            self.processor = NunchakuFA2Processor()
-        elif processor == "nunchaku-fp16":
-            self.processor = NunchakuFP16AttnProcessor()
-        else:
-            raise ValueError(f"Processor {processor} is not supported")
+            self.to_add_out = SVDQW4A4Linear.from_linear(other.to_add_out, **kwargs)
 
     def forward(
         self,
