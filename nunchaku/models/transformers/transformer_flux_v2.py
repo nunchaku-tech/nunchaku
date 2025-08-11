@@ -13,11 +13,11 @@ from diffusers.models.transformers.transformer_flux import (
 from huggingface_hub import utils
 from torch import nn
 from torch.nn import GELU
-from torch.nn import functional as F
 
-from ...ops.fused import fused_gelu_mlp, fused_qkv_norm_rottary
+from ...ops.fused import fused_gelu_mlp
 from ...utils import get_precision
 from ..attention import NunchakuFeedForward
+from ..attention_processor import NunchakuFA2Processor
 from ..embeddings import NunchakuFluxPosEmbed, pack_rotemb
 from ..linear import SVDQW4A4Linear
 from ..normalization import NunchakuAdaLayerNormZero, NunchakuAdaLayerNormZeroSingle
@@ -26,7 +26,7 @@ from .utils import NunchakuModelLoaderMixin, pad_tensor
 
 
 class NunchakuFluxAttention(nn.Module):
-    def __init__(self, flux_attention: FluxAttention, processor: str = "flashattn2", **kwargs):
+    def __init__(self, flux_attention: FluxAttention, **kwargs):
         super(NunchakuFluxAttention, self).__init__()
 
         self.head_dim = flux_attention.head_dim
@@ -65,7 +65,7 @@ class NunchakuFluxAttention(nn.Module):
             self.add_qkv_proj = SVDQW4A4Linear.from_linear(add_qkv_proj, **kwargs)
             self.to_add_out = SVDQW4A4Linear.from_linear(flux_attention.to_add_out, **kwargs)
 
-        self.processor = processor
+        self.processor = NunchakuFA2Processor()
 
     def forward(
         self,
@@ -76,53 +76,13 @@ class NunchakuFluxAttention(nn.Module):
         **kwargs,
     ):
         # Adapted from [diffusers v0.34.0](https://github.com/huggingface/diffusers/blob/50dea89dc6036e71a00bc3d57ac062a80206d9eb/src/diffusers/models/attention_processor.py#L2275)
-        if attention_mask is not None:
-            raise NotImplementedError("attention_mask is not supported")
-
-        batch_size, _, channels = hidden_states.shape
-        assert channels == self.heads * self.head_dim
-        qkv = fused_qkv_norm_rottary(
-            hidden_states,
-            self.to_qkv,
-            self.norm_q,
-            self.norm_k,
-            image_rotary_emb[0] if isinstance(image_rotary_emb, tuple) else image_rotary_emb,
+        return self.processor(
+            attn=self,
+            hidden_states=hidden_states,
+            encoder_hidden_states=encoder_hidden_states,
+            attention_mask=attention_mask,
+            image_rotary_emb=image_rotary_emb,
         )
-
-        if self.added_kv_proj_dim is not None:
-            assert encoder_hidden_states is not None
-            assert isinstance(image_rotary_emb, tuple)
-            qkv_context = fused_qkv_norm_rottary(
-                encoder_hidden_states, self.add_qkv_proj, self.norm_added_q, self.norm_added_k, image_rotary_emb[1]
-            )
-            qkv = torch.cat([qkv_context, qkv], dim=1)
-
-        query, key, value = qkv.chunk(3, dim=-1)
-        query = query.view(batch_size, -1, self.heads, self.head_dim).transpose(1, 2)
-        key = key.view(batch_size, -1, self.heads, self.head_dim).transpose(1, 2)
-        value = value.view(batch_size, -1, self.heads, self.head_dim).transpose(1, 2)
-
-        hidden_states = F.scaled_dot_product_attention(
-            query, key, value, attn_mask=attention_mask, dropout_p=0.0, is_causal=False
-        )
-        hidden_states = hidden_states.transpose(1, 2).reshape(batch_size, -1, self.heads * self.head_dim)
-        hidden_states = hidden_states.to(query.dtype)
-
-        if encoder_hidden_states is not None:
-            encoder_hidden_states, hidden_states = (
-                hidden_states[:, : encoder_hidden_states.shape[1]],
-                hidden_states[:, encoder_hidden_states.shape[1] :],
-            )
-            # linear proj
-            hidden_states = self.to_out[0](hidden_states)
-            # dropout
-            hidden_states = self.to_out[1](hidden_states)
-            encoder_hidden_states = self.to_add_out(encoder_hidden_states)
-            return hidden_states, encoder_hidden_states
-        else:
-            # for single transformer block, we split the proj_out into two linear layers
-            hidden_states = self.to_out(hidden_states)
-            return hidden_states
 
 
 class NunchakuFluxTransformerBlock(FluxTransformerBlock):
