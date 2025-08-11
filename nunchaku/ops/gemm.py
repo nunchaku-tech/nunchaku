@@ -33,7 +33,7 @@ def svdq_gemm_w4a4_cuda(
     lora_scales: list[float] | None = None,
     fuse_silu: bool = False,
     fp4: bool = False,
-    alpha: float = 1.0,
+    alpha: float | None = 1.0,
     wcscales: torch.Tensor | None = None,
     out_q: torch.Tensor | None = None,
     out_k: torch.Tensor | None = None,
@@ -124,7 +124,8 @@ def svdq_gemm_w4a4_cuda(
     if lora_scales is None:
         rank = lora_up.shape[1]
         lora_scales = [1.0] * math.ceil(rank / 16)
-
+    if alpha is None:
+        alpha = 1.0
     ops.gemm_w4a4(
         act,
         wgt,
