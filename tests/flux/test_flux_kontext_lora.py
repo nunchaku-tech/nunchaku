@@ -46,7 +46,7 @@ def test_kontext_lora_application():
 
     # Load test image
     image = load_image(
-        "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/diffusers/yarn-art-pikachu.png"
+        "https://huggingface.co/datasets/nunchaku-tech/test-data/resolve/main/ComfyUI-nunchaku/inputs/monalisa.jpg"
     ).convert("RGB")
 
     prompt = "neon light, city atmosphere"
@@ -77,6 +77,7 @@ def test_kontext_lora_application():
     # Test 2: Apply LoRA and generate
     transformer.update_lora_params(
         "nunchaku-tech/nunchaku-test-models/relight-kontext-lora-single-caption_comfy.safetensors"
+        # linoyts/relight-kontext-lora-single-caption/relight-kontext-lora-single-caption.safetensors"
     )
     transformer.set_lora_strength(1.0)
 
@@ -155,62 +156,6 @@ def test_kontext_lora_application():
 
 
 @pytest.mark.skipif(is_turing(), reason="Skip tests due to using Turing GPUs")
-def test_kontext_lora_naming_conversion():
-    """Test that LoRA naming conversion works correctly"""
-    from safetensors.torch import load_file
-
-    from nunchaku.lora.flux.diffusers_converter import convert_keys_to_diffusers
-
-    # Download or use local LoRA file
-    try:
-        lora_path = "relight-kontext-lora-single-caption.safetensors"
-        if not os.path.exists(lora_path):
-            from huggingface_hub import hf_hub_download
-
-            lora_path = hf_hub_download(
-                repo_id="nunchaku-tech/nunchaku-test-models",
-                filename="relight-kontext-lora-single-caption_comfy.safetensors",
-            )
-    except Exception as e:
-        pytest.skip(f"Cannot download LoRA file: {e}")
-
-    # Load LoRA weights
-    tensors = load_file(lora_path)
-
-    # Check original format - should be ComfyUI format for this test file
-    original_keys = list(tensors.keys())
-    assert any(
-        k.startswith("lora_unet_") for k in original_keys
-    ), "Test LoRA file should be in ComfyUI format with lora_unet_ prefix"
-
-    # Apply conversion
-    converted = convert_keys_to_diffusers(tensors)
-    converted_keys = list(converted.keys())
-
-    # Check conversion results - should not have lora_unet_ prefix after conversion
-    assert not any(
-        k.startswith("lora_unet_") for k in converted_keys
-    ), "Converted keys should not have lora_unet_ prefix"
-
-    # Check that keys are properly formatted
-    for key in converted_keys:
-        if "lora_A" in key or "lora_B" in key:
-            # Should be in format: block_type.idx.layer.lora_X.weight or final.layer.*
-            assert (
-                "double_blocks" in key or "single_blocks" in key or "final.layer" in key
-            ), f"Key {key} should contain block type"
-            assert (
-                ".lora_A.weight" in key or ".lora_B.weight" in key
-            ), f"Key {key} should end with .lora_A.weight or .lora_B.weight"
-
-    # Check that all tensors are preserved
-    assert len(converted) == len(tensors), "All tensors should be preserved during conversion"
-
-    print(f"Successfully converted {len(converted)} LoRA keys")
-    print(f"Sample converted keys: {converted_keys[:3]}")
-
-
-@pytest.mark.skipif(is_turing(), reason="Skip tests due to using Turing GPUs")
 @pytest.mark.parametrize(
     "lora_strength,expected_change",
     [
@@ -237,7 +182,7 @@ def test_kontext_lora_strength_scaling(lora_strength, expected_change):
 
     # Load test image
     image = load_image(
-        "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/diffusers/yarn-art-pikachu.png"
+        "https://huggingface.co/datasets/nunchaku-tech/test-data/resolve/main/ComfyUI-nunchaku/inputs/monalisa.jpg"
     ).convert("RGB")
 
     prompt = "dramatic lighting, cinematic"
@@ -249,6 +194,7 @@ def test_kontext_lora_strength_scaling(lora_strength, expected_change):
 
     transformer.update_lora_params(
         "nunchaku-tech/nunchaku-test-models/relight-kontext-lora-single-caption_comfy.safetensors"
+        # "linoyts/relight-kontext-lora-single-caption/relight-kontext-lora-single-caption.safetensors"
     )
     transformer.set_lora_strength(lora_strength)
 
@@ -277,7 +223,6 @@ def test_kontext_lora_strength_scaling(lora_strength, expected_change):
 
 
 if __name__ == "__main__":
-    test_kontext_lora_naming_conversion()
     test_kontext_lora_application()
     for strength, expected in [(0.5, 1.0), (1.0, 1.5), (1.5, 2.0)]:
         test_kontext_lora_strength_scaling(strength, expected)

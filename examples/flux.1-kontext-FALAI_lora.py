@@ -14,12 +14,13 @@ pipeline = FluxKontextPipeline.from_pretrained(
 ).to("cuda")
 
 image = load_image(
-    "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/diffusers/yarn-art-pikachu.png"
+    "https://huggingface.co/datasets/nunchaku-tech/test-data/resolve/main/ComfyUI-nunchaku/inputs/monalisa.jpg"
 ).convert("RGB")
 
 ### LoRA Related Code ###
 transformer.update_lora_params(
     "nunchaku-tech/nunchaku-test-models/relight-kontext-lora-single-caption_comfy.safetensors"
+    # "linoyts/relight-kontext-lora-single-caption/relight-kontext-lora-single-caption.safetensors"
 )  # Path to your LoRA safetensors, can also be a remote HuggingFace path
 transformer.set_lora_strength(1)  # Your LoRA strength here
 ### End of LoRA Related Code ###

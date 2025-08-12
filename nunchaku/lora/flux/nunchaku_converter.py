@@ -399,34 +399,41 @@ def preprocess_single_blocks_lora(
     extra_lora_dict: dict[str, torch.Tensor], candidate_block_name: str
 ) -> dict[str, torch.Tensor]:
     """
-    Preprocess LoRA weights from single_blocks format to match nunchaku single_transformer_blocks structure.
+    Preprocess LoRA weights from single_blocks format to match single_transformer_blocks structure.
 
-    This handles the dimension mismatch where:
-    - Original linear1 [21504, rank] needs to be split into mlp_fc1 [12288, rank] and part of mlp_fc2
-    - Original linear2 maps to mlp_fc2 structure
+    This function handles the architectural mismatch between old and new models:
+    - Old single_blocks: linear1 (fused 21504-dim layer) and linear2
+    - New single_transformer_blocks: mlp_fc1 (12288-dim), qkv_proj (9216-dim), and mlp_fc2
+
+    The linear1 layer in the old architecture combines two functions:
+    1. MLP projection (first 12288 dimensions)
+    2. QKV projection for attention (last 9216 dimensions)
+
+    These are split into separate layers in the new architecture.
     """
     processed_dict = extra_lora_dict.copy()
 
-    # Find all single_blocks keys that need preprocessing
-    single_blocks_keys = [k for k in extra_lora_dict.keys() if "single_blocks" in k and "linear" in k]
+    # Find all single_transformer_blocks keys that need preprocessing
+    single_blocks_keys = [k for k in extra_lora_dict.keys() if "single_transformer_blocks" in k and "linear" in k]
 
     logger.debug(f"Preprocessing LoRA for candidate: {candidate_block_name}")
     logger.debug(f"All keys in extra_lora_dict: {list(extra_lora_dict.keys())[:10]}...")  # Show first 10 keys
-    logger.debug(f"Found single_blocks keys: {single_blocks_keys[:5]}...")  # Show first 5 single_blocks keys
+    logger.debug(f"Found single_transformer_blocks keys: {single_blocks_keys[:5]}...")  # Show first 5 keys
 
     if single_blocks_keys:
-        logger.debug(f"Found single_blocks LoRA keys, preprocessing for candidate: {candidate_block_name}")
+        logger.debug(f"Found single_transformer_blocks LoRA keys, preprocessing for candidate: {candidate_block_name}")
 
-        # Extract block number from candidate_block_name (e.g., "single_transformer_blocks.0" -> "0")
-        block_num = candidate_block_name.split(".")[-1]
-        original_block_name = f"single_blocks.{block_num}"
-        logger.debug(f"Looking for original block: {original_block_name}")
+        # The candidate_block_name is already "single_transformer_blocks.0"
+        # Look for linear1 and linear2 keys with this exact name
+        linear1_lora_A_key = f"{candidate_block_name}.linear1.lora_A.weight"
+        linear1_lora_B_key = f"{candidate_block_name}.linear1.lora_B.weight"
+        linear2_lora_A_key = f"{candidate_block_name}.linear2.lora_A.weight"
+        linear2_lora_B_key = f"{candidate_block_name}.linear2.lora_B.weight"
 
-        # Check if we have single_blocks structure that needs preprocessing
-        linear1_lora_A_key = f"{original_block_name}.linear1.lora_A.weight"
-        linear1_lora_B_key = f"{original_block_name}.linear1.lora_B.weight"
-        linear2_lora_A_key = f"{original_block_name}.linear2.lora_A.weight"
-        linear2_lora_B_key = f"{original_block_name}.linear2.lora_B.weight"
+        logger.debug(f"Looking for keys: {linear1_lora_B_key}")
+        logger.debug(
+            f"Available keys matching pattern: {[k for k in extra_lora_dict.keys() if candidate_block_name in k][:5]}..."
+        )
 
         if linear1_lora_B_key in extra_lora_dict:
             linear1_lora_A = extra_lora_dict[linear1_lora_A_key]
@@ -434,17 +441,42 @@ def preprocess_single_blocks_lora(
 
             # Check if this is the problematic 21504 dimension case
             if linear1_lora_B.shape[0] == 21504:
-                # logger.debug(
-                #    f"Preprocessing single_blocks LoRA: splitting linear1 [{linear1_lora_B.shape[0]}] -> mlp_fc1 [12288] + mlp_fc2 [9216]"
-                # )
+                logger.debug(
+                    f"Splitting linear1 LoRA weights: [21504, {linear1_lora_B.shape[1]}] -> "
+                    f"mlp_fc1 [12288, {linear1_lora_B.shape[1]}] + qkv_proj [9216, {linear1_lora_B.shape[1]}]"
+                )
 
-                # Split linear1.lora_B [21504, rank] -> mlp_fc1 [12288, rank] + remainder [9216, rank]
-                mlp_fc1_lora_B = linear1_lora_B[:12288, :].clone()  # First 12288 dims for mlp_fc1
-                # mlp_fc2_extra = linear1_lora_B[12288:21504, :].clone()  # Remaining 9216 dims
+                # Split linear1.lora_B [21504, rank] into two parts:
+                # 1. First 12288 dimensions -> mlp_fc1
+                # 2. Last 9216 dimensions (12288:21504) -> qkv_proj
+                mlp_fc1_lora_B = linear1_lora_B[:12288, :].clone()
+                qkv_proj_lora_B = linear1_lora_B[12288:21504, :].clone()
 
-                # Map to proj_mlp (mlp_fc1) structure
-                processed_dict[f"{candidate_block_name}.proj_mlp.lora_A.weight"] = linear1_lora_A
+                # The lora_A weight is reused for both new layers
+                # since it represents the down-projection from the input
+                mlp_fc1_lora_A = linear1_lora_A.clone()
+                qkv_proj_lora_A = linear1_lora_A.clone()
+
+                # Map to new architecture:
+                # 1. proj_mlp corresponds to mlp_fc1
+                processed_dict[f"{candidate_block_name}.proj_mlp.lora_A.weight"] = mlp_fc1_lora_A
                 processed_dict[f"{candidate_block_name}.proj_mlp.lora_B.weight"] = mlp_fc1_lora_B
+
+                # 2. Map the QKV part to the attention layers
+                # Note: In the new architecture, this maps to attn.to_q, attn.to_k, attn.to_v
+                # which get fused into qkv_proj during the conversion
+                processed_dict[f"{candidate_block_name}.attn.to_q.lora_A.weight"] = qkv_proj_lora_A
+                processed_dict[f"{candidate_block_name}.attn.to_q.lora_B.weight"] = qkv_proj_lora_B[
+                    :3072, :
+                ]  # Q projection
+                processed_dict[f"{candidate_block_name}.attn.to_k.lora_A.weight"] = qkv_proj_lora_A
+                processed_dict[f"{candidate_block_name}.attn.to_k.lora_B.weight"] = qkv_proj_lora_B[
+                    3072:6144, :
+                ]  # K projection
+                processed_dict[f"{candidate_block_name}.attn.to_v.lora_A.weight"] = qkv_proj_lora_A
+                processed_dict[f"{candidate_block_name}.attn.to_v.lora_B.weight"] = qkv_proj_lora_B[
+                    6144:9216, :
+                ]  # V projection
 
                 # Handle linear2 -> mlp_fc2 mapping
                 if linear2_lora_B_key in extra_lora_dict:
@@ -506,7 +538,7 @@ def convert_to_nunchaku_flux_single_transformer_block_lowrank_dict(
     """
 
     # Preprocess single_blocks LoRA structure if needed
-    extra_lora_dict = preprocess_single_blocks_lora(extra_lora_dict, candidate_block_name)
+    # extra_lora_dict = preprocess_single_blocks_lora(extra_lora_dict, candidate_block_name)
 
     if f"{candidate_block_name}.proj_out.lora_A.weight" in extra_lora_dict:
         assert f"{converted_block_name}.out_proj.qweight" in orig_state_dict
@@ -657,16 +689,58 @@ def convert_to_nunchaku_flux_lowrank_dict(
         orig_state_dict = base_model
 
     if isinstance(lora, str):
-        extra_lora_dict = load_state_dict_in_safetensors(lora, filter_prefix="transformer.")
+        # Load the LoRA - check if it has transformer prefix
+        temp_dict = load_state_dict_in_safetensors(lora)
+        if any(k.startswith("transformer.") for k in temp_dict.keys()):
+            # Standard FLUX LoRA with transformer prefix
+            extra_lora_dict = filter_state_dict(temp_dict, filter_prefix="transformer.")
+            # Remove the transformer. prefix after filtering
+            renamed_dict = {}
+            for k, v in extra_lora_dict.items():
+                new_k = k.replace("transformer.", "") if k.startswith("transformer.") else k
+                renamed_dict[new_k] = v
+            extra_lora_dict = renamed_dict
+        else:
+            # Kontext LoRA without transformer prefix - use as is
+            extra_lora_dict = temp_dict
     else:
-        extra_lora_dict = filter_state_dict(lora, filter_prefix="transformer.")
+        # When called from to_nunchaku, lora is already processed by to_diffusers
+        # Keys should be in format: single_blocks.0.linear1.lora_A.weight
+        extra_lora_dict = lora
+
+    # Add transformer. prefix and rename blocks to match expectations
+    renamed_dict = {}
+    for k, v in extra_lora_dict.items():
+        new_k = k
+        # Add transformer. prefix and rename blocks
+        if k.startswith("single_blocks."):
+            new_k = "transformer.single_transformer_blocks." + k[14:]
+        elif k.startswith("double_blocks."):
+            new_k = "transformer.transformer_blocks." + k[14:]
+        elif k.startswith("proj_out."):
+            new_k = "transformer." + k
+        elif not k.startswith("transformer."):
+            new_k = "transformer." + k
+        renamed_dict[new_k] = v
+    extra_lora_dict = renamed_dict
+
+    # Now filter for transformer prefix and remove it for processing
+    extra_lora_dict = filter_state_dict(extra_lora_dict, filter_prefix="transformer.")
+
+    # Remove the transformer. prefix for internal processing
+    renamed_dict = {}
+    for k, v in extra_lora_dict.items():
+        new_k = k.replace("transformer.", "") if k.startswith("transformer.") else k
+        renamed_dict[new_k] = v
+    extra_lora_dict = renamed_dict
 
     vector_dict, unquantized_lora_dict = {}, {}
     for k in list(extra_lora_dict.keys()):
         v = extra_lora_dict[k]
         if v.ndim == 1:
             vector_dict[k.replace(".lora_B.bias", ".bias")] = extra_lora_dict.pop(k)
-        elif "transformer_blocks" not in k:
+        elif "transformer_blocks" not in k and "single_transformer_blocks" not in k:
+            # Only unquantized parts (like final_layer) go here
             unquantized_lora_dict[k] = extra_lora_dict.pop(k)
 
     # Concatenate qkv_proj biases if present
