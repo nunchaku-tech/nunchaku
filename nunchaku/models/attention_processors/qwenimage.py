@@ -1,7 +1,8 @@
-import torch
 from typing import Optional, Tuple
-from diffusers.models.transformers.transformer_qwenimage import apply_rotary_emb_qwen
+
+import torch
 from diffusers.models.attention_dispatch import dispatch_attention_fn
+from diffusers.models.transformers.transformer_qwenimage import apply_rotary_emb_qwen
 
 
 class NunchakuQwenImageNaiveFA2Processor:
