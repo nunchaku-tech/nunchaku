@@ -23,7 +23,6 @@ def fused_gelu_mlp(x: torch.Tensor, fc1: SVDQW4A4Linear, fc2: SVDQW4A4Linear, pa
     qout_lora_act = torch.empty(batch_size_pad, fc2.proj_down.shape[1], dtype=torch.float32, device=x.device)
 
     # for int4, we shift the activation after gelu to make it all positive to improve quality.
-
     # if we pass the qout to this kernel, it will do the gelu fusion.
     svdq_gemm_w4a4_cuda(
         act=quantized_x,

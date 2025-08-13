@@ -4,7 +4,6 @@ from diffusers.models.attention import FeedForward
 from torch import nn
 
 from ..ops.fused import fused_gelu_mlp
-from .attention_processor import NunchakuFA2Processor, NunchakuFP16AttnProcessor
 from .linear import SVDQW4A4Linear
 
 
@@ -15,12 +14,7 @@ class NunchakuBaseAttention(nn.Module):
         self.set_processor(processor)
 
     def set_processor(self, processor: str):
-        if processor == "flashattn2":
-            self.processor = NunchakuFA2Processor()
-        elif processor == "nunchaku-fp16":
-            self.processor = NunchakuFP16AttnProcessor()
-        else:
-            raise ValueError(f"Processor {processor} is not supported")
+        raise NotImplementedError("Subclass must implement this method")
 
 
 def _patch_linear(module: nn.Module, linear_cls, **kwargs) -> nn.Module:

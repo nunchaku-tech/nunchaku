@@ -4,11 +4,11 @@ from typing import Optional, Tuple
 import torch
 from torch.nn import functional as F
 
-from .._C.ops import attention_fp16
-from ..ops.fused import fused_qkv_norm_rottary
+from ..._C.ops import attention_fp16
+from ...ops.fused import fused_qkv_norm_rottary
 
 
-class NunchakuFA2Processor:
+class NunchakuFluxFA2Processor:
 
     def __call__(
         self,
@@ -68,7 +68,7 @@ class NunchakuFA2Processor:
             return hidden_states
 
 
-class NunchakuFP16AttnProcessor:
+class NunchakuFluxFP16AttnProcessor:
 
     def __init__(self, pad_size: int = 256):
         self.pad_size = pad_size

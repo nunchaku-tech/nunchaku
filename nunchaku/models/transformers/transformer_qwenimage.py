@@ -1,3 +1,4 @@
+import json
 import os
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
@@ -132,6 +133,8 @@ class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuM
             (".safetensors", ".sft")
         ), "Only safetensors are supported"
         transformer, model_state_dict, metadata = cls._build_model(pretrained_model_name_or_path, **kwargs)
+        quantization_config = json.loads(metadata.get("quantization_config", "{}"))
+        rank = metadata.get("rank", 1)
         transformer = transformer.to(torch_dtype)
 
         precision = get_precision()

@@ -16,6 +16,7 @@ from torch.nn import GELU
 from ...ops.fused import fused_gelu_mlp
 from ...utils import get_precision
 from ..attention import NunchakuBaseAttention, NunchakuFeedForward
+from ..attention_processors.flux import NunchakuFluxFA2Processor, NunchakuFluxFP16AttnProcessor
 from ..embeddings import NunchakuFluxPosEmbed, pack_rotemb
 from ..linear import SVDQW4A4Linear
 from ..normalization import NunchakuAdaLayerNormZero, NunchakuAdaLayerNormZeroSingle
@@ -24,7 +25,7 @@ from .utils import NunchakuModelLoaderMixin, pad_tensor
 
 
 class NunchakuFluxAttention(NunchakuBaseAttention):
-    def __init__(self, other: FluxAttention, processor: str = "nunchaku-fp16", **kwargs):
+    def __init__(self, other: FluxAttention, processor: str = "flashattn2", **kwargs):
         super(NunchakuFluxAttention, self).__init__(processor)
 
         self.head_dim = other.head_dim
@@ -76,6 +77,14 @@ class NunchakuFluxAttention(NunchakuBaseAttention):
             attention_mask=attention_mask,
             image_rotary_emb=image_rotary_emb,
         )
+
+    def set_processor(self, processor: str):
+        if processor == "flashattn2":
+            self.processor = NunchakuFluxFA2Processor()
+        elif processor == "nunchaku-fp16":
+            self.processor = NunchakuFluxFP16AttnProcessor()
+        else:
+            raise ValueError(f"Processor {processor} is not supported")
 
 
 class NunchakuFluxTransformerBlock(FluxTransformerBlock):
