@@ -1,17 +1,17 @@
 import os
 from pathlib import Path
+from typing import Any, Dict, Optional, Tuple
 
 import torch
+from diffusers.models.attention_processor import Attention
 from diffusers.models.transformers.transformer_qwenimage import QwenImageTransformer2DModel, QwenImageTransformerBlock
 from huggingface_hub import utils
 
 from ...utils import get_precision
-from ..attention import NunchakuFeedForward, NunchakuBaseAttention
+from ..attention import NunchakuBaseAttention, NunchakuFeedForward
 from ..linear import AWQW4A16Linear, SVDQW4A4Linear
-from .utils import NunchakuModelLoaderMixin
-from diffusers.models.attention_processor import Attention
 from ..utils import fuse_linears
-from typing import Optional, Dict, Any, Tuple
+from .utils import NunchakuModelLoaderMixin
 
 
 class NunchakuQwenAttention(NunchakuBaseAttention):

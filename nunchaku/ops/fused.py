@@ -3,23 +3,24 @@ from torch.nn import RMSNorm
 
 from nunchaku.models.linear import SVDQW4A4Linear
 
+from ..utils import ceil_divide
 from .gemm import svdq_gemm_w4a4_cuda
 
 
-def fused_gelu_mlp(x: torch.Tensor, fc1: SVDQW4A4Linear, fc2: SVDQW4A4Linear):
+def fused_gelu_mlp(x: torch.Tensor, fc1: SVDQW4A4Linear, fc2: SVDQW4A4Linear, pad_size: int = 256):
     # a fused operator of fc1 and fc2 with gelu
     batch_size, seq_len, channels = x.shape
     x = x.view(batch_size * seq_len, channels)
     quantized_x, ascales, lora_act = fc1.quantize(x)
 
-    qout_act = torch.empty(batch_size * seq_len, fc1.out_features // 2, dtype=torch.uint8, device=x.device)
+    batch_size_pad = ceil_divide(batch_size * seq_len, pad_size) * pad_size
+
+    qout_act = torch.empty(batch_size_pad, fc1.out_features // 2, dtype=torch.uint8, device=x.device)
     if fc2.precision == "nvfp4":
-        qout_ascales = torch.empty(
-            fc1.out_features // 16, batch_size * seq_len, dtype=torch.float8_e4m3fn, device=x.device
-        )
+        qout_ascales = torch.empty(fc1.out_features // 16, batch_size_pad, dtype=torch.float8_e4m3fn, device=x.device)
     else:
-        qout_ascales = torch.empty(fc1.out_features // 64, batch_size * seq_len, dtype=x.dtype, device=x.device)
-    qout_lora_act = torch.empty(batch_size * seq_len, fc2.proj_down.shape[1], dtype=torch.float32, device=x.device)
+        qout_ascales = torch.empty(fc1.out_features // 64, batch_size_pad, dtype=x.dtype, device=x.device)
+    qout_lora_act = torch.empty(batch_size_pad, fc2.proj_down.shape[1], dtype=torch.float32, device=x.device)
 
     # for int4, we shift the activation after gelu to make it all positive to improve quality.
 
@@ -41,8 +42,8 @@ def fused_gelu_mlp(x: torch.Tensor, fc1: SVDQW4A4Linear, fc2: SVDQW4A4Linear):
         alpha=fc1.wtscale,
         wcscales=fc1.wcscales,
     )
-
-    output = fc2.forward_quant(qout_act, qout_ascales, qout_lora_act)
+    output = torch.empty(batch_size * seq_len, fc2.out_features, dtype=x.dtype, device=x.device)
+    output = fc2.forward_quant(qout_act, qout_ascales, qout_lora_act, output=output)
     output = output.view(batch_size, seq_len, -1)
     return output
 
