@@ -13,6 +13,12 @@ def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("input_roots", type=str, nargs="*")
     parser.add_argument("-o", "--output-path", type=str, default="metrics.json", help="Image output path")
+    parser.add_argument(
+        "--max-dataset-size",
+        type=int,
+        default=1024,
+        help="Maximum number of images to compute metrics for each dataset",
+    )
     args = parser.parse_args()
     return args
 
@@ -35,7 +41,7 @@ def main():
             continue
         print("Results for dataset:", dataset_name)
         results[dataset_name] = {}
-        dataset = get_dataset(name=dataset_name, return_gt=True, max_dataset_size=1024)
+        dataset = get_dataset(name=dataset_name, return_gt=True, max_dataset_size=args.max_dataset_size)
         fid = compute_fid(ref_dirpath_or_dataset=dataset, gen_dirpath=os.path.join(image_root1, dataset_name))
         results[dataset_name]["fid"] = fid
         print("FID:", fid)

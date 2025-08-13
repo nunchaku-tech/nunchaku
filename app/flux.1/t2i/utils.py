@@ -4,6 +4,7 @@ from peft.tuners import lora
 from vars import LORA_PATHS, SVDQ_LORA_PATHS
 
 from nunchaku import NunchakuFluxTransformer2dModel
+from nunchaku.models.transformers.transformer_flux_v2 import NunchakuFluxTransformer2DModelV2
 
 
 def hash_str_to_int(s: str) -> int:
@@ -48,6 +49,16 @@ def get_pipeline(
             assert precision == "bf16"
         pipeline = FluxPipeline.from_pretrained(
             "black-forest-labs/FLUX.1-schnell", torch_dtype=torch.bfloat16, **pipeline_init_kwargs
+        )
+    elif model_name == "schnell_v2":
+        transformer = NunchakuFluxTransformer2DModelV2.from_pretrained(
+            f"mit-han-lab/nunchaku-flux.1-schnell-v2/svdq-{precision}_r32-flux.1-schnell.safetensors"
+        )
+        pipeline = FluxPipeline.from_pretrained(
+            "black-forest-labs/FLUX.1-schnell",
+            transformer=transformer,
+            torch_dtype=torch.bfloat16,
+            **pipeline_init_kwargs,
         )
     elif model_name == "dev":
         if precision == "int4":
