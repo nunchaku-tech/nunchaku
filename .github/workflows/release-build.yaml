@@ -141,15 +141,12 @@ jobs:
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
       - name: Upload wheels to HuggingFace Hub
         shell: cmd
         env:
           HF_TOKEN: ${{ secrets.HF_WHEEL_UPLOAD_TOKEN }}
         run: |
+          call C:\Users\muyangl\miniconda3\condabin\activate.bat activate
           pip install huggingface_hub
           for %%w in (dist\*.whl) do (
             hf upload nunchaku-tech/nunchaku "%%w"
