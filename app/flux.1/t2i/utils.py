@@ -52,7 +52,7 @@ def get_pipeline(
         )
     elif model_name == "schnell_v2":
         transformer = NunchakuFluxTransformer2DModelV2.from_pretrained(
-            f"mit-han-lab/nunchaku-flux.1-schnell-v2/svdq-{precision}_r32-flux.1-schnell.safetensors"
+            f"mit-han-lab/nunchaku-flux.1-schnell/svdq-{precision}_r32-flux.1-schnell.safetensors"
         )
         pipeline = FluxPipeline.from_pretrained(
             "black-forest-labs/FLUX.1-schnell",
