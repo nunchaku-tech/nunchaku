@@ -1,7 +1,7 @@
 name: PR Tests
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - "nunchaku/**"
       - "src/**"
@@ -98,8 +98,8 @@ jobs:
           comfy node install comfyui-inpainteasy
           cp -r custom_nodes/ComfyUI-nunchaku/tests nunchaku_tests
           pip install -r nunchaku_tests/requirements.txt
-          HF_TOKEN=${{ secrets.HF_TOKEN }} python custom_nodes/ComfyUI-nunchaku/scripts/download_models.py
-          HF_TOKEN=${{ secrets.HF_TOKEN }} python custom_nodes/ComfyUI-nunchaku/scripts/download_test_data.py
+          python custom_nodes/ComfyUI-nunchaku/scripts/download_models.py
+          python custom_nodes/ComfyUI-nunchaku/scripts/download_test_data.py
       - name: Run ComfyUI tests
         run: |
           source $(conda info --base)/etc/profile.d/conda.sh
