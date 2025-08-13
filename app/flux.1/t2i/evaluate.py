@@ -38,7 +38,7 @@ def get_args():
         default=0,
         help="You will generate images for the subset specified by [chunk-start::chunk-step].",
     )
-    parser.add(
+    parser.add_argument(
         "--max-dataset-size", type=int, default=5000, help="Maximum number of images to generate for each dataset"
     )
     known_args, _ = parser.parse_known_args()
