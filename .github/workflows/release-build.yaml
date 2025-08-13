@@ -92,7 +92,7 @@ jobs:
         run: |
           pip install huggingface_hub
           for whl in dist/*.whl; do
-            hf upload nunchaku-tech/nunchaku "$whl" .
+            hf upload nunchaku-tech/nunchaku "$whl"
           done
       - name: Clean up
         if: always()
@@ -152,5 +152,5 @@ jobs:
         run: |
           pip install huggingface_hub
           for %%w in (dist\*.whl) do (
-            hf upload nunchaku-tech/nunchaku "%%w" .
+            hf upload nunchaku-tech/nunchaku "%%w"
           )
