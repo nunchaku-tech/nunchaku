@@ -1,3 +1,4 @@
+import json
 import os
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple, Union
@@ -246,12 +247,14 @@ class NunchakuFluxTransformer2DModelV2(FluxTransformer2DModel, NunchakuModelLoad
             (".safetensors", ".sft")
         ), "Only safetensors are supported"
         transformer, model_state_dict, metadata = cls._build_model(pretrained_model_name_or_path, **kwargs)
+        quantization_config = json.loads(metadata.get("quantization_config", "{}"))
+        rank = quantization_config.get("rank", 32)
         transformer = transformer.to(torch_dtype)
 
         precision = get_precision()
         if precision == "fp4":
             precision = "nvfp4"
-        transformer._patch_model(precision=precision)
+        transformer._patch_model(precision=precision, rank=rank)
 
         transformer = transformer.to_empty(device=device)
         converted_state_dict = convert_flux_state_dict(model_state_dict)

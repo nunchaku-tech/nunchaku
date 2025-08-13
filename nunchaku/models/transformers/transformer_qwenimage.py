@@ -1,7 +1,7 @@
 import json
 import os
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Tuple
 
 import torch
 from diffusers.models.attention_processor import Attention
@@ -10,6 +10,7 @@ from huggingface_hub import utils
 
 from ...utils import get_precision
 from ..attention import NunchakuBaseAttention, NunchakuFeedForward
+from ..attention_processors.qwenimage import NunchakuQwenImageNaiveFA2Processor
 from ..linear import AWQW4A16Linear, SVDQW4A4Linear
 from ..utils import fuse_linears
 from .utils import NunchakuModelLoaderMixin
@@ -74,7 +75,21 @@ class NunchakuQwenAttention(NunchakuBaseAttention):
         image_rotary_emb: torch.Tensor,
         **kwargs,
     ):
-        raise NotImplementedError("NunchakuQwenAttention is not implemented")
+        return self.processor(
+            self,
+            hidden_states,
+            encoder_hidden_states,
+            encoder_hidden_states_mask,
+            attention_mask,
+            image_rotary_emb,
+            **kwargs,
+        )
+
+    def set_processor(self, processor: str):
+        if processor == "flashattn2":
+            self.processor = NunchakuQwenImageNaiveFA2Processor()
+        else:
+            raise ValueError(f"Processor {processor} is not supported")
 
 
 class NunchakuQwenImageTransformerBlock(QwenImageTransformerBlock):
@@ -134,13 +149,13 @@ class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuM
         ), "Only safetensors are supported"
         transformer, model_state_dict, metadata = cls._build_model(pretrained_model_name_or_path, **kwargs)
         quantization_config = json.loads(metadata.get("quantization_config", "{}"))
-        rank = metadata.get("rank", 1)
+        rank = quantization_config.get("rank", 32)
         transformer = transformer.to(torch_dtype)
 
         precision = get_precision()
         if precision == "fp4":
             precision = "nvfp4"
-        transformer._patch_model(precision=precision)
+        transformer._patch_model(precision=precision, rank=rank)
 
         transformer = transformer.to_empty(device=device)
         transformer.load_state_dict(model_state_dict)
