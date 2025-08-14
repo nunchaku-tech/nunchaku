@@ -5,7 +5,11 @@ from typing import Optional, Tuple
 
 import torch
 from diffusers.models.attention_processor import Attention
-from diffusers.models.transformers.transformer_qwenimage import QwenImageTransformer2DModel, QwenImageTransformerBlock
+from diffusers.models.transformers.transformer_qwenimage import (
+    QwenImageTransformer2DModel,
+    QwenImageTransformerBlock,
+    QwenEmbedRope,
+)
 from huggingface_hub import utils
 
 from ...utils import get_precision
@@ -98,19 +102,19 @@ class NunchakuQwenImageTransformerBlock(QwenImageTransformerBlock):
 
         self.dim = other.dim
         self.img_mod = other.img_mod
-        self.img_mod[1] = AWQW4A16Linear(self.img_mod[1])
-        self.img_norm1 = self.img_norm1
-        self.attn = NunchakuQwenAttention(other.attn)
-        self.img_norm2 = self.img_norm2
-        self.img_mlp = NunchakuFeedForward(self.img_mlp)
+        self.img_mod[1] = AWQW4A16Linear.from_linear(other.img_mod[1], **kwargs)
+        self.img_norm1 = other.img_norm1
+        self.attn = NunchakuQwenAttention(other.attn, **kwargs)
+        self.img_norm2 = other.img_norm2
+        self.img_mlp = NunchakuFeedForward(other.img_mlp, **kwargs)
 
         # Text processing modules
-        self.txt_mod = self.txt_mod
-        self.txt_mod[1] = AWQW4A16Linear(self.txt_mod[1])
-        self.txt_norm1 = self.txt_norm1
+        self.txt_mod = other.txt_mod
+        self.txt_mod[1] = AWQW4A16Linear.from_linear(other.txt_mod[1], **kwargs)
+        self.txt_norm1 = other.txt_norm1
         # Text doesn't need separate attention - it's handled by img_attn joint computation
-        self.txt_norm2 = self.txt_norm2
-        self.txt_mlp = NunchakuFeedForward(self.txt_mlp)
+        self.txt_norm2 = other.txt_norm2
+        self.txt_mlp = NunchakuFeedForward(other.txt_mlp, **kwargs)
 
         self.scale_shift = scale_shift
 
@@ -149,6 +153,7 @@ class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuM
         ), "Only safetensors are supported"
         transformer, model_state_dict, metadata = cls._build_model(pretrained_model_name_or_path, **kwargs)
         quantization_config = json.loads(metadata.get("quantization_config", "{}"))
+        config = json.loads(metadata.get("config", "{}"))
         rank = quantization_config.get("rank", 32)
         transformer = transformer.to(torch_dtype)
 
@@ -158,6 +163,18 @@ class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuM
         transformer._patch_model(precision=precision, rank=rank)
 
         transformer = transformer.to_empty(device=device)
+        # need to re-init the pos_embed as to_empty does not work on it
+        transformer.pos_embed = QwenEmbedRope(
+            theta=10000, axes_dim=list(config.get("axes_dims_rope", [16, 56, 56])), scale_rope=True
+        )
+
+        state_dict = transformer.state_dict()
+        for k in state_dict.keys():
+            if k not in model_state_dict:
+                assert ".wtscale" in k or ".wcscales" in k
+                model_state_dict[k] = torch.ones_like(state_dict[k])
+            else:
+                assert state_dict[k].dtype == model_state_dict[k].dtype
         transformer.load_state_dict(model_state_dict)
 
         return transformer
