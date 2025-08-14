@@ -2,13 +2,14 @@ import torch
 
 from nunchaku.models.transformers.transformer_qwenimage import NunchakuQwenImageTransformer2DModel
 from nunchaku.pipeline.pipeline_qwenimage import NunchakuQwenImagePipeline
+from nunchaku.utils import get_precision
 
 model_name = "Qwen/Qwen-Image"
 
 # Load the model
 transformer = NunchakuQwenImageTransformer2DModel.from_pretrained(
-    "Lmxyy/nunchaku-qwen-image/svdq-fp4_r32-qwen-image.safetensors"
-)
+    f"nunchaku-tech/nunchaku-qwen-image/svdq-{get_precision()}_r32-qwen-image.safetensors"
+)  # you can also use r128 model to improve the quality
 
 # currently, you need to use this pipeline to offload the model to CPU
 pipe = NunchakuQwenImagePipeline.from_pretrained("Qwen/Qwen-Image", transformer=transformer, torch_dtype=torch.bfloat16)
