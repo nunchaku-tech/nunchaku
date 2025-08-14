@@ -821,7 +821,7 @@ class FluxCachedTransformerBlocks(nn.Module):
         -----
         If batch size > 2 or residual_diff_threshold <= 0, caching is disabled for now.
         """
-        batch_size = hidden_states.shape[0]
+        # batch_size = hidden_states.shape[0]
         txt_tokens = encoder_hidden_states.shape[1]
         img_tokens = hidden_states.shape[1]
 
@@ -860,7 +860,7 @@ class FluxCachedTransformerBlocks(nn.Module):
         rotary_emb_img = self.pack_rotemb(pad_tensor(rotary_emb_img, 256, 1))
         rotary_emb_single = self.pack_rotemb(pad_tensor(rotary_emb_single, 256, 1))
 
-        if (self.residual_diff_threshold_multi < 0.0):
+        if self.residual_diff_threshold_multi < 0.0:
 
             hidden_states = self.m.forward(
                 hidden_states,

@@ -16,20 +16,21 @@ pipeline = FluxPipeline.from_pretrained(
 ).to("cuda")
 start_time = time.time()
 
-prompts = ["A cheerful woman in a pastel dress, holding a basket of colorful Easter eggs with a sign that says 'Happy Easter'",
+prompts = [
+    "A cheerful woman in a pastel dress, holding a basket of colorful Easter eggs with a sign that says 'Happy Easter'",
     "A young peace activist with a gentle smile, holding a handmade sign that says 'Peace'",
-"A friendly chef wearing a tall white hat, holding a wooden spoon with a sign that says 'Let's Cook!",
+    "A friendly chef wearing a tall white hat, holding a wooden spoon with a sign that says 'Let's Cook!",
 ]
 
 with TeaCache(model=transformer, num_steps=50, rel_l1_thresh=0.3, enabled=True):
     image = pipeline(
-    prompts,
-    num_inference_steps=50,
-    guidance_scale=3.5,
-    height=1024,
-    width=1024,
-    generator=torch.Generator(device="cuda").manual_seed(0),
-).images
+        prompts,
+        num_inference_steps=50,
+        guidance_scale=3.5,
+        height=1024,
+        width=1024,
+        generator=torch.Generator(device="cuda").manual_seed(0),
+    ).images
 
 end_time = time.time()
 print(f"Time taken: {(end_time - start_time)} seconds")
