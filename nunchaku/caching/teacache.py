@@ -161,16 +161,8 @@ def make_teacache_forward(num_steps: int = 50, rel_l1_thresh: float = 0.6, skip_
         encoder_hidden_states = self.context_embedder(encoder_hidden_states)
 
         if txt_ids.ndim == 3:
-            logger.warning(
-                "Passing `txt_ids` 3d torch.Tensor is deprecated."
-                "Please remove the batch dimension and pass it as a 2d torch Tensor"
-            )
             txt_ids = txt_ids[0]
         if img_ids.ndim == 3:
-            logger.warning(
-                "Passing `img_ids` 3d torch.Tensor is deprecated."
-                "Please remove the batch dimension and pass it as a 2d torch Tensor"
-            )
             img_ids = img_ids[0]
 
         ids = torch.cat((txt_ids, img_ids), dim=0)
@@ -250,60 +242,10 @@ def make_teacache_forward(num_steps: int = 50, rel_l1_thresh: float = 0.6, skip_
                             temb=temb,
                             image_rotary_emb=image_rotary_emb,
                             joint_attention_kwargs=joint_attention_kwargs,
+                            controlnet_block_samples=controlnet_block_samples,
+                            controlnet_single_block_samples=controlnet_single_block_samples,
                         )
 
-                    # controlnet residual
-                    if controlnet_block_samples is not None:
-                        interval_control = len(self.transformer_blocks) / len(controlnet_block_samples)
-                        interval_control = int(np.ceil(interval_control))
-                        # For Xlabs ControlNet.
-                        if controlnet_blocks_repeat:
-                            hidden_states = (
-                                hidden_states + controlnet_block_samples[index_block % len(controlnet_block_samples)]
-                            )
-                        else:
-                            hidden_states = hidden_states + controlnet_block_samples[index_block // interval_control]
-                hidden_states = torch.cat([encoder_hidden_states, hidden_states], dim=1)
-
-                for index_block, block in enumerate(self.single_transformer_blocks):
-                    if torch.is_grad_enabled() and self.gradient_checkpointing:
-
-                        def create_custom_forward(module, return_dict=None):  # type: ignore
-                            def custom_forward(*inputs):  # type: ignore
-                                if return_dict is not None:
-                                    return module(*inputs, return_dict=return_dict)
-                                else:
-                                    return module(*inputs)
-
-                            return custom_forward
-
-                        ckpt_kwargs = {"use_reentrant": False} if is_torch_version(">=", "1.11.0") else {}
-                        hidden_states = torch.utils.checkpoint.checkpoint(
-                            create_custom_forward(block),
-                            hidden_states,
-                            temb,
-                            image_rotary_emb,
-                            **ckpt_kwargs,
-                        )
-
-                    else:
-                        hidden_states = block(
-                            hidden_states=hidden_states,
-                            temb=temb,
-                            image_rotary_emb=image_rotary_emb,
-                            joint_attention_kwargs=joint_attention_kwargs,
-                        )
-
-                    # controlnet residual
-                    if controlnet_single_block_samples is not None:
-                        interval_control = len(self.single_transformer_blocks) / len(controlnet_single_block_samples)
-                        interval_control = int(np.ceil(interval_control))
-                        hidden_states[:, encoder_hidden_states.shape[1] :, ...] = (
-                            hidden_states[:, encoder_hidden_states.shape[1] :, ...]
-                            + controlnet_single_block_samples[index_block // interval_control]
-                        )
-
-                hidden_states = hidden_states[:, encoder_hidden_states.shape[1] :, ...]
                 self.previous_residual = hidden_states - ori_hidden_states
         else:
             for index_block, block in enumerate(self.transformer_blocks):
@@ -335,60 +277,9 @@ def make_teacache_forward(num_steps: int = 50, rel_l1_thresh: float = 0.6, skip_
                         temb=temb,
                         image_rotary_emb=image_rotary_emb,
                         joint_attention_kwargs=joint_attention_kwargs,
+                        controlnet_block_samples=controlnet_block_samples,
+                        controlnet_single_block_samples=controlnet_single_block_samples,
                     )
-
-                # controlnet residual
-                if controlnet_block_samples is not None:
-                    interval_control = len(self.transformer_blocks) / len(controlnet_block_samples)
-                    interval_control = int(np.ceil(interval_control))
-                    # For Xlabs ControlNet.
-                    if controlnet_blocks_repeat:
-                        hidden_states = (
-                            hidden_states + controlnet_block_samples[index_block % len(controlnet_block_samples)]
-                        )
-                    else:
-                        hidden_states = hidden_states + controlnet_block_samples[index_block // interval_control]
-            hidden_states = torch.cat([encoder_hidden_states, hidden_states], dim=1)
-
-            for index_block, block in enumerate(self.single_transformer_blocks):
-                if torch.is_grad_enabled() and self.gradient_checkpointing:
-
-                    def create_custom_forward(module, return_dict=None):  # type: ignore
-                        def custom_forward(*inputs):  # type: ignore
-                            if return_dict is not None:
-                                return module(*inputs, return_dict=return_dict)
-                            else:
-                                return module(*inputs)
-
-                        return custom_forward
-
-                    ckpt_kwargs = {"use_reentrant": False} if is_torch_version(">=", "1.11.0") else {}
-                    hidden_states = torch.utils.checkpoint.checkpoint(
-                        create_custom_forward(block),
-                        hidden_states,
-                        temb,
-                        image_rotary_emb,
-                        **ckpt_kwargs,
-                    )
-
-                else:
-                    hidden_states = block(
-                        hidden_states=hidden_states,
-                        temb=temb,
-                        image_rotary_emb=image_rotary_emb,
-                        joint_attention_kwargs=joint_attention_kwargs,
-                    )
-
-                # controlnet residual
-                if controlnet_single_block_samples is not None:
-                    interval_control = len(self.single_transformer_blocks) / len(controlnet_single_block_samples)
-                    interval_control = int(np.ceil(interval_control))
-                    hidden_states[:, encoder_hidden_states.shape[1] :, ...] = (
-                        hidden_states[:, encoder_hidden_states.shape[1] :, ...]
-                        + controlnet_single_block_samples[index_block // interval_control]
-                    )
-
-            hidden_states = hidden_states[:, encoder_hidden_states.shape[1] :, ...]
 
         hidden_states = self.norm_out(hidden_states, temb)
         output: torch.FloatTensor = self.proj_out(hidden_states)
@@ -398,7 +289,7 @@ def make_teacache_forward(num_steps: int = 50, rel_l1_thresh: float = 0.6, skip_
             unscale_lora_layers(self, lora_scale)
 
         if not return_dict:
-            return output
+            return (output,)
 
         return Transformer2DModelOutput(sample=output)
 
