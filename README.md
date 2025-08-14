@@ -15,8 +15,8 @@ Join our user groups on [**Slack**](https://join.slack.com/t/nunchaku/shared_inv
 
 ## News
 
-- **[2025-08-14]** 🔥 Our 4-bit Qwen-Image models are now available in the [Hugging Face repository](https://huggingface.co/nunchaku-tech/nunchaku-qwen-image)! You can now try it with this [example script](examples/v1/qwen-image.py) first. Support for ComfyUI, LoRA, and CPU offloading is coming soon!
-- **[2025-08-14]** 🚀 The Python backend is now live! Explore our Pythonic FLUX models [here](nunchaku/models/transformers/transformer_flux_v2.py), and check out the modular 4-bit linear layer implementation [here](nunchaku/models/linear.py).
+- **[2025-08-14]** 🔥 Our **4-bit Qwen-Image** models are now live on [Hugging Face](https://huggingface.co/nunchaku-tech/nunchaku-qwen-image)! Get started with our [example script](examples/v1/qwen-image.py). *ComfyUI, LoRA, and CPU offloading support are coming soon!*
+- **[2025-08-14]** 🚀 The **Python backend** is now available! Explore our Pythonic FLUX models [here](nunchaku/models/transformers/transformer_flux_v2.py) and see the modular **4-bit linear layer** [here](nunchaku/models/linear.py).
 - **[2025-07-31]** 🚀 **[FLUX.1-Krea-dev](https://www.krea.ai/blog/flux-krea-open-source-release) is now supported!** Check out our new [example script](./examples/flux.1-krea-dev.py) to get started.
 - **[2025-07-13]** 🚀 The official [**Nunchaku documentation**](https://nunchaku.tech/docs/nunchaku/) is now live! Explore comprehensive guides and resources to help you get started.
 - **[2025-06-29]** 🔥 Support **FLUX.1-Kontext**! Try out our [example script](./examples/flux.1-kontext-dev.py) to see it in action! Our demo is available at this [link](https://svdquant.mit.edu/kontext/)!
