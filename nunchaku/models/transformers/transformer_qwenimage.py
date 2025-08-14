@@ -1,7 +1,7 @@
 import json
 import os
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Dict, Any
 
 import torch
 from diffusers.models.attention_processor import Attention
@@ -97,7 +97,7 @@ class NunchakuQwenAttention(NunchakuBaseAttention):
 
 
 class NunchakuQwenImageTransformerBlock(QwenImageTransformerBlock):
-    def __init__(self, other: QwenImageTransformerBlock, scale_shift: float = 0.0, **kwargs):
+    def __init__(self, other: QwenImageTransformerBlock, scale_shift: float = 1.0, **kwargs):
         super(QwenImageTransformerBlock, self).__init__()
 
         self.dim = other.dim
@@ -120,11 +120,88 @@ class NunchakuQwenImageTransformerBlock(QwenImageTransformerBlock):
 
     def _modulate(self, x: torch.Tensor, mod_params: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """Apply modulation to input tensor"""
-        mod_params = mod_params.view(mod_params.shape[0], -1, 3).permute(2, 0, 1)
-        shift, scale, gate = mod_params
+        shift, scale, gate = mod_params.chunk(3, dim=-1)
         if self.scale_shift != 0:
             scale.add_(self.scale_shift)
         return x * scale.unsqueeze(1) + shift.unsqueeze(1), gate.unsqueeze(1)
+
+    def forward(
+        self,
+        hidden_states: torch.Tensor,
+        encoder_hidden_states: torch.Tensor,
+        encoder_hidden_states_mask: torch.Tensor,
+        temb: torch.Tensor,
+        image_rotary_emb: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
+        joint_attention_kwargs: Optional[Dict[str, Any]] = None,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        # Get modulation parameters for both streams
+        img_mod_params = self.img_mod(temb)  # [B, 6*dim]
+        txt_mod_params = self.txt_mod(temb)  # [B, 6*dim]
+
+        # nunchaku's mod_params is [B, 6*dim] instead of [B, dim*6]
+        img_mod_params = (
+            img_mod_params.view(img_mod_params.shape[0], -1, 6).transpose(1, 2).reshape(img_mod_params.shape[0], -1)
+        )
+        txt_mod_params = (
+            txt_mod_params.view(txt_mod_params.shape[0], -1, 6).transpose(1, 2).reshape(txt_mod_params.shape[0], -1)
+        )
+
+        img_mod1, img_mod2 = img_mod_params.chunk(2, dim=-1)  # Each [B, 3*dim]
+        txt_mod1, txt_mod2 = txt_mod_params.chunk(2, dim=-1)  # Each [B, 3*dim]
+
+        # Split modulation parameters for norm1 and norm2
+        # img_mod1, img_mod2 = img_mod_params.chunk(2, dim=-1)  # Each [B, 3*dim]
+        # txt_mod1, txt_mod2 = txt_mod_params.chunk(2, dim=-1)  # Each [B, 3*dim]
+
+        # Process image stream - norm1 + modulation
+        img_normed = self.img_norm1(hidden_states)
+        img_modulated, img_gate1 = self._modulate(img_normed, img_mod1)
+
+        # Process text stream - norm1 + modulation
+        txt_normed = self.txt_norm1(encoder_hidden_states)
+        txt_modulated, txt_gate1 = self._modulate(txt_normed, txt_mod1)
+
+        # Use QwenAttnProcessor2_0 for joint attention computation
+        # This directly implements the DoubleStreamLayerMegatron logic:
+        # 1. Computes QKV for both streams
+        # 2. Applies QK normalization and RoPE
+        # 3. Concatenates and runs joint attention
+        # 4. Splits results back to separate streams
+        joint_attention_kwargs = joint_attention_kwargs or {}
+        attn_output = self.attn(
+            hidden_states=img_modulated,  # Image stream (will be processed as "sample")
+            encoder_hidden_states=txt_modulated,  # Text stream (will be processed as "context")
+            encoder_hidden_states_mask=encoder_hidden_states_mask,
+            image_rotary_emb=image_rotary_emb,
+            **joint_attention_kwargs,
+        )
+
+        # QwenAttnProcessor2_0 returns (img_output, txt_output) when encoder_hidden_states is provided
+        img_attn_output, txt_attn_output = attn_output
+
+        # Apply attention gates and add residual (like in Megatron)
+        hidden_states = hidden_states + img_gate1 * img_attn_output
+        encoder_hidden_states = encoder_hidden_states + txt_gate1 * txt_attn_output
+
+        # Process image stream - norm2 + MLP
+        img_normed2 = self.img_norm2(hidden_states)
+        img_modulated2, img_gate2 = self._modulate(img_normed2, img_mod2)
+        img_mlp_output = self.img_mlp(img_modulated2)
+        hidden_states = hidden_states + img_gate2 * img_mlp_output
+
+        # Process text stream - norm2 + MLP
+        txt_normed2 = self.txt_norm2(encoder_hidden_states)
+        txt_modulated2, txt_gate2 = self._modulate(txt_normed2, txt_mod2)
+        txt_mlp_output = self.txt_mlp(txt_modulated2)
+        encoder_hidden_states = encoder_hidden_states + txt_gate2 * txt_mlp_output
+
+        # Clip to prevent overflow for fp16
+        if encoder_hidden_states.dtype == torch.float16:
+            encoder_hidden_states = encoder_hidden_states.clip(-65504, 65504)
+        if hidden_states.dtype == torch.float16:
+            hidden_states = hidden_states.clip(-65504, 65504)
+
+        return encoder_hidden_states, hidden_states
 
 
 class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuModelLoaderMixin):
