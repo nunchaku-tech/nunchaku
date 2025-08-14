@@ -1,3 +1,4 @@
+import gc
 from typing import Any, Callable, Dict, List, Optional, Union
 
 import numpy as np
@@ -8,7 +9,6 @@ from diffusers.pipelines.qwenimage.pipeline_qwenimage import (
     calculate_shift,
     retrieve_timesteps,
 )
-import gc
 
 
 class NunchakuQwenImagePipeline(QwenImagePipeline):
