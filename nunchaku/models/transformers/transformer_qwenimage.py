@@ -1,7 +1,7 @@
 import json
 import os
 from pathlib import Path
-from typing import Tuple
+from typing import Optional, Tuple
 
 import torch
 from diffusers.models.attention_processor import Attention
@@ -68,11 +68,11 @@ class NunchakuQwenAttention(NunchakuBaseAttention):
 
     def forward(
         self,
-        hidden_states: torch.Tensor,
-        encoder_hidden_states: torch.Tensor,
-        encoder_hidden_states_mask: torch.Tensor,
-        attention_mask: torch.Tensor,
-        image_rotary_emb: torch.Tensor,
+        hidden_states: torch.FloatTensor,  # Image stream
+        encoder_hidden_states: torch.FloatTensor = None,  # Text stream
+        encoder_hidden_states_mask: torch.FloatTensor = None,
+        attention_mask: Optional[torch.FloatTensor] = None,
+        image_rotary_emb: Optional[torch.Tensor] = None,
         **kwargs,
     ):
         return self.processor(

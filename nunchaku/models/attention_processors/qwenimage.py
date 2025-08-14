@@ -71,7 +71,7 @@ class NunchakuQwenImageNaiveFA2Processor:
             attn_mask=attention_mask,
             dropout_p=0.0,
             is_causal=False,
-            backend=self._attention_backend,
+            backend=None,
         )
         # joint_query = joint_query.transpose(1, 2)
         # joint_key = joint_key.transpose(1, 2)
