@@ -311,7 +311,7 @@ Tensor FluxSingleTransformerBlock::forward(Tensor hidden_states, Tensor temb, Te
 
     debug("rotary_emb", rotary_emb);
 
-    if (attnImpl == AttentionImpl::FlashAttention2) {
+    if (attnImpl == AttentionImpl::FlashAttention2 || attnImpl == AttentionImpl::Custom) {
         Tensor qkv = Tensor::allocate(
             {batch_size, num_tokens, dim * 3}, norm_hidden_states.scalar_type(), norm_hidden_states.device());
         // qkv_proj.forward(norm_hidden_states, qkv, {});
@@ -329,7 +329,11 @@ Tensor FluxSingleTransformerBlock::forward(Tensor hidden_states, Tensor temb, Te
         // Tensor qkv = forward_fc(qkv_proj, norm_hidden_states);
 
         // attn_output = attn.forward(qkv, {}, 0);
-        attn_output = attn.forward(qkv);
+        if (attnImpl == AttentionImpl::Custom) {
+            attn_output = custom_attn_func(qkv.view({batch_size, num_tokens, 3, num_heads, dim / num_heads}));
+        } else {
+            attn_output = attn.forward(qkv);
+        }
         attn_output = attn_output.reshape({batch_size, num_tokens, num_heads * dim_head});
     } else if (attnImpl == AttentionImpl::NunchakuFP16) {
         // assert(batch_size == 1);
@@ -475,7 +479,7 @@ std::tuple<Tensor, Tensor> JointTransformerBlock::forward(Tensor hidden_states,
     int num_tokens_img_pad = 0, num_tokens_txt_pad = 0;
     Tensor raw_attn_output;
 
-    if (attnImpl == AttentionImpl::FlashAttention2) {
+    if (attnImpl == AttentionImpl::FlashAttention2 || attnImpl == AttentionImpl::Custom) {
         num_tokens_img_pad = num_tokens_img;
         num_tokens_txt_pad = num_tokens_txt;
 
@@ -545,10 +549,18 @@ std::tuple<Tensor, Tensor> JointTransformerBlock::forward(Tensor hidden_states,
 
         nvtxRangePushA("Attention");
 
-        if (pool.valid()) {
-            raw_attn_output = attn.forward(concat, pool, sparsityRatio);
+        if (attnImpl == AttentionImpl::Custom) {
+            if (pool.valid()) {
+                throw std::runtime_error("Custom attention function does not support pooling yet.");
+            } else {
+                raw_attn_output = custom_attn_func(concat.view({batch_size, num_tokens_img + num_tokens_txt, 3, num_heads, dim_head}));
+            }
         } else {
-            raw_attn_output = attn.forward(concat);
+            if (pool.valid()) {
+                raw_attn_output = attn.forward(concat, pool, sparsityRatio);
+            } else {
+                raw_attn_output = attn.forward(concat);
+            }
         }
 
         nvtxRangePop();
@@ -1453,14 +1465,18 @@ std::tuple<Tensor, Tensor, Tensor> FluxModel::forward_ip_adapter(size_t layer,
     return {hidden_states, encoder_hidden_states, ip_query};
 }
 
-void FluxModel::setAttentionImpl(AttentionImpl impl) {
+void FluxModel::setAttentionImpl(AttentionImpl impl,
+                                 std::function<Tensor(Tensor)> attn_func) {
     for (auto &&block : this->transformer_blocks) {
         block->attnImpl = impl;
+        block->custom_attn_func = attn_func;
     }
     for (auto &&block : this->single_transformer_blocks) {
         block->attnImpl = impl;
+        block->custom_attn_func = attn_func;
     }
 }
+
 void FluxModel::set_residual_callback(std::function<Tensor(const Tensor &)> cb) {
     residual_callback = std::move(cb);
 }

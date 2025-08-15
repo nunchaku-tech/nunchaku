@@ -13,6 +13,7 @@ class function;
 enum class AttentionImpl {
     FlashAttention2 = 0,
     NunchakuFP16,
+    Custom, // use custom function
 };
 
 class AdaLayerNormZeroSingle : public Module {
@@ -104,6 +105,7 @@ public:
     const int mlp_hidden_dim;
 
     AttentionImpl attnImpl = AttentionImpl::FlashAttention2;
+    std::function<Tensor(Tensor)> custom_attn_func;
 
 private:
     AdaLayerNormZeroSingle norm;
@@ -154,6 +156,7 @@ public:
     AdaLayerNormZero norm1;
 
     AttentionImpl attnImpl = AttentionImpl::FlashAttention2;
+    std::function<Tensor(Tensor)> custom_attn_func;
 
 private:
     AdaLayerNormZero norm1_context;
@@ -200,7 +203,8 @@ public:
                                                           Tensor controlnet_block_samples,
                                                           Tensor controlnet_single_block_samples);
 
-    void setAttentionImpl(AttentionImpl impl);
+    void setAttentionImpl(AttentionImpl impl,
+                          std::function<Tensor(Tensor)>);
 
     void set_residual_callback(std::function<Tensor(const Tensor &)> cb);
 

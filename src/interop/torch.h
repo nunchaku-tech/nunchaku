@@ -31,7 +31,7 @@ public:
 };
 
 Tensor from_torch(at::Tensor input);
-at::Tensor to_torch(Tensor input);
+at::Tensor to_torch(Tensor input, bool inplace=false);
 
 class TensorsProviderTorch : public TensorsProvider {
 public:
