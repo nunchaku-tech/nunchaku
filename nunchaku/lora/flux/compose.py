@@ -122,7 +122,7 @@ def compose_lora(
                     ]
 
                     # Add paddings if their ranks are different
-                    max_rank = max([q_a.shape[0], k_a.shape[0], v_a.shape[0]])
+                    max_rank = max(q_a.shape[0], k_a.shape[0], v_a.shape[0])
                     q_a = F.pad(q_a, (0, 0, 0, max_rank - q_a.shape[0]))
                     k_a = F.pad(k_a, (0, 0, 0, max_rank - k_a.shape[0]))
                     v_a = F.pad(v_a, (0, 0, 0, max_rank - v_a.shape[0]))
