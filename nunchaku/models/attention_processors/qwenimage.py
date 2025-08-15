@@ -22,6 +22,7 @@ class NunchakuQwenImageNaiveFA2Processor:
 
         seq_txt = encoder_hidden_states.shape[1]
 
+        # TODO: fuse the QKV, norm and RoPE in a single kernel to boost the performance
         # Compute QKV for image stream (sample projections)
         img_qkv = attn.to_qkv(hidden_states)
         img_query, img_key, img_value = img_qkv.chunk(3, dim=-1)
