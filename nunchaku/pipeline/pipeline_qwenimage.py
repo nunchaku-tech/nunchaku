@@ -94,9 +94,9 @@ class NunchakuQwenImagePipeline(QwenImagePipeline):
                 max_sequence_length=max_sequence_length,
             )
 
-        # 4. Prepare latent variables  
+        # 4. Prepare latent variables
         num_channels_latents = self.transformer.config.in_channels // 4
-        
+
         # Get latents from parent method (returns single tensor)
         latents = super().prepare_latents(
             batch_size * num_images_per_prompt,
@@ -108,12 +108,12 @@ class NunchakuQwenImagePipeline(QwenImagePipeline):
             generator,
             latents,
         )
-        
+
         # Generate latent_image_ids manually
         seq_len = latents.shape[1] if len(latents.shape) > 1 else 0
         latent_image_ids = torch.arange(seq_len, device=device, dtype=torch.long)
         latent_image_ids = latent_image_ids.unsqueeze(0).repeat(batch_size * num_images_per_prompt, 1)
-        
+
         img_shapes = [(1, height // self.vae_scale_factor // 2, width // self.vae_scale_factor // 2)] * batch_size
 
         # 5. Prepare timesteps
