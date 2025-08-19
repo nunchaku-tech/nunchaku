@@ -29,10 +29,10 @@ if args.precision == "bf16":
         "mit-han-lab/svdq-flux.1-schnell-pix2pix-turbo", "sketch.safetensors", alpha=DEFAULT_SKETCH_GUIDANCE
     )
 else:
-    assert args.precision == "int4"
+    assert args.precision in ["int4", "fp4"]
     pipeline_init_kwargs = {}
     transformer = NunchakuFluxTransformer2dModel.from_pretrained(
-        "mit-han-lab/nunchaku-flux.1-schnell/svdq-int4_r32-flux.1-schnell.safetensors"
+        f"mit-han-lab/nunchaku-flux.1-schnell/svdq-{args.precision}_r32-flux.1-schnell.safetensors"
     )
     pipeline_init_kwargs["transformer"] = transformer
     if args.use_qencoder:
@@ -47,11 +47,10 @@ else:
         "black-forest-labs/FLUX.1-schnell", torch_dtype=torch.bfloat16, **pipeline_init_kwargs
     )
     pipeline = pipeline.to("cuda")
-    pipeline.precision = "int4"
+    pipeline.precision = args.precision
     pipeline.load_control_module(
         "mit-han-lab/svdq-flux.1-schnell-pix2pix-turbo",
         "sketch.safetensors",
-        svdq_lora_path="mit-han-lab/svdq-flux.1-schnell-pix2pix-turbo/svdq-int4-sketch.safetensors",
         alpha=DEFAULT_SKETCH_GUIDANCE,
     )
 safety_checker = SafetyChecker("cuda", disabled=args.no_safety_checker)
