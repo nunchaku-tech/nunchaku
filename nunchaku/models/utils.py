@@ -1,5 +1,6 @@
 import torch
 from torch import nn
+from typing import Callable
 
 
 def fuse_linears(linears: list[nn.Linear]) -> nn.Linear:
@@ -27,7 +28,7 @@ class LayerOffloadHelper:
     allowing efficient GPU memory management for large models.
     """
 
-    def __init__(self, layers: list, func_compute, func_load, func_unload):
+    def __init__(self, offload: bool, layers: list[nn.Module], func_compute: Callable = None):
         """
         Initialize the LayerOffloadHelper.
 
@@ -44,10 +45,9 @@ class LayerOffloadHelper:
         func_unload : callable
             Function to unload a layer from GPU: func_unload(layer) -> None.
         """
+        self.offload = offload
         self.layers = layers
         self.func_compute = func_compute
-        self.func_load = func_load
-        self.func_unload = func_unload
 
         if offload:
             self.stream_compute = torch.cuda.Stream()
@@ -62,17 +62,18 @@ class LayerOffloadHelper:
         This method processes all layers sequentially, with overlapping computation
         and memory transfers when offloading is enabled.
         """
-        for i, layer in enumerate(self.layers):
-            self._run_layer(i, layer)
+        for i in range(len(self.layers)):
+            self._run_layer(i)
 
         # Wait for the last computation to complete
-        if self.event_compute_done:
+        if self.offload and self.event_compute_done:
             self.event_compute_done.synchronize()
 
-        # Unload the last layer
-        self.func_unload(self.layers[-1])
+        if self.offload:
+            # Unload the last layer
+            self.layers[-1].to("cpu")
 
-    def _run_layer(self, idx: int, layer):
+    def _run_layer(self, idx: int):
         """
         Process a single layer with the appropriate computation strategy.
 
@@ -85,7 +86,7 @@ class LayerOffloadHelper:
         """
         if not self.offload:
             # Simple sequential computation without offloading
-            self.func_compute(layer)
+            self.func_compute(idx)
         else:
             # Overlapped computation and memory transfers using CUDA streams
             next_compute_done = torch.cuda.Event()
@@ -95,7 +96,7 @@ class LayerOffloadHelper:
             with torch.cuda.stream(self.stream_compute):
                 if self.event_load_done:
                     self.stream_compute.wait_event(self.event_load_done)
-                self.func_compute(layer)
+                self.func_compute(idx)
                 next_compute_done.record()
 
             # Load/unload stream: manage memory transfers

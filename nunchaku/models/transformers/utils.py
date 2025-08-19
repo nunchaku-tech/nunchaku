@@ -6,14 +6,13 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import Any, Optional
 
 import torch
 from diffusers import __version__
 from huggingface_hub import constants, hf_hub_download
 from torch import nn
 
-from nunchaku.utils import ceil_divide, load_state_dict_in_safetensors
+from ...utils import load_state_dict_in_safetensors
 
 # Get log level from environment variable (default to INFO)
 log_level = os.getenv("LOG_LEVEL", "INFO").upper()
@@ -146,37 +145,3 @@ class NunchakuModelLoaderMixin:
         with torch.device("meta"):
             transformer = cls.from_config(config).to(kwargs.get("torch_dtype", torch.bfloat16))
         return transformer, unquantized_part_path, transformer_block_path
-
-
-def pad_tensor(tensor: Optional[torch.Tensor], multiples: int, dim: int, fill: Any = 0) -> torch.Tensor | None:
-    """
-    Pad a tensor along a given dimension to the next multiple of a specified value.
-
-    Parameters
-    ----------
-    tensor : torch.Tensor or None
-        Input tensor. If None, returns None.
-    multiples : int
-        Pad to this multiple. If <= 1, no padding is applied.
-    dim : int
-        Dimension along which to pad.
-    fill : Any, optional
-        Value to use for padding (default: 0).
-
-    Returns
-    -------
-    torch.Tensor or None
-        The padded tensor, or None if input was None.
-    """
-    if multiples <= 1:
-        return tensor
-    if tensor is None:
-        return None
-    shape = list(tensor.shape)
-    if shape[dim] % multiples == 0:
-        return tensor
-    shape[dim] = ceil_divide(shape[dim], multiples) * multiples
-    result = torch.empty(shape, dtype=tensor.dtype, device=tensor.device)
-    result.fill_(fill)
-    result[[slice(0, extent) for extent in tensor.shape]] = tensor
-    return result
