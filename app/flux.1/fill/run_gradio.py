@@ -125,7 +125,9 @@ with gr.Blocks(css_paths="assets/style.css", title="SVDQuant Flux.1-Fill-dev Ske
             )
         else:
             count_info = ""
-        header_str = DESCRIPTION.format(device_info=device_info, notice=notice, count_info=count_info)
+        header_str = DESCRIPTION.format(
+            precision=args.precision, device_info=device_info, notice=notice, count_info=count_info
+        )
         return header_str
 
     header = gr.HTML(get_header_str())

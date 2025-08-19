@@ -154,7 +154,11 @@ with gr.Blocks(css_paths="assets/style.css", title=f"SVDQuant Flux.1-{model_name
         else:
             count_info = ""
         header_str = DESCRIPTION.format(
-            model_name=args.model, device_info=device_info, notice=notice, count_info=count_info
+            precision=args.precision,
+            model_name=args.model,
+            device_info=device_info,
+            notice=notice,
+            count_info=count_info,
         )
         return header_str
 
