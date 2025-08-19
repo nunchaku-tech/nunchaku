@@ -8,57 +8,30 @@ from PIL import Image
 from torch import nn
 from torchvision.transforms import functional as F
 
-from nunchaku.utils import load_state_dict_in_safetensors
-
 
 class FluxPix2pixTurboPipeline(FluxPipeline):
     def update_alpha(self, alpha: float) -> None:
         self._alpha = alpha
         transformer = self.transformer
 
-        for n, p in transformer.named_parameters():
-            if n in self._tuned_state_dict:
-                new_data = self._tuned_state_dict[n] * alpha + self._original_state_dict[n] * (1 - alpha)
-                new_data = new_data.to(self._execution_device).to(p.dtype)
-                p.data.copy_(new_data)
         if self.precision == "bf16":
             for m in transformer.modules():
                 if isinstance(m, lora.LoraLayer):
                     m.scaling["default_0"] = alpha
         else:
-            assert self.precision == "int4"
+            assert self.precision in ["int4", "fp4"]
             transformer.set_lora_strength(alpha)
 
-    def load_control_module(
-        self,
-        pretrained_model_name_or_path: str,
-        weight_name: str | None = None,
-        svdq_lora_path: str | None = None,
-        alpha: float = 1,
-    ):
-        state_dict, alphas = self.lora_state_dict(
-            pretrained_model_name_or_path, weight_name=weight_name, return_alphas=True
-        )
+    def load_control_module(self, pretrained_model_name_or_path: str, weight_name: str, alpha: float = 1):
+        state_dict, _ = self.lora_state_dict(pretrained_model_name_or_path, weight_name=weight_name, return_alphas=True)
 
         transformer = self.transformer
-        original_state_dict = {}
-        tuned_state_dict = {}
         assert isinstance(transformer, FluxTransformer2DModel)
 
-        for n, p in transformer.named_parameters():
-            if f"transformer.{n}" in state_dict:
-                original_state_dict[n] = p.data.cpu()
-                tuned_state_dict[n] = state_dict[f"transformer.{n}"].cpu()
-
-        self._original_state_dict = original_state_dict
-        self._tuned_state_dict = tuned_state_dict
         if self.precision == "bf16":
             self.load_lora_into_transformer(state_dict, {}, transformer=transformer)
         else:
-            assert svdq_lora_path is not None
-            sd = load_state_dict_in_safetensors(svdq_lora_path)
-            sd = {k: v for k, v in sd.items() if not k.startswith("transformer.")}
-            self.transformer.update_lora_params(sd)
+            self.transformer.update_lora_params(state_dict)
         self.update_alpha(alpha)
 
     @torch.no_grad()
