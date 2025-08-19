@@ -1,5 +1,5 @@
-from torch import nn
 import torch
+from torch import nn
 
 
 def fuse_linears(linears: list[nn.Linear]) -> nn.Linear:

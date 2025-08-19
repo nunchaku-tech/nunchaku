@@ -6,10 +6,45 @@ import hashlib
 import os
 import warnings
 from pathlib import Path
+from typing import Any
 
 import safetensors
 import torch
 from huggingface_hub import hf_hub_download
+
+
+def pad_tensor(tensor: torch.Tensor | None, multiples: int, dim: int, fill: Any = 0) -> torch.Tensor | None:
+    """
+    Pad a tensor along a given dimension to the next multiple of a specified value.
+
+    Parameters
+    ----------
+    tensor : torch.Tensor or None
+        Input tensor. If None, returns None.
+    multiples : int
+        Pad to this multiple. If <= 1, no padding is applied.
+    dim : int
+        Dimension along which to pad.
+    fill : Any, optional
+        Value to use for padding (default: 0).
+
+    Returns
+    -------
+    torch.Tensor or None
+        The padded tensor, or None if input was None.
+    """
+    if multiples <= 1:
+        return tensor
+    if tensor is None:
+        return None
+    shape = list(tensor.shape)
+    if shape[dim] % multiples == 0:
+        return tensor
+    shape[dim] = ceil_divide(shape[dim], multiples) * multiples
+    result = torch.empty(shape, dtype=tensor.dtype, device=tensor.device)
+    result.fill_(fill)
+    result[[slice(0, extent) for extent in tensor.shape]] = tensor
+    return result
 
 
 def sha256sum(filepath: str | os.PathLike[str]) -> str:

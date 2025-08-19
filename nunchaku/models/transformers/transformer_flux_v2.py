@@ -15,14 +15,14 @@ from huggingface_hub import utils
 from torch.nn import GELU
 
 from ...ops.fused import fused_gelu_mlp
-from ...utils import get_precision
+from ...utils import get_precision, pad_tensor
 from ..attention import NunchakuBaseAttention, NunchakuFeedForward
 from ..attention_processors.flux import NunchakuFluxFA2Processor, NunchakuFluxFP16AttnProcessor
 from ..embeddings import NunchakuFluxPosEmbed, pack_rotemb
 from ..linear import SVDQW4A4Linear
 from ..normalization import NunchakuAdaLayerNormZero, NunchakuAdaLayerNormZeroSingle
 from ..utils import fuse_linears
-from .utils import NunchakuModelLoaderMixin, pad_tensor
+from .utils import NunchakuModelLoaderMixin
 
 
 class NunchakuFluxAttention(NunchakuBaseAttention):

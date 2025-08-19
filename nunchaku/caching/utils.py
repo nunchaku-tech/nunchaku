@@ -38,7 +38,7 @@ from typing import DefaultDict, Dict, Optional, Tuple
 import torch
 from torch import nn
 
-from nunchaku.models.transformers.utils import pad_tensor
+from ..utils import pad_tensor
 
 num_transformer_blocks = 19  # FIXME
 num_single_transformer_blocks = 38  # FIXME
