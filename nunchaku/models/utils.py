@@ -96,12 +96,12 @@ class BlockOffloadManager:
         # Move all parameters to GPU
         for name, param in block.named_parameters():
             if param.device != self.device:
-                param.data = param.data.to(self.device, non_blocking=True, pin_memory=self.use_pin_memory)
+                param.data = param.data.to(self.device, non_blocking=True)
 
         # Move all buffers to GPU
         for name, buffer in block.named_buffers():
             if buffer.device != self.device:
-                buffer.data = buffer.data.to(self.device, non_blocking=True, pin_memory=self.use_pin_memory)
+                buffer.data = buffer.data.to(self.device, non_blocking=True)
 
     def load_block(self, idx: int):
         if idx >= len(self.blocks):

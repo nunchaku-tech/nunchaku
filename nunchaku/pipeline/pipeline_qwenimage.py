@@ -155,8 +155,8 @@ class NunchakuQwenImagePipeline(QwenImagePipeline):
         gc.collect()
         torch.cuda.empty_cache()
 
-        self.transformer.to(device)
-        # self.transformer.set_offload(True)
+        # self.transformer.to(device)
+        self.transformer.set_offload(True)
 
         # 6. Denoising loop
         self.scheduler.set_begin_index(0)

@@ -32,4 +32,4 @@ image = pipe(
     true_cfg_scale=4.0,
 ).images[0]
 
-image.save("qwen-image-r128.png")
+image.save("qwen-image-r32.png")
