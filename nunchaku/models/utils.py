@@ -1,6 +1,7 @@
+from typing import Dict, List
+
 import torch
 from torch import nn
-from typing import Callable
 
 
 def fuse_linears(linears: list[nn.Linear]) -> nn.Linear:
@@ -20,97 +21,137 @@ def fuse_linears(linears: list[nn.Linear]) -> nn.Linear:
         )
 
 
-class LayerOffloadHelper:
+class BlockOffloadManager:
+    """Generic manager for per-transformer-block CPU offloading with async memory operations.
+
+    This class can be used with any transformer model that has a list of transformer blocks.
+    It provides memory-efficient processing by keeping only the current block on GPU.
     """
-    Helper class for managing GPU memory offloading and computation pipeline for transformer layers.
 
-    This class implements a streaming approach to overlap computation with memory transfers,
-    allowing efficient GPU memory management for large models.
-    """
+    def __init__(
+        self,
+        blocks: List[nn.Module],
+        device: torch.device = torch.device("cuda"),
+        use_pin_memory: bool = False,
+    ):
+        self.blocks = blocks
+        self.device = device
+        self.cpu_device = torch.device("cpu")
+        self.use_pin_memory = use_pin_memory
 
-    def __init__(self, offload: bool, layers: list[nn.Module], func_compute: Callable = None):
-        """
-        Initialize the LayerOffloadHelper.
+        # Two streams: one for compute, one for memory operations
+        self.compute_stream = torch.cuda.Stream(device=device)
+        self.memory_stream = torch.cuda.Stream(device=device)
 
-        Parameters
-        ----------
-        offload : bool
-            Whether to enable GPU memory offloading.
-        layers : list
-            List of transformer blocks/layers to process.
-        func_compute : callable
-            Function to compute forward pass for a layer: func_compute(layer) -> output.
-        func_load : callable
-            Function to load a layer to GPU: func_load(layer) -> None.
-        func_unload : callable
-            Function to unload a layer from GPU: func_unload(layer) -> None.
-        """
-        self.offload = offload
-        self.layers = layers
-        self.func_compute = func_compute
+        self.compute_done = torch.cuda.Event(blocking=False)
+        self.memory_done = torch.cuda.Event(blocking=False)
 
-        if offload:
-            self.stream_compute = torch.cuda.Stream()
-            self.stream_load = torch.cuda.Stream()
-            self.event_compute_done = None
-            self.event_load_done = None
+        self.next_compute_done = torch.cuda.Event(blocking=False)
+        self.next_memory_done = torch.cuda.Event(blocking=False)
 
-    def run(self):
-        """
-        Execute the computation pipeline for all layers.
+        # Current state tracking
+        self.current_block_idx = 0
 
-        This method processes all layers sequentially, with overlapping computation
-        and memory transfers when offloading is enabled.
-        """
-        for i in range(len(self.layers)):
-            self._run_layer(i)
+        # Initialize: first block on GPU, others on CPU
+        self._initialize_blocks()
 
-        # Wait for the last computation to complete
-        if self.offload and self.event_compute_done:
-            self.event_compute_done.synchronize()
+    def set_device(self, device: torch.device | str):
+        if isinstance(device, str):
+            device = torch.device(device)
+        assert device.type == "cuda"
+        self.device = device
+        self.compute_stream = torch.cuda.Stream(device=device)
+        self.memory_stream = torch.cuda.Stream(device=device)
 
-        if self.offload:
-            # Unload the last layer
-            self.layers[-1].to("cpu")
+    def _initialize_blocks(self):
+        """Initialize blocks: first on GPU, others on CPU."""
+        p = next(self.blocks[0].parameters())
+        if p.device != self.device:
+            self.blocks[0].to(self.device)
 
-    def _run_layer(self, idx: int):
-        """
-        Process a single layer with the appropriate computation strategy.
+    def _move_block_to_cpu(self, block_idx: int):
+        """Move a transformer block to CPU."""
+        if block_idx >= len(self.blocks):
+            return
 
-        Parameters
-        ----------
-        idx : int
-            Index of the current layer.
-        layer
-            The layer to process.
-        """
-        if not self.offload:
-            # Simple sequential computation without offloading
-            self.func_compute(idx)
-        else:
-            # Overlapped computation and memory transfers using CUDA streams
-            next_compute_done = torch.cuda.Event()
-            next_load_done = torch.cuda.Event()
+        block = self.blocks[block_idx]
 
-            # Compute stream: execute forward pass
-            with torch.cuda.stream(self.stream_compute):
-                if self.event_load_done:
-                    self.stream_compute.wait_event(self.event_load_done)
-                self.func_compute(idx)
-                next_compute_done.record()
+        # Move all parameters to CPU
+        for name, param in block.named_parameters():
+            if param.device != self.cpu_device:
+                param.data = param.data.to(self.cpu_device, non_blocking=True)
 
-            # Load/unload stream: manage memory transfers
-            with torch.cuda.stream(self.stream_load):
-                if self.event_compute_done:
-                    self.stream_load.wait_event(self.event_compute_done)
-                if idx > 0:
-                    self.func_unload(self.layers[idx - 1])
-                if idx + 1 < len(self.layers):
-                    self.func_load(self.layers[idx + 1])
-                next_load_done.record()
+        # Move all buffers to CPU
+        for name, buffer in block.named_buffers():
+            if buffer.device != self.cpu_device:
+                buffer.data = buffer.data.to(self.cpu_device, non_blocking=True)
 
-            self.event_compute_done = next_compute_done
-            self.event_load_done = next_load_done
+    def _move_block_to_gpu(self, block_idx: int):
+        """Move a transformer block to GPU."""
+        if block_idx >= len(self.blocks):
+            return
 
-            # WDDM workaround: synchronize compute stream
-            torch.cuda.current_stream().wait_event(self.event_compute_done)
+        block = self.blocks[block_idx]
+
+        # Move all parameters to GPU
+        for name, param in block.named_parameters():
+            if param.device != self.device:
+                param.data = param.data.to(self.device, non_blocking=True, pin_memory=self.use_pin_memory)
+
+        # Move all buffers to GPU
+        for name, buffer in block.named_buffers():
+            if buffer.device != self.device:
+                buffer.data = buffer.data.to(self.device, non_blocking=True, pin_memory=self.use_pin_memory)
+
+    def load_block(self, idx: int):
+        if idx >= len(self.blocks):
+            return
+
+        self._move_block_to_gpu(idx)
+
+    def offload_block(self, idx: int):
+        """Offload the current block to CPU using memory stream."""
+        if idx <= 0:
+            return
+
+        self._move_block_to_cpu(idx)
+
+    def step(self):
+        """Move to the next block, triggering preload and offload operations."""
+        self.memory_done.wait(self.compute_stream)
+        with torch.cuda.stream(self.memory_stream):
+            self.offload_block(self.current_block_idx - 1)  # offload the previous block
+            self.load_block(self.current_block_idx + 1)  # preload the next block
+            self.next_memory_done.record(self.memory_stream)
+
+        self.current_block_idx += 1
+        self.memory_done = self.next_memory_done
+        self.compute_done = self.next_compute_done
+
+    def wait_for_block(self):
+        """Wait until a block is loaded on GPU"""
+        self.compute_done.wait(self.memory_stream)
+
+    def get_memory_usage(self) -> Dict[str, float]:
+        """Get memory usage statistics."""
+        gpu_memory = 0.0
+        cpu_memory = 0.0
+
+        for i, block in enumerate(self.blocks):
+            block_memory = 0.0
+            for name, param in block.named_parameters():
+                if param.device == self.device:
+                    block_memory += param.numel() * param.element_size()
+                elif param.device == self.cpu_device:
+                    cpu_memory += param.numel() * param.element_size()
+
+            if i in self.blocks_on_gpu:
+                gpu_memory += block_memory
+            else:
+                cpu_memory += block_memory
+
+        return {
+            "gpu_memory_mb": gpu_memory / (1024 * 1024),
+            "cpu_memory_mb": cpu_memory / (1024 * 1024),
+            "total_memory_mb": (gpu_memory + cpu_memory) / (1024 * 1024),
+        }
