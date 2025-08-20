@@ -131,27 +131,3 @@ class BlockOffloadManager:
     def wait_for_block(self):
         """Wait until a block is loaded on GPU"""
         self.compute_done.wait(self.memory_stream)
-
-    def get_memory_usage(self) -> Dict[str, float]:
-        """Get memory usage statistics."""
-        gpu_memory = 0.0
-        cpu_memory = 0.0
-
-        for i, block in enumerate(self.blocks):
-            block_memory = 0.0
-            for name, param in block.named_parameters():
-                if param.device == self.device:
-                    block_memory += param.numel() * param.element_size()
-                elif param.device == self.cpu_device:
-                    cpu_memory += param.numel() * param.element_size()
-
-            if i in self.blocks_on_gpu:
-                gpu_memory += block_memory
-            else:
-                cpu_memory += block_memory
-
-        return {
-            "gpu_memory_mb": gpu_memory / (1024 * 1024),
-            "cpu_memory_mb": cpu_memory / (1024 * 1024),
-            "total_memory_mb": (gpu_memory + cpu_memory) / (1024 * 1024),
-        }
