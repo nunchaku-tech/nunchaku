@@ -307,6 +307,7 @@ class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuM
             offload_manager.set_device(hidden_states.device)
         compute_stream = offload_manager.compute_stream if offload_manager is not None else None
         for index_block, block in enumerate(self.transformer_blocks):
+            # issue compute kernels first so that we could still overlap compute and memcpy if memory is not pinned
             with torch.cuda.stream(compute_stream):
                 if self.offload:
                     offload_manager.wait_for_block()
@@ -319,8 +320,14 @@ class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuM
                     image_rotary_emb=image_rotary_emb,
                     joint_attention_kwargs=attention_kwargs,
                 )
+                if self.offload:
+                    offload_manager.record_compute_done()
             if self.offload:
                 offload_manager.step()
+
+        if self.offload:
+            offload_manager.compute_stream.synchronize()
+            offload_manager.offload_block(len(self.transformer_blocks) - 1)
 
         # Use only the image part (hidden_states) from the dual-stream blocks
         hidden_states = self.norm_out(hidden_states, temb)

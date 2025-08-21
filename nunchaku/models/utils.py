@@ -127,7 +127,12 @@ class BlockOffloadManager:
         self.current_block_idx += 1
         self.memory_done = self.next_memory_done
         self.compute_done = self.next_compute_done
+        self.next_compute_done = torch.cuda.Event(blocking=False)
+        self.next_memory_done = torch.cuda.Event(blocking=False)
 
     def wait_for_block(self):
         """Wait until a block is loaded on GPU"""
         self.compute_done.wait(self.memory_stream)
+
+    def record_compute_done(self):
+        self.next_compute_done.record(self.compute_stream)
