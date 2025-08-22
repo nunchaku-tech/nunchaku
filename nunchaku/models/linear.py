@@ -15,9 +15,11 @@ class SVDQW4A4Linear(nn.Module):
         bias: bool = True,
         precision: str = "int4",
         torch_dtype: torch.dtype = torch.bfloat16,
-        device: str | torch.device = "cpu",
+        device: str | torch.device | None = None,
     ):
         super(SVDQW4A4Linear, self).__init__()
+        if device is None:
+            device = torch.device("cpu")
         self.in_features = in_features
         self.out_features = out_features
         self.rank = rank
@@ -140,9 +142,11 @@ class AWQW4A16Linear(nn.Module):
         bias: bool = True,
         group_size: int = 64,
         torch_dtype: torch.dtype = torch.bfloat16,
-        device: str | torch.device = "cuda",
+        device: str | torch.device | None = None,
     ):
         super(AWQW4A16Linear, self).__init__()
+        if device is None:
+            device = torch.device("cpu")
         self.in_features = in_features
         self.out_features = out_features
 
