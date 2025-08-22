@@ -14,6 +14,7 @@ class SVDQW4A4Linear(nn.Module):
         rank: int = 32,
         bias: bool = True,
         precision: str = "int4",
+        act_unsigned: bool = False,
         torch_dtype: torch.dtype = torch.bfloat16,
         device: str | torch.device | None = None,
     ):
@@ -71,7 +72,7 @@ class SVDQW4A4Linear(nn.Module):
                 torch.ones(out_features, dtype=torch_dtype, device=device), requires_grad=False
             )
 
-        self.act_unsigned = False
+        self.act_unsigned = act_unsigned
 
     @classmethod
     def from_linear(cls, linear: nn.Linear, **kwargs):
