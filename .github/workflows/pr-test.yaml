@@ -67,7 +67,7 @@ jobs:
           which python
           echo "Installing dependencies"
           pip install torch==2.7 torchvision==0.22 torchaudio==2.7 --index-url https://download.pytorch.org/whl/cu128
-          pip install git+https://github.com/huggingface/diffusers
+          pip install diffusers==0.35.1
           pip install ninja wheel transformers==4.51 accelerate==1.7 sentencepiece==0.2 protobuf==6.31 huggingface_hub==0.34
       - name: Build
         run: |
