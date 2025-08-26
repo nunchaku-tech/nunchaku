@@ -1,7 +1,7 @@
 from .transformer_flux import NunchakuFluxTransformer2dModel
-from .transformer_sana import NunchakuSanaTransformer2DModel
 from .transformer_flux_v2 import NunchakuFluxTransformer2DModelV2
 from .transformer_qwenimage import NunchakuQwenImageTransformer2DModel
+from .transformer_sana import NunchakuSanaTransformer2DModel
 
 __all__ = [
     "NunchakuFluxTransformer2dModel",
