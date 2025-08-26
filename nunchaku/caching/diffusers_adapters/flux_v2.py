@@ -8,7 +8,7 @@ from diffusers import DiffusionPipeline
 
 from nunchaku.models.transformers.transformer_flux_v2 import NunchakuFluxTransformer2DModelV2
 
-from ..FBCache import cache_context, create_cache_context
+from ..fbcache import cache_context, create_cache_context
 from ..utils_v2 import cached_forward_v2
 
 
@@ -22,6 +22,19 @@ def apply_cache_on_transformer(
 ):
     """
     Apply caching to transformer by replacing its forward method.
+    
+    Args:
+        transformer: The NunchakuFluxTransformer2DModelV2 instance to apply caching to.
+        use_double_fb_cache: If True, applies a more precise cache mechanism for improved
+            accuracy in caching decisions.
+        residual_diff_threshold: Default threshold value for residual difference.
+        residual_diff_threshold_multi: Threshold for residual difference in multi-layer blocks.
+            Only used when use_double_fb_cache is True.
+        residual_diff_threshold_single: Threshold for residual difference in single-layer blocks.
+            Only used when use_double_fb_cache is True.
+    
+    Returns:
+        The transformer with caching applied.
     """
 
     if residual_diff_threshold_multi is None:

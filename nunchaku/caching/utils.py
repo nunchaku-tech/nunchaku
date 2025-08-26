@@ -23,7 +23,7 @@ when input changes are minimal. Supports SANA and Flux architectures.
 import torch
 from torch import nn
 
-from nunchaku.caching.FBCache import (
+from nunchaku.caching.fbcache import (
     apply_prev_hidden_states_residual,
     check_and_apply_cache,
     get_can_use_cache,

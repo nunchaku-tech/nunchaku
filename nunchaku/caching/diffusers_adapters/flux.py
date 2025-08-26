@@ -16,7 +16,7 @@ from diffusers import DiffusionPipeline, FluxTransformer2DModel
 from torch import nn
 
 from ...caching import utils
-from ..FBCache import cache_context, create_cache_context, get_current_cache_context
+from ..fbcache import cache_context, create_cache_context, get_current_cache_context
 
 
 def apply_cache_on_transformer(
