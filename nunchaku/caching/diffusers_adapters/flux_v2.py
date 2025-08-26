@@ -22,7 +22,7 @@ def apply_cache_on_transformer(
 ):
     """
     Apply caching to transformer by replacing its forward method.
-    
+
     Args:
         transformer: The NunchakuFluxTransformer2DModelV2 instance to apply caching to.
         use_double_fb_cache: If True, applies a more precise cache mechanism for improved
@@ -32,7 +32,7 @@ def apply_cache_on_transformer(
             Only used when use_double_fb_cache is True.
         residual_diff_threshold_single: Threshold for residual difference in single-layer blocks.
             Only used when use_double_fb_cache is True.
-    
+
     Returns:
         The transformer with caching applied.
     """
