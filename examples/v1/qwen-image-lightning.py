@@ -26,10 +26,15 @@ scheduler_config = {
 }
 scheduler = FlowMatchEulerDiscreteScheduler.from_config(scheduler_config)
 
+num_inference_steps = 4  # you can also use the 8-step model to improve the quality
+rank = 32  # you can also use the r128 or 8-step model to improve the quality
+model_paths = {
+    4: f"Lmxyy/nunchaku-qwen-image/svdq-{get_precision()}_r{rank}-qwen-image-lightningv1.0-4steps.safetensors",
+    8: f"Lmxyy/nunchaku-qwen-image/svdq-{get_precision()}_r{rank}-qwen-image-lightningv1.1-8steps.safetensors",
+}
+
 # Load the model
-transformer = NunchakuQwenImageTransformer2DModel.from_pretrained(
-    f"Lmxyy/nunchaku-qwen-image/svdq-{get_precision()}_r128-qwen-image-lightningv1.1-8steps.safetensors"
-)  # you can also use the r128 or 8-step model to improve the quality
+transformer = NunchakuQwenImageTransformer2DModel.from_pretrained(model_paths[num_inference_steps])
 pipe = NunchakuQwenImagePipeline.from_pretrained(
     "Qwen/Qwen-Image", transformer=transformer, scheduler=scheduler, torch_dtype=torch.bfloat16
 )
@@ -41,7 +46,7 @@ image = pipe(
     negative_prompt=negative_prompt,
     width=1024,
     height=1024,
-    num_inference_steps=8,  # change the num_inference_steps to 8 if you're using the 8-step model
+    num_inference_steps=num_inference_steps,
     true_cfg_scale=1.0,
 ).images[0]
 image.save("qwen-image-lightning_r128.png")
