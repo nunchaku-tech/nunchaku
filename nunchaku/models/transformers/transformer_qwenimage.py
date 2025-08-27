@@ -1,10 +1,11 @@
 import json
 import os
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import torch
 from diffusers.models.attention_processor import Attention
+from diffusers.models.modeling_outputs import Transformer2DModelOutput
 from diffusers.models.transformers.transformer_qwenimage import (
     QwenEmbedRope,
     QwenImageTransformer2DModel,
@@ -16,7 +17,7 @@ from ...utils import get_precision
 from ..attention import NunchakuBaseAttention, NunchakuFeedForward
 from ..attention_processors.qwenimage import NunchakuQwenImageNaiveFA2Processor
 from ..linear import AWQW4A16Linear, SVDQW4A4Linear
-from ..utils import fuse_linears
+from ..utils import fuse_linears, BlockOffloadManager
 from .utils import NunchakuModelLoaderMixin
 
 
@@ -206,6 +207,10 @@ class NunchakuQwenImageTransformerBlock(QwenImageTransformerBlock):
 
 class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuModelLoaderMixin):
 
+    def __init__(self, *args, **kwargs):
+        self.offload = kwargs.pop("offload", False)
+        super().__init__(*args, **kwargs)
+
     def _patch_model(self, **kwargs):
         for i, block in enumerate(self.transformer_blocks):
             self.transformer_blocks[i] = NunchakuQwenImageTransformerBlock(block, scale_shift=0, **kwargs)
@@ -216,9 +221,6 @@ class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuM
     def from_pretrained(cls, pretrained_model_name_or_path: str | os.PathLike[str], **kwargs):
         device = kwargs.get("device", "cpu")
         offload = kwargs.get("offload", False)
-
-        if offload:
-            raise NotImplementedError("Offload is not supported for FluxTransformer2DModelV2")
 
         torch_dtype = kwargs.get("torch_dtype", torch.bfloat16)
 
@@ -255,3 +257,83 @@ class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuM
         transformer.load_state_dict(model_state_dict)
 
         return transformer
+
+    def set_offload(self, offload: bool):
+        self.offload = offload
+
+    def forward(
+        self,
+        hidden_states: torch.Tensor,
+        encoder_hidden_states: torch.Tensor = None,
+        encoder_hidden_states_mask: torch.Tensor = None,
+        timestep: torch.LongTensor = None,
+        img_shapes: Optional[List[Tuple[int, int, int]]] = None,
+        txt_seq_lens: Optional[List[int]] = None,
+        guidance: torch.Tensor = None,  # TODO: this should probably be removed
+        attention_kwargs: Optional[Dict[str, Any]] = None,
+        return_dict: bool = True,
+    ) -> Union[torch.Tensor, Transformer2DModelOutput]:
+        if self.offload:
+            device = hidden_states.device
+            offload_manager = BlockOffloadManager(self.transformer_blocks, device=device)
+            self.img_in.to(device)
+            self.txt_in.to(device)
+            self.txt_norm.to(device)
+            self.time_text_embed.to(device)
+            self.pos_embed.to(device)
+            self.norm_out.to(device)
+            self.proj_out.to(device)
+        else:
+            offload_manager = None
+
+        hidden_states = self.img_in(hidden_states)
+
+        timestep = timestep.to(hidden_states.dtype)
+        encoder_hidden_states = self.txt_norm(encoder_hidden_states)
+        encoder_hidden_states = self.txt_in(encoder_hidden_states)
+
+        if guidance is not None:
+            guidance = guidance.to(hidden_states.dtype) * 1000
+
+        temb = (
+            self.time_text_embed(timestep, hidden_states)
+            if guidance is None
+            else self.time_text_embed(timestep, guidance, hidden_states)
+        )
+
+        image_rotary_emb = self.pos_embed(img_shapes, txt_seq_lens, device=hidden_states.device)
+
+        if self.offload:
+            offload_manager.set_device(hidden_states.device)
+        compute_stream = offload_manager.compute_stream if offload_manager is not None else None
+        for index_block, block in enumerate(self.transformer_blocks):
+            # issue compute kernels first so that we could still overlap compute and memcpy if memory is not pinned
+            with torch.cuda.stream(compute_stream):
+                if self.offload:
+                    offload_manager.wait_for_block()
+
+                encoder_hidden_states, hidden_states = block(
+                    hidden_states=hidden_states,
+                    encoder_hidden_states=encoder_hidden_states,
+                    encoder_hidden_states_mask=encoder_hidden_states_mask,
+                    temb=temb,
+                    image_rotary_emb=image_rotary_emb,
+                    joint_attention_kwargs=attention_kwargs,
+                )
+                if self.offload:
+                    offload_manager.record_compute_done()
+            if self.offload:
+                offload_manager.step()
+
+        if self.offload:
+            offload_manager.compute_stream.synchronize()
+            offload_manager.offload_block(len(self.transformer_blocks) - 1)
+
+        # Use only the image part (hidden_states) from the dual-stream blocks
+        hidden_states = self.norm_out(hidden_states, temb)
+        output = self.proj_out(hidden_states)
+
+        if not return_dict:
+            return (output,)
+
+        return Transformer2DModelOutput(sample=output)

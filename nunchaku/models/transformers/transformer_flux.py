@@ -22,8 +22,8 @@ from ..._C import QuantizedFluxModel
 from ..._C import utils as cutils
 from ...lora.flux.nunchaku_converter import fuse_vectors, to_nunchaku
 from ...lora.flux.utils import is_nunchaku_format
-from ...utils import check_hardware_compatibility, get_precision, load_state_dict_in_safetensors
-from .utils import NunchakuModelLoaderMixin, pad_tensor
+from ...utils import check_hardware_compatibility, get_precision, load_state_dict_in_safetensors, pad_tensor
+from .utils import NunchakuModelLoaderMixin
 
 SVD_RANK = 32
 
