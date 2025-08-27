@@ -49,4 +49,4 @@ image = pipe(
     num_inference_steps=num_inference_steps,
     true_cfg_scale=1.0,
 ).images[0]
-image.save("qwen-image-lightning_r128.png")
+image.save(f"qwen-image-lightning_r{rank}.png")
