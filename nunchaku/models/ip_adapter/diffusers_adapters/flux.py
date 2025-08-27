@@ -12,10 +12,9 @@ import unittest
 from diffusers import DiffusionPipeline, FluxTransformer2DModel
 from torch import nn
 
-from nunchaku.caching.utils import cache_context, create_cache_context
-from nunchaku.models.ip_adapter.utils import undo_all_mods_on_transformer
-
+from ....caching.fbcache import cache_context, create_cache_context
 from ...ip_adapter import utils
+from ...ip_adapter.utils import undo_all_mods_on_transformer
 
 
 def apply_IPA_on_transformer(
