@@ -15,7 +15,7 @@ Join our user groups on [**Slack**](https://join.slack.com/t/nunchaku/shared_inv
 
 ## News
 
-- **[2025-08-25]** 🔥 Released **4-bit lightning Qwen-Image (4/8-step)**! Download on [Hugging Face](https://huggingface.co/nunchaku-tech/nunchaku-qwen-image) or [ModelScope](https://modelscope.cn/models/nunchaku-tech/nunchaku-qwen-image), and try it with our [example script](examples/v1/qwen-image-lightning.py).
+- **[2025-08-27]** 🔥 Release **4-bit [4/8-step lightning Qwen-Image](https://huggingface.co/lightx2v/Qwen-Image-Lightning) (4/8-step)**! Download on [Hugging Face](https://huggingface.co/nunchaku-tech/nunchaku-qwen-image) or [ModelScope](https://modelscope.cn/models/nunchaku-tech/nunchaku-qwen-image), and try it with our [example script](examples/v1/qwen-image-lightning.py).
 - **[2025-08-15]** 🔥 Our **4-bit Qwen-Image** models are now live on [Hugging Face](https://huggingface.co/nunchaku-tech/nunchaku-qwen-image)! Get started with our [example script](examples/v1/qwen-image.py). *ComfyUI, LoRA, and CPU offloading support are coming soon!*
 - **[2025-08-15]** 🚀 The **Python backend** is now available! Explore our Pythonic FLUX models [here](nunchaku/models/transformers/transformer_flux_v2.py) and see the modular **4-bit linear layer** [here](nunchaku/models/linear.py).
 - **[2025-07-31]** 🚀 **[FLUX.1-Krea-dev](https://www.krea.ai/blog/flux-krea-open-source-release) is now supported!** Check out our new [example script](./examples/flux.1-krea-dev.py) to get started.
