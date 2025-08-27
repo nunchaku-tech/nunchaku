@@ -1,15 +1,5 @@
 """
 This module provides Python wrappers for Nunchaku's high-performance SVDQuant quantization CUDA kernels.
-
-Notes
------
-- All functions are designed for efficient quantized inference and training.
-- Notation used in this module:
-    - M: Batch size (number of input tokens)
-    - K: Number of input channels (feature dimension)
-    - N: Number of output channels
-    - G: Number of groups (64 for INT4, 16 for NVFP4)
-    - R: Rank of the low-rank branch
 """
 
 import torch
@@ -67,6 +57,11 @@ def svdq_quantize_w4a4_act_fuse_lora_cuda(
 
     Notes
     -----
+    - M: Batch size (number of input tokens)
+    - K: Number of input channels (feature dimension)
+    - N: Number of output channels
+    - G: Number of groups (64 for INT4, 16 for NVFP4)
+    - R: Rank of the low-rank branch
     - M_pad is the padded batch size: ceil(M / pad_size) * pad_size.
     - G is the number of groups: 64 for INT4, 16 for NVFP4.
     """
