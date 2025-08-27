@@ -15,7 +15,7 @@
 
 ## 最新动态
 
-- **[2025-08-25]** 🚀 发布 **4-bit Qwen-Image (4/8-step)**！可在 [Hugging Face](https://huggingface.co/nunchaku-tech/nunchaku-qwen-image) 和 [ModelScope](https://modelscope.cn/models/nunchaku-tech/nunchaku-qwen-image) 下载。使用我们的 [示例脚本](examples/v1/qwen-image-lightning.py) 开始体验。
+- **[2025-08-27]** 🚀 发布 **4-bit [4/8步 lightning Qwen-Image](https://huggingface.co/lightx2v/Qwen-Image-Lightning)**！可在 [Hugging Face](https://huggingface.co/nunchaku-tech/nunchaku-qwen-image) 和 [ModelScope](https://modelscope.cn/models/nunchaku-tech/nunchaku-qwen-image) 下载。使用我们的 [示例脚本](examples/v1/qwen-image-lightning.py) 开始体验。
 - **[2025-07-31]** 🚀 **[FLUX.1-Krea-dev](https://www.krea.ai/blog/flux-krea-open-source-release) 已支持！** 欢迎参考我们的[示例脚本](./examples/flux.1-krea-dev.py)快速上手。
 - **[2025-07-13]** 🚀 官方 [**Nunchaku 文档**](https://nunchaku.tech/docs/nunchaku/) 上线！欢迎查阅详细的入门指南和资源。
 - **[2025-06-29]** 🔥 支持 **FLUX.1-Kontext**！可参考我们的[示例脚本](./examples/flux.1-kontext-dev.py)体验，在线演示见[此处](https://svdquant.mit.edu/kontext/)！
