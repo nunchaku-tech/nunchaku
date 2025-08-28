@@ -4,7 +4,7 @@ import argparse
 def get_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "-p", "--precision", type=str, default="int4", choices=["int4", "bf16"], help="Which precisions to use"
+        "-p", "--precision", type=str, default="int4", choices=["int4", "fp4", "bf16"], help="Which precisions to use"
     )
     parser.add_argument(
         "-m", "--model", type=str, default="depth", choices=["canny", "depth"], help="Which FLUX.1 model to use"

@@ -280,3 +280,18 @@ def check_hardware_compatibility(quantization_config: dict, device: str | torch.
             f"Unsupported GPU architecture {sm} due to the lack of 4-bit tensorcores. "
             "Please use a Turing, Ampere, Ada or Blackwell GPU for this quantization configuration."
         )
+
+
+def get_precision_from_quantization_config(quantization_config: dict) -> str:
+    """
+    Get the precision from the quantization configuration.
+    """
+    if quantization_config["weight"]["dtype"] == "fp4_e2m1_all":
+        if quantization_config["weight"]["group_size"] == 16:
+            return "nvfp4"
+        else:
+            raise ValueError("Currently, nunchaku only supports nvfp4.")
+    elif quantization_config["weight"]["dtype"] == "int4":
+        return "int4"
+    else:
+        raise ValueError(f"Unsupported quantization dtype: {quantization_config['weight']['dtype']}")

@@ -15,17 +15,18 @@
 
 ## 最新动态
 
+- **[2025-08-27]** 🚀 发布 **4-bit [4/8步 lightning Qwen-Image](https://huggingface.co/lightx2v/Qwen-Image-Lightning)**！可在 [Hugging Face](https://huggingface.co/nunchaku-tech/nunchaku-qwen-image) 和 [ModelScope](https://modelscope.cn/models/nunchaku-tech/nunchaku-qwen-image) 下载。使用我们的 [示例脚本](examples/v1/qwen-image-lightning.py) 开始体验。
 - **[2025-07-31]** 🚀 **[FLUX.1-Krea-dev](https://www.krea.ai/blog/flux-krea-open-source-release) 已支持！** 欢迎参考我们的[示例脚本](./examples/flux.1-krea-dev.py)快速上手。
 - **[2025-07-13]** 🚀 官方 [**Nunchaku 文档**](https://nunchaku.tech/docs/nunchaku/) 上线！欢迎查阅详细的入门指南和资源。
 - **[2025-06-29]** 🔥 支持 **FLUX.1-Kontext**！可参考我们的[示例脚本](./examples/flux.1-kontext-dev.py)体验，在线演示见[此处](https://svdquant.mit.edu/kontext/)！
 - **[2025-06-01]** 🚀 **v0.3.0 发布！** 本次更新支持多 batch 推理、[**ControlNet-Union-Pro 2.0**](https://huggingface.co/Shakker-Labs/FLUX.1-dev-ControlNet-Union-Pro-2.0)、初步集成 [**PuLID**](https://github.com/ToTheBeginning/PuLID)，并引入 [**双 FB Cache**](examples/flux.1-dev-double_cache.py)。现已支持单文件加载 FLUX 模型，升级后的 [**4-bit T5 编码器**](https://huggingface.co/nunchaku-tech/nunchaku-t5) 质量媲美 **FP8 T5**！
-- **[2025-04-16]** 🎥 发布中英文[**安装与使用教程视频**](https://youtu.be/YHAVe-oM7U8?si=cM9zaby_aEHiFXk0)（[**B站**](https://www.bilibili.com/video/BV1BTocYjEk5/?share_source=copy_web&vd_source=8926212fef622f25cc95380515ac74ee)）。
-- **[2025-04-09]** 📢 发布 [四月路线图](https://github.com/nunchaku-tech/nunchaku/issues/266) 及 [FAQ](https://github.com/nunchaku-tech/nunchaku/discussions/262)，助力社区快速上手并了解最新进展。
-- **[2025-04-05]** 🚀 **Nunchaku v0.2.0 发布！** 本次更新带来 [**多 LoRA**](examples/flux.1-dev-multiple-lora.py) 和 [**ControlNet**](examples/flux.1-dev-controlnet-union-pro.py) 支持，并通过 [**FP16 attention**](#fp16-attention) 和 [**First-Block Cache**](#first-block-cache) 实现更快推理。现已兼容 [**20 系显卡**](examples/flux.1-dev-turing.py) —— Nunchaku 更易用！
 
 <details>
 <summary>更多历史</summary>
 
+- **[2025-04-16]** 🎥 发布中英文[**安装与使用教程视频**](https://youtu.be/YHAVe-oM7U8?si=cM9zaby_aEHiFXk0)（[**B站**](https://www.bilibili.com/video/BV1BTocYjEk5/?share_source=copy_web&vd_source=8926212fef622f25cc95380515ac74ee)）。
+- **[2025-04-09]** 📢 发布 [四月路线图](https://github.com/nunchaku-tech/nunchaku/issues/266) 及 [FAQ](https://github.com/nunchaku-tech/nunchaku/discussions/262)，助力社区快速上手并了解最新进展。
+- **[2025-04-05]** 🚀 **Nunchaku v0.2.0 发布！** 本次更新带来 [**多 LoRA**](examples/flux.1-dev-multiple-lora.py) 和 [**ControlNet**](examples/flux.1-dev-controlnet-union-pro.py) 支持，并通过 [**FP16 attention**](#fp16-attention) 和 [**First-Block Cache**](#first-block-cache) 实现更快推理。现已兼容 [**20 系显卡**](examples/flux.1-dev-turing.py) —— Nunchaku 更易用！
 - **[2025-03-07]** 🚀 **Nunchaku v0.1.4 发布！** 支持 [4-bit 文本编码器和逐层 CPU 下放](#Low-Memory-Inference)，将 FLUX 最低显存需求降至 **4 GiB**，同时实现 **2–3× 加速**。本次还修复了分辨率、LoRA、pin memory 和稳定性等问题，详见发布说明！
 - **[2025-02-20]** 🚀 **RTX 5090 支持 NVFP4 精度！** NVFP4 相比 INT4 画质更佳，在 RTX 5090 上比 BF16 快 **~3×**。详情见[博客](https://hanlab.mit.edu/blog/svdquant-nvfp4)，用法见 [`examples`](./examples)，在线体验[点此](https://svdquant.mit.edu/flux1-schnell/)！
 - **[2025-02-18]** 🔥 [**自定义 LoRA 转换**](#Customized-LoRA) 和 [**模型量化**](#Customized-Model-Quantization) 教程上线！**[ComfyUI](./comfyui)** 工作流现已支持 **自定义 LoRA** 及 **FLUX.1-Tools**！

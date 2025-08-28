@@ -14,10 +14,13 @@ class SVDQW4A4Linear(nn.Module):
         rank: int = 32,
         bias: bool = True,
         precision: str = "int4",
+        act_unsigned: bool = False,
         torch_dtype: torch.dtype = torch.bfloat16,
-        device: str | torch.device = "cpu",
+        device: str | torch.device | None = None,
     ):
         super(SVDQW4A4Linear, self).__init__()
+        if device is None:
+            device = torch.device("cpu")
         self.in_features = in_features
         self.out_features = out_features
         self.rank = rank
@@ -69,7 +72,7 @@ class SVDQW4A4Linear(nn.Module):
                 torch.ones(out_features, dtype=torch_dtype, device=device), requires_grad=False
             )
 
-        self.act_unsigned = False
+        self.act_unsigned = act_unsigned
 
     @classmethod
     def from_linear(cls, linear: nn.Linear, **kwargs):
@@ -140,9 +143,11 @@ class AWQW4A16Linear(nn.Module):
         bias: bool = True,
         group_size: int = 64,
         torch_dtype: torch.dtype = torch.bfloat16,
-        device: str | torch.device = "cuda",
+        device: str | torch.device | None = None,
     ):
         super(AWQW4A16Linear, self).__init__()
+        if device is None:
+            device = torch.device("cpu")
         self.in_features = in_features
         self.out_features = out_features
 

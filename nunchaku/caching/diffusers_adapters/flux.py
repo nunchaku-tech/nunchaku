@@ -16,6 +16,7 @@ from diffusers import DiffusionPipeline, FluxTransformer2DModel
 from torch import nn
 
 from ...caching import utils
+from ..fbcache import cache_context, create_cache_context, get_current_cache_context
 
 
 def apply_cache_on_transformer(
@@ -85,7 +86,7 @@ def apply_cache_on_transformer(
 
     @functools.wraps(original_forward)
     def new_forward(self, *args, **kwargs):
-        cache_context = utils.get_current_cache_context()
+        cache_context = get_current_cache_context()
         if cache_context is not None:
             with (
                 unittest.mock.patch.object(self, "transformer_blocks", cached_transformer_blocks),
@@ -136,7 +137,7 @@ def apply_cache_on_pipe(pipe: DiffusionPipeline, **kwargs):
 
         @functools.wraps(original_call)
         def new_call(self, *args, **kwargs):
-            with utils.cache_context(utils.create_cache_context()):
+            with cache_context(create_cache_context()):
                 return original_call(self, *args, **kwargs)
 
         pipe.__class__.__call__ = new_call
