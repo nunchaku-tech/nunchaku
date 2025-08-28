@@ -188,7 +188,7 @@ class SVDQW4A4Linear(nn.Module):
 
     def quantize(self, x: torch.Tensor, pad_size: int = 256) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
-        Quantize the input tensor to 4-bit and compute the hidden states of the low-rank branch. It will call :func:`~svdq_quantize_w4a4_act_fuse_lora_cuda`.
+        Quantize the input tensor to 4-bit and compute the hidden states of the low-rank branch. It will call :func:`~nunchaku.ops.quantize.svdq_quantize_w4a4_act_fuse_lora_cuda`.
 
         Parameters
         ----------
@@ -219,7 +219,7 @@ class SVDQW4A4Linear(nn.Module):
         output: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """
-        Forward pass with pre-quantized input. It will call :func:`~svdq_gemm_w4a4_cuda`.
+        Forward pass with pre-quantized input. It will call :func:`~nunchaku.ops.gemm.svdq_gemm_w4a4_cuda`.
 
         Parameters
         ----------
