@@ -1,3 +1,7 @@
+"""
+This module provides Nunchaku quantized linear layers.
+"""
+
 import torch
 from torch import nn
 
@@ -7,6 +11,62 @@ from ..ops.quantize import svdq_quantize_w4a4_act_fuse_lora_cuda
 
 
 class SVDQW4A4Linear(nn.Module):
+    """
+    This class implements the linear layer of W4A4 `SVDQuant <paper_svdquant_>`_ linear layer,
+    supporting both INT4 and NVFP4 data types.
+
+    Parameters
+    ----------
+    in_features : int
+        Number of input features.
+    out_features : int
+        Number of output features.
+    rank : int, optional
+        Rank for SVDQuant (default: 32).
+    bias : bool, optional
+        If True, adds a learnable bias to the output (default: True).
+    precision : {'int4', 'nvfp4'}, optional
+        Quantization precision mode (default: 'int4').
+    act_unsigned : bool, optional
+        If True, uses unsigned activation quantization (default: False).
+    torch_dtype : torch.dtype, optional
+        Data type for parameters (default: torch.bfloat16).
+    device : str or torch.device or None, optional
+        Device to initialize parameters on (default: None, uses CPU).
+
+    Attributes
+    ----------
+    in_features : int
+    out_features : int
+    rank : int
+        Rank for the SVDQuant.
+    precision : str
+        Precision mode. It can be 'int4' or 'nvfp4'.
+    group_size : int
+        Group size for quantization. For int4, it is 64. For nvfp4, it is 16.
+    qweight : nn.Parameter
+        Quantized weight tensor. It is packed into int8 tensor of shape (out_features, in_features // 2).
+    bias : nn.Parameter or None
+        Bias tensor.
+    wscales : nn.Parameter
+        Weight scaling factors of shape (in_features // group_size, out_features).
+        For int4, the data type is bfloat16 or float16. For nvfp4, the data type is float8_e4m3fn.
+    smooth_factor : nn.Parameter
+        Smooth factor of shape (in_features,).
+    smooth_factor_orig : nn.Parameter
+        Original smooth factor of shape (in_features,). Currently have no use.
+    proj_down : nn.Parameter
+        Low-rank down projection weight. The weight is packed into a bfloat16 or float16 tensor of shape (in_features, rank).
+    proj_up : nn.Parameter
+        Low-rank up projection weight. The weight is packed into a bfloat16 or float16 tensor of shape (out_features, rank).
+    wtscale : nn.Parameter or None
+        Weight scaling for nvfp4. It is a scalar.
+    wcscales : nn.Parameter or None
+        Weight channel-wise scaling for nvfp4. It is a tensor of shape (out_features,).
+    act_unsigned : bool
+        Whether the input activation is all positive and need to uses unsigned quantization. This is only used for int4.
+    """
+
     def __init__(
         self,
         in_features: int,
@@ -76,6 +136,21 @@ class SVDQW4A4Linear(nn.Module):
 
     @classmethod
     def from_linear(cls, linear: nn.Linear, **kwargs):
+        """
+        Create an empty SVDQW4A4Linear from a standard nn.Linear.
+        The weight and bias are dummy tensors.
+
+        Parameters
+        ----------
+        linear : nn.Linear
+            Source linear layer.
+        **kwargs
+            Additional arguments for initialization.
+
+        Returns
+        -------
+        SVDQW4A4Linear
+        """
         in_features = kwargs.pop("in_features", linear.in_features)
         return cls(
             in_features=in_features,
@@ -87,7 +162,21 @@ class SVDQW4A4Linear(nn.Module):
         )
 
     def forward(self, x: torch.Tensor, output: torch.Tensor | None = None) -> torch.Tensor:
-        # quantize the input run the down projection
+        """
+        Forward pass with 16-bit input. It will call :meth:`quantize` and :meth:`forward_quant`.
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            Input tensor of shape (batch, seq_len, in_features).
+        output : torch.Tensor or None, optional
+            Optional output buffer.
+
+        Returns
+        -------
+        torch.Tensor
+            Output tensor of shape (batch, seq_len, out_features).
+        """
         batch_size, seq_len, channels = x.shape
         x = x.view(batch_size * seq_len, channels)
         if output is None:
@@ -97,7 +186,26 @@ class SVDQW4A4Linear(nn.Module):
         output = output.view(batch_size, seq_len, -1)
         return output
 
-    def quantize(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def quantize(self, x: torch.Tensor, pad_size: int = 256) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """
+        Quantize the input tensor to 4-bit and compute the hidden states of the low-rank branch. It will call :func:`~svdq_quantize_w4a4_act_fuse_lora_cuda`.
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            Input tensor of shape (batch_size, in_features). The data type is bfloat16 or float16.
+        pad_size : int, optional
+            Pad size for the the batch dimension.
+
+        Returns
+        -------
+        quantized_x : torch.Tensor
+            Quantized output tensor of shape (pad_size * ceil(batch_size / pad_size), in_features // 2), packed into dtype uint8.
+        ascales : torch.Tensor
+            Activation scaling factors of shape (in_features // group_size,). Data type is bfloat16 or float16 for int4 and float8_e4m3fn for nvfp4.
+        lora_act_out : torch.Tensor
+            Hidden states of the low-rank branch. Shape is (pad_size * ceil(batch_size / pad_size), rank). Data type is float32.
+        """
         quantized_x, ascales, lora_act_out = svdq_quantize_w4a4_act_fuse_lora_cuda(
             x, lora_down=self.proj_down, smooth=self.smooth_factor, fp4=self.precision == "nvfp4"
         )
@@ -110,6 +218,25 @@ class SVDQW4A4Linear(nn.Module):
         lora_act: torch.Tensor,
         output: torch.Tensor | None = None,
     ) -> torch.Tensor:
+        """
+        Forward pass with pre-quantized input. It will call :func:`~svdq_gemm_w4a4_cuda`.
+
+        Parameters
+        ----------
+        quantized_x : torch.Tensor
+            Quantized output tensor of shape (pad_size * ceil(batch_size / pad_size), in_features // 2), packed into dtype uint8.
+        ascales : torch.Tensor
+            Activation scaling factors of shape (in_features // group_size,). Data type is bfloat16 or float16 for int4 and float8_e4m3fn for nvfp4.
+        lora_act : torch.Tensor
+            Hidden states of the low-rank branch. Shape is (pad_size * ceil(batch_size / pad_size), rank). Data type is float32.
+        output : torch.Tensor or None, optional
+            Optional output buffer.
+
+        Returns
+        -------
+        torch.Tensor
+            Output tensor.
+        """
         if output is None:
             output = torch.empty(
                 quantized_x.shape[0], self.out_features, dtype=self.proj_up.dtype, device=quantized_x.device

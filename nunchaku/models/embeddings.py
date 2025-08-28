@@ -1,3 +1,7 @@
+"""
+Embedding layers for Nunchaku.
+"""
+
 import diffusers
 import torch
 from packaging.version import Version
@@ -21,7 +25,7 @@ def rope(pos: torch.Tensor, dim: int, theta: int) -> torch.Tensor:
     Returns
     -------
     torch.Tensor
-        Rotary embedding tensor.
+        Rotary embedding tensor of shape (batch_size, seq_length, dim//2, 1, 2), dtype float32.
     """
     assert dim % 2 == 0, "The dimension must be even."
 
@@ -31,21 +35,18 @@ def rope(pos: torch.Tensor, dim: int, theta: int) -> torch.Tensor:
     batch_size, seq_length = pos.shape
     out = torch.einsum("...n,d->...nd", pos, omega)
 
-    USE_SINCOS = True
-    if USE_SINCOS:
-        cos_out = torch.cos(out)
-        sin_out = torch.sin(out)
-        stacked_out = torch.stack([sin_out, cos_out], dim=-1)
-        out = stacked_out.view(batch_size, -1, dim // 2, 1, 2)
-    else:
-        out = out.view(batch_size, -1, dim // 2, 1, 1)
+    # Use sin/cos representation for rotary embedding
+    cos_out = torch.cos(out)
+    sin_out = torch.sin(out)
+    stacked_out = torch.stack([sin_out, cos_out], dim=-1)
+    out = stacked_out.view(batch_size, -1, dim // 2, 1, 2)
 
     return out.float()
 
 
 class NunchakuFluxPosEmbed(nn.Module):
     """
-    Multi-dimensional rotary embedding module.
+    Nunchaku multi-dimensional rotary embedding module for FLUX.
     Adapted from https://github.com/huggingface/diffusers/blob/c9ff360966327ace3faad3807dc871a4e5447501/src/diffusers/models/transformers/transformer_flux.py#L55
 
     Parameters
@@ -54,7 +55,7 @@ class NunchakuFluxPosEmbed(nn.Module):
         Embedding dimension.
     theta : int
         Rotary base.
-    axes_dim : list[int]
+    axes_dim : list of int
         List of axis dimensions for each spatial axis.
     """
 
@@ -66,7 +67,7 @@ class NunchakuFluxPosEmbed(nn.Module):
 
     def forward(self, ids: torch.Tensor) -> torch.Tensor:
         """
-        Computes rotary embeddings for multi-dimensional positions.
+        Compute rotary embeddings for multi-dimensional positions.
 
         Parameters
         ----------
@@ -76,7 +77,7 @@ class NunchakuFluxPosEmbed(nn.Module):
         Returns
         -------
         torch.Tensor
-            Rotary embedding tensor.
+            Rotary embedding tensor of shape (batch_size, 1, ...).
         """
         if Version(diffusers.__version__) >= Version("0.31.0"):
             ids = ids[None, ...]
@@ -87,7 +88,7 @@ class NunchakuFluxPosEmbed(nn.Module):
 
 def pack_rotemb(rotemb: torch.Tensor) -> torch.Tensor:
     """
-    Packs rotary embeddings for efficient computation.
+    Pack rotary embeddings for efficient computation.
 
     Parameters
     ----------
@@ -97,7 +98,12 @@ def pack_rotemb(rotemb: torch.Tensor) -> torch.Tensor:
     Returns
     -------
     torch.Tensor
-        Packed rotary embedding tensor of shape (B, M, D).
+        Packed rotary embedding tensor of shape (B, M, D), dtype float32.
+
+    Notes
+    -----
+    The packing is designed for efficient CUDA computation, matching the MMA 16x8x16 FP32 accumulator format.
+    See: https://docs.nvidia.com/cuda/parallel-thread-execution/#mma-16816-c
     """
     assert rotemb.dtype == torch.float32
     B = rotemb.shape[0]
