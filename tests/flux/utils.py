@@ -263,10 +263,12 @@ def run_test(
 
     transformer = NunchakuFluxTransformer2dModel.from_pretrained(model_id_4bit, offload=cpu_offload, torch_dtype=dtype)
     if attention_impl == "custom":
+
         def custom_attn_sdpa(qkv: torch.Tensor) -> torch.Tensor:
             assert qkv.ndim == 5, "qkv must be [batch, num_tokens, 3, num_heads, dim_head]"
             q, k, v = qkv.unbind(dim=2)
             return sdpa(q.transpose(1, 2), k.transpose(1, 2), v.transpose(1, 2)).transpose(1, 2)
+
         transformer.set_attention_impl("custom", custom_attn_sdpa)
     else:
         transformer.set_attention_impl(attention_impl)

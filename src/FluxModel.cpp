@@ -553,7 +553,8 @@ std::tuple<Tensor, Tensor> JointTransformerBlock::forward(Tensor hidden_states,
             if (pool.valid()) {
                 throw std::runtime_error("Custom attention function does not support pooling yet.");
             } else {
-                raw_attn_output = custom_attn_func(concat.view({batch_size, num_tokens_img + num_tokens_txt, 3, num_heads, dim_head}));
+                raw_attn_output = custom_attn_func(
+                    concat.view({batch_size, num_tokens_img + num_tokens_txt, 3, num_heads, dim_head}));
             }
         } else {
             if (pool.valid()) {
@@ -1465,14 +1466,13 @@ std::tuple<Tensor, Tensor, Tensor> FluxModel::forward_ip_adapter(size_t layer,
     return {hidden_states, encoder_hidden_states, ip_query};
 }
 
-void FluxModel::setAttentionImpl(AttentionImpl impl,
-                                 std::function<Tensor(Tensor)> attn_func) {
+void FluxModel::setAttentionImpl(AttentionImpl impl, std::function<Tensor(Tensor)> attn_func) {
     for (auto &&block : this->transformer_blocks) {
-        block->attnImpl = impl;
+        block->attnImpl         = impl;
         block->custom_attn_func = attn_func;
     }
     for (auto &&block : this->single_transformer_blocks) {
-        block->attnImpl = impl;
+        block->attnImpl         = impl;
         block->custom_attn_func = attn_func;
     }
 }

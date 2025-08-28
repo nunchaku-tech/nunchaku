@@ -203,8 +203,7 @@ public:
                                                           Tensor controlnet_block_samples,
                                                           Tensor controlnet_single_block_samples);
 
-    void setAttentionImpl(AttentionImpl impl,
-                          std::function<Tensor(Tensor)>);
+    void setAttentionImpl(AttentionImpl impl, std::function<Tensor(Tensor)>);
 
     void set_residual_callback(std::function<Tensor(const Tensor &)> cb);
 
