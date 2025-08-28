@@ -40,85 +40,88 @@ def svdq_gemm_w4a4_cuda(
     out_v: torch.Tensor | None = None,
     attn_tokens: int = 0,
 ):
-    """
-    This function wraps the high-performance CUDA kernel for SVDQuant W4A4 quantized GEMM, supporting LoRA, rotary embeddings, normalization, and fused activations.
+    r"""
+    Wraps the high-performance CUDA kernel for SVDQuant W4A4 quantized GEMM, supporting LoRA, rotary embeddings,
+    normalization, and fused activations.
+
+    Notations:
+
+    - :math:`M`: Batch size (number of input tokens)
+    - :math:`K`: Number of input channels (feature dimension)
+    - :math:`N`: Number of output channels
+    - :math:`G`: Number of groups (64 for INT4, 16 for NVFP4)
+    - :math:`R`: Rank of the low-rank branch
 
     Parameters
     ----------
     act : torch.Tensor
-        Input activation tensor. Packed shape (M, K // 2), dtype: torch.int8.
+        Input activation tensor. Packed shape :math:`(M, K / 2)`, dtype: torch.int8.
     wgt : torch.Tensor
-        Quantized weight tensor. Packed shape (N, K // 2), dtype: torch.int8.
+        Quantized weight tensor. Packed shape :math:`(N, K / 2)`, dtype: torch.int8.
     out : torch.Tensor or None, optional
-        Output tensor for the linear layer, shape (M, N), dtype: torch.float16 or torch.bfloat16.
+        Output tensor for the linear layer, shape :math:`(M, N)`, dtype: torch.float16 or torch.bfloat16.
     qout : torch.Tensor or None, optional
-        Quantized output tensor for the next layer, packed shape (M, N // 2), dtype: torch.int8.
+        Quantized output tensor for the next layer, packed shape :math:`(M, N / 2)`, dtype: torch.int8.
     ascales : torch.Tensor or None, optional
-        Activation scales, shape (K // G, M), dtype: torch.float16/torch.bfloat16 (INT4) or torch.float8_e4m3fn (NVFP4).
+        Activation scales, shape :math:`(K / G, M)`, dtype: torch.float16 or torch.bfloat16 (INT4) or torch.float8_e4m3fn (NVFP4).
     wscales : torch.Tensor or None, optional
-        Weight scales, shape (K // G, N), dtype: torch.float16/torch.bfloat16 (INT4) or torch.float8_e4m3fn (NVFP4).
+        Weight scales, shape :math:`(K / G, N)`, dtype: torch.float16 or torch.bfloat16 (INT4) or torch.float8_e4m3fn (NVFP4).
     oscales : torch.Tensor or None, optional
-        Output scales, shape (N // G, M), dtype: torch.float16/torch.bfloat16 (INT4) or torch.float8_e4m3fn (NVFP4).
+        Output scales, shape :math:`(N / G, M)`, dtype: torch.float16 or torch.bfloat16 (INT4) or torch.float8_e4m3fn (NVFP4).
     poolout : torch.Tensor or None, optional
         Reserved for future use. Leave as None.
     lora_act_in : torch.Tensor or None, optional
-        LoRA down-projection activations, shape (M, R), dtype: torch.float32.
+        LoRA down-projection activations, shape :math:`(M, R)`, dtype: torch.float32.
     lora_up : torch.Tensor or None, optional
-        Packed LoRA up-projection weights, shape (N, R), dtype: torch.float16 or torch.bfloat16.
+        Packed LoRA up-projection weights, shape :math:`(N, R)`, dtype: torch.float16 or torch.bfloat16.
     lora_down : torch.Tensor or None, optional
-        Packed LoRA down-projection weights for the next layer, shape (N, R), dtype: torch.float16 or torch.bfloat16.
+        Packed LoRA down-projection weights for the next layer, shape :math:`(N, R)`, dtype: torch.float16 or torch.bfloat16.
     lora_act_out : torch.Tensor or None, optional
-        Output tensor for LoRA down-projection in the next layer, shape (M, R), dtype: torch.float32.
+        Output tensor for LoRA down-projection in the next layer, shape :math:`(M, R)`, dtype: torch.float32.
     norm_q : torch.Tensor or None, optional
-        Optional query RMS normalization tensor, shape (HEAD_DIM,), dtype: torch.float16 or torch.bfloat16.
+        Optional query RMS normalization tensor, shape :math:`(\mathrm{HEAD\_DIM},)`, dtype: torch.float16 or torch.bfloat16.
     norm_k : torch.Tensor or None, optional
-        Optional key RMS normalization tensor, shape (HEAD_DIM,), dtype: torch.float16 or torch.bfloat16.
+        Optional key RMS normalization tensor, shape :math:`(\mathrm{HEAD\_DIM},)`, dtype: torch.float16 or torch.bfloat16.
     rotary_emb : torch.Tensor or None, optional
-        Packed rotary embedding tensor, shape (M, HEAD_DIM // 2, 2, 2), dtype: torch.float32.
+        Packed rotary embedding tensor, shape :math:`(M, \mathrm{HEAD\_DIM} / 2, 2, 2)`, dtype: torch.float32.
     bias : torch.Tensor or None, optional
-        Bias tensor, shape (N,), dtype: torch.float16 or torch.bfloat16.
+        Bias tensor, shape :math:`(N,)`, dtype: torch.float16 or torch.bfloat16.
     smooth_factor : torch.Tensor or None, optional
-        Smoothing factor for quantization in the next layer, shape (N,), dtype: torch.float16 or torch.bfloat16.
+        Smoothing factor for quantization in the next layer, shape :math:`(N,)`, dtype: torch.float16 or torch.bfloat16.
     out_vk : torch.Tensor or None, optional
         Used only in SANA. Leave as None.
     out_linearattn : torch.Tensor or None, optional
         Used only in SANA. Leave as None.
-    act_unsigned : bool, default=False
-        Whether activations are unsigned. This is only used for INT4 quantization after the GeLU activation, where activations are shifted by 0.171875 to ensure they are non-negative. For more details, see: https://github.com/nunchaku-tech/nunchaku/blob/433f0b228a61a53fb700ac676fd2e290368ac94d/src/kernels/zgemm/gemm_w4a4_launch_impl.cuh#L286
+    act_unsigned : bool, default: False
+        Whether activations are unsigned. Used for INT4 quantization after GeLU activation, where activations are
+        shifted by 0.171875 to ensure non-negativity. See:
+        https://github.com/nunchaku-tech/nunchaku/blob/433f0b228a61a53fb700ac676fd2e290368ac94d/src/kernels/zgemm/gemm_w4a4_launch_impl.cuh#L286
     lora_scales : list of float or None, optional
         Scaling factors for the LoRA branch of each group. Each group has 16 channels. If None, defaults to 1.0 for each group.
-    fuse_silu : bool, default=False
+    fuse_silu : bool, default: False
         Whether to fuse SiLU activation.
-    fp4 : bool, default=False
+    fp4 : bool, default: False
         Whether to use 4-bit floating point quantization (NVFP4).
-    alpha : float or None, default=1.0
+    alpha : float or None, default: 1.0
         Per-tensor scaling factor for NVFP4.
     wcscales : torch.Tensor or None, optional
-        Per-channel scaling factors for NVFP4, shape (N,), dtype: torch.float8_e4m3fn.
+        Per-channel scaling factors for NVFP4, shape :math:`(N,)`, dtype: torch.float8_e4m3fn.
     out_q : torch.Tensor or None, optional
-        Packed output tensor for quantized Q (for attention), packed shape (B, H, M, D), dtype: torch.int8. Only used in nunchaku-fp16 attention.
+        Packed output tensor for quantized Q (for attention), packed shape :math:`(B, H, M, D)`, dtype: torch.int8.
+        Only used in nunchaku-fp16 attention.
     out_k : torch.Tensor or None, optional
-        Packed output tensor for quantized K (for attention), packed shape (B, H, M, D), dtype: torch.int8. Only used in nunchaku-fp16 attention.
+        Packed output tensor for quantized K (for attention), packed shape :math:`(B, H, M, D)`, dtype: torch.int8.
+        Only used in nunchaku-fp16 attention.
     out_v : torch.Tensor or None, optional
-        Packed output tensor for quantized V (for attention), packed shape (B, H, M, D), dtype: torch.int8. Only used in nunchaku-fp16 attention.
-    attn_tokens : int, default=0
+        Packed output tensor for quantized V (for attention), packed shape :math:`(B, H, M, D)`, dtype: torch.int8.
+        Only used in nunchaku-fp16 attention.
+    attn_tokens : int, default: 0
         Number of attention tokens.
 
     Returns
     -------
     None
         Results are written in-place to the provided output tensors.
-
-    Notes
-    -----
-    - M: batch size
-    - K: input channels
-    - N: output channels
-    - G: number of groups (64 for INT4, 16 for NVFP4)
-    - R: rank of the low-rank branch
-    - All tensors must be CUDA tensors.
-    - For LoRA, R is the rank of the low-rank adaptation.
-
     """
     if lora_scales is None:
         rank = lora_up.shape[1]

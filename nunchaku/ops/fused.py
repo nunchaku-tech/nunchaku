@@ -36,7 +36,7 @@ def fused_gelu_mlp(x: torch.Tensor, fc1: SVDQW4A4Linear, fc2: SVDQW4A4Linear, pa
 
     Notes
     -----
-    - For INT4 quantization, the activations produced by the GELU function are shifted by 0.171875 to make all values non-negative, enabling the use of unsigned quantization to improve quantization quality. For more information, see: https://github.com/nunchaku-tech/nunchaku/blob/433f0b228a61a53fb700ac676fd2e290368ac94d/src/kernels/zgemm/gemm_w4a4_launch_impl.cuh#L286
+    For INT4 quantization, the activations produced by the GELU function are shifted by 0.171875 to make all values non-negative, enabling the use of unsigned quantization to improve quantization quality. For more information, see: https://github.com/nunchaku-tech/nunchaku/blob/433f0b228a61a53fb700ac676fd2e290368ac94d/src/kernels/zgemm/gemm_w4a4_launch_impl.cuh#L286
     """
     batch_size, seq_len, channels = x.shape
     x = x.view(batch_size * seq_len, channels)
