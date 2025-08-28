@@ -30,7 +30,6 @@ try:
     import xformers.ops as xops
 except ImportError:
     xops = None
-    print("Please 'pip install xformers'")
 
 
 class LayerNorm(nn.LayerNorm):

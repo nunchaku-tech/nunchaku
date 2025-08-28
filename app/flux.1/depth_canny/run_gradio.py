@@ -51,10 +51,10 @@ if args.precision == "bf16":
     pipeline = pipeline.to("cuda")
     pipeline.precision = "bf16"
 else:
-    assert args.precision == "int4"
+    assert args.precision in ["int4", "fp4"]
     pipeline_init_kwargs = {}
     transformer = NunchakuFluxTransformer2dModel.from_pretrained(
-        f"mit-han-lab/nunchaku-flux.1-{model_name}/svdq-int4_r32-flux.1-{model_name}.safetensors"
+        f"mit-han-lab/nunchaku-flux.1-{model_name}/svdq-{args.precision}_r32-flux.1-{model_name}.safetensors"
     )
     pipeline_init_kwargs["transformer"] = transformer
     if args.use_qencoder:
@@ -69,7 +69,7 @@ else:
         f"black-forest-labs/FLUX.1-{model_name.capitalize()}", torch_dtype=torch.bfloat16, **pipeline_init_kwargs
     )
     pipeline = pipeline.to("cuda")
-    pipeline.precision = "int4"
+    pipeline.precision = args.precision
 
 safety_checker = SafetyChecker("cuda", disabled=args.no_safety_checker)
 
@@ -154,7 +154,11 @@ with gr.Blocks(css_paths="assets/style.css", title=f"SVDQuant Flux.1-{model_name
         else:
             count_info = ""
         header_str = DESCRIPTION.format(
-            model_name=args.model, device_info=device_info, notice=notice, count_info=count_info
+            precision=args.precision,
+            model_name=args.model,
+            device_info=device_info,
+            notice=notice,
+            count_info=count_info,
         )
         return header_str
 

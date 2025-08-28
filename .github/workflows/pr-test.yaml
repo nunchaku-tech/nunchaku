@@ -1,7 +1,7 @@
 name: PR Tests
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - "nunchaku/**"
       - "src/**"
@@ -67,8 +67,8 @@ jobs:
           which python
           echo "Installing dependencies"
           pip install torch==2.7 torchvision==0.22 torchaudio==2.7 --index-url https://download.pytorch.org/whl/cu128
-          pip install git+https://github.com/huggingface/diffusers
-          pip install ninja wheel transformers==4.51 accelerate==1.7 sentencepiece==0.2 protobuf==6.31 huggingface_hub==0.34
+          pip install diffusers==0.35.1
+          pip install ninja wheel transformers==4.55 accelerate==1.10 sentencepiece==0.2 protobuf==6.31 huggingface_hub==0.34
       - name: Build
         run: |
           source $(conda info --base)/etc/profile.d/conda.sh
@@ -98,8 +98,8 @@ jobs:
           comfy node install comfyui-inpainteasy
           cp -r custom_nodes/ComfyUI-nunchaku/tests nunchaku_tests
           pip install -r nunchaku_tests/requirements.txt
-          HF_TOKEN=${{ secrets.HF_TOKEN }} python custom_nodes/ComfyUI-nunchaku/scripts/download_models.py
-          HF_TOKEN=${{ secrets.HF_TOKEN }} python custom_nodes/ComfyUI-nunchaku/scripts/download_test_data.py
+          python custom_nodes/ComfyUI-nunchaku/scripts/download_models.py
+          python custom_nodes/ComfyUI-nunchaku/scripts/download_test_data.py
       - name: Run ComfyUI tests
         run: |
           source $(conda info --base)/etc/profile.d/conda.sh

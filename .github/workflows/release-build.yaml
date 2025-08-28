@@ -51,7 +51,7 @@ jobs:
     strategy:
       matrix:
         python: ["3.10", "3.11", "3.12"]
-        torch: ["2.5", "2.6", "2.7", "2.8"]
+        torch: ["2.5", "2.6", "2.7", "2.8", "2.9"]
     steps:
       - name: Checkout to the tag
         uses: actions/checkout@v4
@@ -82,6 +82,18 @@ jobs:
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Upload wheels to HuggingFace Hub
+        env:
+          HF_TOKEN: ${{ secrets.HF_WHEEL_UPLOAD_TOKEN }}
+        run: |
+          pip install huggingface_hub
+          for whl in dist/*.whl; do
+            hf upload nunchaku-tech/nunchaku "$whl"
+          done
       - name: Clean up
         if: always()
         run: bash scripts/linux_cleanup.sh
@@ -92,7 +104,7 @@ jobs:
     strategy:
       matrix:
         python: ["3.10", "3.11", "3.12"]
-        torch: ["2.5", "2.6", "2.7", "2.8"]
+        torch: ["2.5", "2.6", "2.7", "2.8", "2.9"]
     steps:
       - name: Checkout to the tag
         uses: actions/checkout@v4
@@ -129,3 +141,13 @@ jobs:
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload wheels to HuggingFace Hub
+        shell: cmd
+        env:
+          HF_TOKEN: ${{ secrets.HF_WHEEL_UPLOAD_TOKEN }}
+        run: |
+          call C:\Users\muyangl\miniconda3\condabin\activate.bat activate
+          pip install huggingface_hub
+          for %%w in (dist\*.whl) do (
+            hf upload nunchaku-tech/nunchaku "%%w"
+          )

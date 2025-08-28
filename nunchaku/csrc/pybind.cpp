@@ -107,6 +107,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 
     m.def_submodule("ops")
         .def("gemm_w4a4", nunchaku::ops::gemm_w4a4)
+        .def("quantize_w4a4_act_fuse_lora", nunchaku::ops::quantize_w4a4_act_fuse_lora)
         .def("attention_fp16", nunchaku::ops::attention_fp16)
         .def("gemm_awq", nunchaku::ops::gemm_awq)
         .def("gemv_awq", nunchaku::ops::gemv_awq)

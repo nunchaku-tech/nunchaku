@@ -74,6 +74,74 @@ def handle_kohya_lora(state_dict: dict[str, torch.Tensor]) -> dict[str, torch.Te
         return new_state_dict
 
 
+def convert_peft_to_comfyui(state_dict: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
+    """
+    Convert PEFT format (base_model.model.*) to ComfyUI format (lora_unet_*).
+
+    Mapping rules:
+    - base_model.model.double_blocks.X.img_attn.proj → lora_unet_double_blocks_X_img_attn_proj
+    - base_model.model.single_blocks.X.linear1 → lora_unet_single_blocks_X_linear1
+    - base_model.model.final_layer.linear → lora_unet_final_layer_linear
+    - lora_A/lora_B → lora_down/lora_up
+
+    Parameters
+    ----------
+    state_dict : dict[str, torch.Tensor]
+        LoRA weights in PEFT format
+
+    Returns
+    -------
+    dict[str, torch.Tensor]
+        LoRA weights in ComfyUI format
+    """
+    converted_dict = {}
+
+    for key, value in state_dict.items():
+        new_key = key
+
+        if key.startswith("base_model.model."):
+            # Remove base_model.model. prefix
+            new_key = key.replace("base_model.model.", "")
+
+            # Convert to ComfyUI format with underscores
+            # Handle double_blocks
+            if "double_blocks" in new_key:
+                # Replace dots with underscores within the block structure
+                # e.g., double_blocks.0.img_attn.proj → double_blocks_0_img_attn_proj
+                new_key = new_key.replace("double_blocks.", "lora_unet_double_blocks_")
+                # Replace remaining dots with underscores
+                new_key = new_key.replace(".", "_")
+
+            # Handle single_blocks
+            elif "single_blocks" in new_key:
+                new_key = new_key.replace("single_blocks.", "lora_unet_single_blocks_")
+                # Special handling for modulation.lin → modulation_lin
+                new_key = new_key.replace("modulation.lin", "modulation_lin")
+                # Replace remaining dots with underscores
+                new_key = new_key.replace(".", "_")
+
+            # Handle final_layer
+            elif "final_layer" in new_key:
+                new_key = new_key.replace("final_layer.linear", "lora_unet_final_layer_linear")
+                # Replace remaining dots with underscores
+                new_key = new_key.replace(".", "_")
+
+            else:
+                # For any other keys, add lora_unet_ prefix and replace dots
+                new_key = "lora_unet_" + new_key.replace(".", "_")
+
+        # Convert lora_A/lora_B to lora_down/lora_up
+        new_key = new_key.replace("_lora_A_weight", ".lora_down.weight")
+        new_key = new_key.replace("_lora_B_weight", ".lora_up.weight")
+
+        converted_dict[new_key] = value
+
+        if key != new_key:
+            logger.debug(f"Converted: {key} → {new_key}")
+
+    return converted_dict
+
+
 def to_diffusers(input_lora: str | dict[str, torch.Tensor], output_path: str | None = None) -> dict[str, torch.Tensor]:
     """
     Convert LoRA weights to Diffusers format, which will later be converted to Nunchaku format.
@@ -101,6 +169,25 @@ def to_diffusers(input_lora: str | dict[str, torch.Tensor], output_path: str | N
     for k, v in tensors.items():
         if v.dtype not in [torch.float64, torch.float32, torch.bfloat16, torch.float16]:
             tensors[k] = v.to(torch.bfloat16)
+
+    # Apply Kontext-specific key conversion for both PEFT format and ComfyUI format
+    # This handles LoRAs with base_model.model.* prefix or lora_unet_* prefix (including final_layer_linear)
+    if any(k.startswith("base_model.model.") for k in tensors.keys()):
+        logger.info("Converting PEFT format to ComfyUI format")
+        return convert_peft_to_comfyui(tensors)
+
+    # Handle LoRAs that only have final_layer_linear without adaLN_modulation
+    # This is a workaround for incomplete final layer LoRAs
+    final_keys = [k for k in tensors.keys() if "final_layer" in k]
+    has_linear = any("final_layer_linear" in k for k in final_keys)
+    has_adaln = any("final_layer_adaLN_modulation" in k for k in final_keys)
+
+    if has_linear and not has_adaln:
+        for key in list(tensors.keys()):
+            if "final_layer_linear" in key:
+                adaln_key = key.replace("final_layer_linear", "final_layer_adaLN_modulation_1")
+                if adaln_key not in tensors:
+                    tensors[adaln_key] = torch.zeros_like(tensors[key])
 
     new_tensors, alphas = FluxLoraLoaderMixin.lora_state_dict(tensors, return_alphas=True)
     new_tensors = convert_unet_state_dict_to_peft(new_tensors)

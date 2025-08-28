@@ -37,8 +37,9 @@ Example:
                 output = model(inputs_for_step)
 
 Note:
-    The rescaling function uses polynomial coefficients optimized for Flux models:
-    [4.98651651e02, -2.83781631e02, 5.58554382e01, -3.82021401e00, 2.64230861e-01]
+    The rescaling function uses polynomial coefficients optimized for Flux and Flux-Kontext models:
+    Flux: [4.98651651e02, -2.83781631e02, 5.58554382e01, -3.82021401e00, 2.64230861e-01]
+    Flux-Kontext: [-1.04655119e03, 3.12563399e02, -1.69500694e01, 4.10995971e-01, 3.74537863e-02]
 """
 
 from types import MethodType
@@ -58,7 +59,15 @@ from ..models.transformers import NunchakuFluxTransformer2dModel
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 
-def make_teacache_forward(num_steps: int = 50, rel_l1_thresh: float = 0.6, skip_steps: int = 0) -> Callable:
+coefficients_by_model = {
+    "flux": [4.98651651e02, -2.83781631e02, 5.58554382e01, -3.82021401e00, 2.64230861e-01],
+    "flux-kontext": [-1.04655119e03, 3.12563399e02, -1.69500694e01, 4.10995971e-01, 3.74537863e-02],
+}
+
+
+def make_teacache_forward(
+    num_steps: int = 50, rel_l1_thresh: float = 0.6, skip_steps: int = 0, model_name: str = "flux"
+) -> Callable:
     """
     Create a cached forward method for Flux transformers using TeaCache.
 
@@ -161,16 +170,8 @@ def make_teacache_forward(num_steps: int = 50, rel_l1_thresh: float = 0.6, skip_
         encoder_hidden_states = self.context_embedder(encoder_hidden_states)
 
         if txt_ids.ndim == 3:
-            logger.warning(
-                "Passing `txt_ids` 3d torch.Tensor is deprecated."
-                "Please remove the batch dimension and pass it as a 2d torch Tensor"
-            )
             txt_ids = txt_ids[0]
         if img_ids.ndim == 3:
-            logger.warning(
-                "Passing `img_ids` 3d torch.Tensor is deprecated."
-                "Please remove the batch dimension and pass it as a 2d torch Tensor"
-            )
             img_ids = img_ids[0]
 
         ids = torch.cat((txt_ids, img_ids), dim=0)
@@ -188,21 +189,19 @@ def make_teacache_forward(num_steps: int = 50, rel_l1_thresh: float = 0.6, skip_
             should_calc = True
             self.accumulated_rel_l1_distance = 0
         else:
-            coefficients = [
-                4.98651651e02,
-                -2.83781631e02,
-                5.58554382e01,
-                -3.82021401e00,
-                2.64230861e-01,
-            ]
+            coefficients = coefficients_by_model[model_name]
+            if coefficients is None:
+                raise ValueError(f"No coefficients found for model {model_name}")
             rescale_func = np.poly1d(coefficients)
-            self.accumulated_rel_l1_distance += rescale_func(
-                (
-                    (modulated_inp - self.previous_modulated_input).abs().mean()
-                    / self.previous_modulated_input.abs().mean()
+            self.accumulated_rel_l1_distance += np.abs(
+                rescale_func(
+                    (
+                        (modulated_inp - self.previous_modulated_input).abs().mean()
+                        / self.previous_modulated_input.abs().mean()
+                    )
+                    .cpu()
+                    .item()
                 )
-                .cpu()
-                .item()
             )
             if self.accumulated_rel_l1_distance < rel_l1_thresh:
                 should_calc = False
@@ -250,60 +249,10 @@ def make_teacache_forward(num_steps: int = 50, rel_l1_thresh: float = 0.6, skip_
                             temb=temb,
                             image_rotary_emb=image_rotary_emb,
                             joint_attention_kwargs=joint_attention_kwargs,
+                            controlnet_block_samples=controlnet_block_samples,
+                            controlnet_single_block_samples=controlnet_single_block_samples,
                         )
 
-                    # controlnet residual
-                    if controlnet_block_samples is not None:
-                        interval_control = len(self.transformer_blocks) / len(controlnet_block_samples)
-                        interval_control = int(np.ceil(interval_control))
-                        # For Xlabs ControlNet.
-                        if controlnet_blocks_repeat:
-                            hidden_states = (
-                                hidden_states + controlnet_block_samples[index_block % len(controlnet_block_samples)]
-                            )
-                        else:
-                            hidden_states = hidden_states + controlnet_block_samples[index_block // interval_control]
-                hidden_states = torch.cat([encoder_hidden_states, hidden_states], dim=1)
-
-                for index_block, block in enumerate(self.single_transformer_blocks):
-                    if torch.is_grad_enabled() and self.gradient_checkpointing:
-
-                        def create_custom_forward(module, return_dict=None):  # type: ignore
-                            def custom_forward(*inputs):  # type: ignore
-                                if return_dict is not None:
-                                    return module(*inputs, return_dict=return_dict)
-                                else:
-                                    return module(*inputs)
-
-                            return custom_forward
-
-                        ckpt_kwargs = {"use_reentrant": False} if is_torch_version(">=", "1.11.0") else {}
-                        hidden_states = torch.utils.checkpoint.checkpoint(
-                            create_custom_forward(block),
-                            hidden_states,
-                            temb,
-                            image_rotary_emb,
-                            **ckpt_kwargs,
-                        )
-
-                    else:
-                        hidden_states = block(
-                            hidden_states=hidden_states,
-                            temb=temb,
-                            image_rotary_emb=image_rotary_emb,
-                            joint_attention_kwargs=joint_attention_kwargs,
-                        )
-
-                    # controlnet residual
-                    if controlnet_single_block_samples is not None:
-                        interval_control = len(self.single_transformer_blocks) / len(controlnet_single_block_samples)
-                        interval_control = int(np.ceil(interval_control))
-                        hidden_states[:, encoder_hidden_states.shape[1] :, ...] = (
-                            hidden_states[:, encoder_hidden_states.shape[1] :, ...]
-                            + controlnet_single_block_samples[index_block // interval_control]
-                        )
-
-                hidden_states = hidden_states[:, encoder_hidden_states.shape[1] :, ...]
                 self.previous_residual = hidden_states - ori_hidden_states
         else:
             for index_block, block in enumerate(self.transformer_blocks):
@@ -335,60 +284,9 @@ def make_teacache_forward(num_steps: int = 50, rel_l1_thresh: float = 0.6, skip_
                         temb=temb,
                         image_rotary_emb=image_rotary_emb,
                         joint_attention_kwargs=joint_attention_kwargs,
+                        controlnet_block_samples=controlnet_block_samples,
+                        controlnet_single_block_samples=controlnet_single_block_samples,
                     )
-
-                # controlnet residual
-                if controlnet_block_samples is not None:
-                    interval_control = len(self.transformer_blocks) / len(controlnet_block_samples)
-                    interval_control = int(np.ceil(interval_control))
-                    # For Xlabs ControlNet.
-                    if controlnet_blocks_repeat:
-                        hidden_states = (
-                            hidden_states + controlnet_block_samples[index_block % len(controlnet_block_samples)]
-                        )
-                    else:
-                        hidden_states = hidden_states + controlnet_block_samples[index_block // interval_control]
-            hidden_states = torch.cat([encoder_hidden_states, hidden_states], dim=1)
-
-            for index_block, block in enumerate(self.single_transformer_blocks):
-                if torch.is_grad_enabled() and self.gradient_checkpointing:
-
-                    def create_custom_forward(module, return_dict=None):  # type: ignore
-                        def custom_forward(*inputs):  # type: ignore
-                            if return_dict is not None:
-                                return module(*inputs, return_dict=return_dict)
-                            else:
-                                return module(*inputs)
-
-                        return custom_forward
-
-                    ckpt_kwargs = {"use_reentrant": False} if is_torch_version(">=", "1.11.0") else {}
-                    hidden_states = torch.utils.checkpoint.checkpoint(
-                        create_custom_forward(block),
-                        hidden_states,
-                        temb,
-                        image_rotary_emb,
-                        **ckpt_kwargs,
-                    )
-
-                else:
-                    hidden_states = block(
-                        hidden_states=hidden_states,
-                        temb=temb,
-                        image_rotary_emb=image_rotary_emb,
-                        joint_attention_kwargs=joint_attention_kwargs,
-                    )
-
-                # controlnet residual
-                if controlnet_single_block_samples is not None:
-                    interval_control = len(self.single_transformer_blocks) / len(controlnet_single_block_samples)
-                    interval_control = int(np.ceil(interval_control))
-                    hidden_states[:, encoder_hidden_states.shape[1] :, ...] = (
-                        hidden_states[:, encoder_hidden_states.shape[1] :, ...]
-                        + controlnet_single_block_samples[index_block // interval_control]
-                    )
-
-            hidden_states = hidden_states[:, encoder_hidden_states.shape[1] :, ...]
 
         hidden_states = self.norm_out(hidden_states, temb)
         output: torch.FloatTensor = self.proj_out(hidden_states)
@@ -398,7 +296,7 @@ def make_teacache_forward(num_steps: int = 50, rel_l1_thresh: float = 0.6, skip_
             unscale_lora_layers(self, lora_scale)
 
         if not return_dict:
-            return output
+            return (output,)
 
         return Transformer2DModelOutput(sample=output)
 
@@ -424,6 +322,7 @@ class TeaCache:
             Useful for model stabilization. Defaults to 0.
         enabled (bool, optional): Whether caching is enabled. If False, the model
             behaves normally. Defaults to True.
+        model_name (str, optional): Name of the model to use for caching. Defaults to "flux". It supports "flux" and "flux-kontext".
 
     Attributes:
         model: Reference to the transformer model
@@ -432,6 +331,7 @@ class TeaCache:
         skip_steps (int): Number of steps to skip caching
         enabled (bool): Caching enabled flag
         previous_model_forward: Original forward method (for restoration)
+        model_name: Name of the model to use for caching. Defaults to "flux". It supports "flux" and "flux-kontext".
 
     Example:
         Basic usage::
@@ -458,6 +358,7 @@ class TeaCache:
         rel_l1_thresh: float = 0.6,
         skip_steps: int = 0,
         enabled: bool = True,
+        model_name: str = "flux",
     ) -> None:
         self.model = model
         self.num_steps = num_steps
@@ -465,6 +366,7 @@ class TeaCache:
         self.skip_steps = skip_steps
         self.enabled = enabled
         self.previous_model_forward = self.model.forward
+        self.model_name = model_name
 
     def __enter__(self) -> "TeaCache":
         """
@@ -483,7 +385,7 @@ class TeaCache:
         if self.enabled:
             # self.model.__class__.forward = make_teacache_forward(self.num_steps, self.rel_l1_thresh, self.skip_steps)  # type: ignore
             self.model.forward = MethodType(
-                make_teacache_forward(self.num_steps, self.rel_l1_thresh, self.skip_steps), self.model
+                make_teacache_forward(self.num_steps, self.rel_l1_thresh, self.skip_steps, self.model_name), self.model
             )
             self.model.cnt = 0
             self.model.accumulated_rel_l1_distance = 0
