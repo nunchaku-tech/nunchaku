@@ -54,7 +54,7 @@ def main():
                 prompt=dummy_prompt, num_inference_steps=args.num_inference_steps, guidance_scale=args.guidance_scale
             )
             torch.cuda.synchronize()
-        for _ in trange(args.test_times, desc="Warmup", position=0, leave=False):
+        for _ in trange(args.test_times, desc="Test", position=0, leave=False):
             start_time = time.time()
             pipeline(
                 prompt=dummy_prompt, num_inference_steps=args.num_inference_steps, guidance_scale=args.guidance_scale

@@ -10,7 +10,12 @@ from utils import get_pipeline, hash_str_to_int
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "-m", "--model", type=str, default="schnell", choices=["schnell", "dev"], help="Which FLUX.1 model to use"
+        "-m",
+        "--model",
+        type=str,
+        default="schnell",
+        choices=["schnell", "schnell_v2", "dev"],
+        help="Which FLUX.1 model to use",
     )
     parser.add_argument(
         "-p", "--precision", type=str, default="int4", choices=["int4", "fp4", "bf16"], help="Which precision to use"
@@ -32,6 +37,9 @@ def get_args():
         type=int,
         default=0,
         help="You will generate images for the subset specified by [chunk-start::chunk-step].",
+    )
+    parser.add_argument(
+        "--max-dataset-size", type=int, default=5000, help="Maximum number of images to generate for each dataset"
     )
     known_args, _ = parser.parse_known_args()
 
@@ -56,7 +64,7 @@ def main():
     for dataset_name in args.datasets:
         output_dirname = os.path.join(output_root, dataset_name)
         os.makedirs(output_dirname, exist_ok=True)
-        dataset = get_dataset(name=dataset_name, max_dataset_size=8)
+        dataset = get_dataset(name=dataset_name, max_dataset_size=args.max_dataset_size)
         if args.chunk_step > 1:
             dataset = dataset.select(range(args.chunk_start, len(dataset), args.chunk_step))
         for row in tqdm(dataset):
