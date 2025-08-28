@@ -1,10 +1,11 @@
 import time
-from nunchaku.caching.teacache import TeaCache
+
 import torch
 from diffusers import FluxKontextPipeline
 from diffusers.utils import load_image
 
 from nunchaku import NunchakuFluxTransformer2dModel
+from nunchaku.caching.teacache import TeaCache
 from nunchaku.utils import get_precision
 
 transformer = NunchakuFluxTransformer2dModel.from_pretrained(
