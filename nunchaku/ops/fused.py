@@ -1,6 +1,5 @@
 """
-This module provides high-performance fused operators for quantized neural network inference,
-These operators leverage SVDQuant W4A4 quantization and are optimized for CUDA execution.
+This module provides high-performance fused operators for quantized neural network inference.
 """
 
 import torch
@@ -37,8 +36,7 @@ def fused_gelu_mlp(x: torch.Tensor, fc1: SVDQW4A4Linear, fc2: SVDQW4A4Linear, pa
 
     Notes
     -----
-    - For INT4, activations after GELU are shifted to be all positive to improve quantization quality.
-    - The kernel performs quantization, GELU, and both linear projections in a single pass.
+    - For INT4 quantization, the activations produced by the GELU function are shifted by 0.171875 to make all values non-negative, enabling the use of unsigned quantization to improve quantization quality. For more information, see: https://github.com/nunchaku-tech/nunchaku/blob/433f0b228a61a53fb700ac676fd2e290368ac94d/src/kernels/zgemm/gemm_w4a4_launch_impl.cuh#L286
     """
     batch_size, seq_len, channels = x.shape
     x = x.view(batch_size * seq_len, channels)
@@ -102,10 +100,10 @@ def fused_qkv_norm_rottary(
     norm_k : RMSNorm
         RMSNorm module for key normalization.
     rotary_emb : torch.Tensor
-        Rotary embedding tensor.
+        Rotary embedding tensor. The tensor is packed by :func:`~nunchaku.models.embeddings.pack_rotemb`.
     output : torch.Tensor or tuple of torch.Tensor, optional
         Output tensor(s). If None, a new tensor is allocated.
-        If tuple, should be (output_q, output_k, output_v).
+        If tuple, should be (output_q, output_k, output_v). This format is used for nunchaku-fp16 attention to fuse the packing.
     attn_tokens : int, optional
         Number of attention tokens. Default is 0.
 
@@ -114,11 +112,6 @@ def fused_qkv_norm_rottary(
     torch.Tensor or tuple of torch.Tensor
         Output tensor of shape (batch_size, seq_len, out_features), or
         tuple (output_q, output_k, output_v) for attention.
-
-    Notes
-    -----
-    - If `output` is a tuple, the function writes Q, K, V projections into the provided tensors.
-    - All normalization and rotary embedding operations are fused for efficiency.
     """
     assert isinstance(norm_q, RMSNorm)
     assert isinstance(norm_k, RMSNorm)

@@ -84,7 +84,7 @@ def svdq_gemm_w4a4_cuda(
     out_linearattn : torch.Tensor or None, optional
         Used only in SANA. Leave as None.
     act_unsigned : bool, default=False
-        Whether activations are unsigned. This is only used for INT4 after the GeLU activation as we shift the activations to the positive range.
+        Whether activations are unsigned. This is only used for INT4 quantization after the GeLU activation, where activations are shifted by 0.171875 to ensure they are non-negative. For more details, see: https://github.com/nunchaku-tech/nunchaku/blob/433f0b228a61a53fb700ac676fd2e290368ac94d/src/kernels/zgemm/gemm_w4a4_launch_impl.cuh#L286
     lora_scales : list of float or None, optional
         Scaling factors for the LoRA branch of each group. Each group has 16 channels. If None, defaults to 1.0 for each group.
     fuse_silu : bool, default=False
