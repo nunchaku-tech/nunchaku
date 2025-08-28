@@ -11,6 +11,7 @@ Subpackages
    nunchaku.models
    nunchaku.lora
    nunchaku.pipeline
+   nunchaku.ops
    nunchaku.caching
    nunchaku.utils
 

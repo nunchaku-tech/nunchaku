@@ -6,5 +6,5 @@ nunchaku.ops
 
    nunchaku.ops.gemm
    nunchaku.ops.gemv
-   nunchaku.ops.quantized
+   nunchaku.ops.quantize
    nunchaku.ops.fused
