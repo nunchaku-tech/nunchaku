@@ -248,10 +248,16 @@ class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuM
         state_dict = transformer.state_dict()
         for k in state_dict.keys():
             if k not in model_state_dict:
-                assert ".wtscale" in k or ".wcscales" in k
+                assert ".wcscales" in k
                 model_state_dict[k] = torch.ones_like(state_dict[k])
             else:
                 assert state_dict[k].dtype == model_state_dict[k].dtype
+
+        # load the wtscale from the state dict, as it is a float on CPU
+        for n, m in transformer.named_modules():
+            if isinstance(m, SVDQW4A4Linear):
+                if m.wtscale is not None:
+                    m.wtscale = model_state_dict.pop(f"{n}.wtscale", 1.0)
         transformer.load_state_dict(model_state_dict)
 
         return transformer
