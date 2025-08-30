@@ -2,7 +2,7 @@
 setlocal enabledelayedexpansion
 
 REM Define Python and Torch versions
-set "python_versions=3.10 3.11 3.12"
+set "python_versions=3.10 3.11 3.12 3.13"
 set "torch_versions=2.5 2.6"
 set "cuda_version=12.4"
 

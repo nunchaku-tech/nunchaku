@@ -1,6 +1,6 @@
 #!/bin/bash
 # Define the versions for Python, Torch, and CUDA
-python_versions=("3.10" "3.11" "3.12")
+python_versions=("3.10" "3.11" "3.12 3.13")
 torch_versions=("2.5" "2.6")
 cuda_versions=("12.4")
 
