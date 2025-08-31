@@ -26,7 +26,7 @@ from .utils import NunchakuModelLoaderMixin
 
 
 class NunchakuFluxAttention(NunchakuBaseAttention):
-    def __init__(self, other: FluxAttention, processor: str = "flashattn2", **kwargs):
+    def __init__(self, other: FluxAttention, processor: str = "nunchaku-fp16", **kwargs):
         super(NunchakuFluxAttention, self).__init__(processor)
 
         self.head_dim = other.head_dim
@@ -263,10 +263,16 @@ class NunchakuFluxTransformer2DModelV2(FluxTransformer2DModel, NunchakuModelLoad
 
         for k in state_dict.keys():
             if k not in converted_state_dict:
-                assert ".wtscale" in k or ".wcscales" in k
+                assert ".wcscales" in k
                 converted_state_dict[k] = torch.ones_like(state_dict[k])
             else:
                 assert state_dict[k].dtype == converted_state_dict[k].dtype
+
+        # load the wtscale from the converted state dict
+        for n, m in transformer.named_modules():
+            if isinstance(m, SVDQW4A4Linear):
+                if m.wtscale is not None:
+                    m.wtscale = converted_state_dict.pop(f"{n}.wtscale", 1.0)
 
         transformer.load_state_dict(converted_state_dict)
 

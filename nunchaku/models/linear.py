@@ -14,10 +14,13 @@ class SVDQW4A4Linear(nn.Module):
         rank: int = 32,
         bias: bool = True,
         precision: str = "int4",
+        act_unsigned: bool = False,
         torch_dtype: torch.dtype = torch.bfloat16,
-        device: str | torch.device = "cpu",
+        device: str | torch.device | None = None,
     ):
         super(SVDQW4A4Linear, self).__init__()
+        if device is None:
+            device = torch.device("cpu")
         self.in_features = in_features
         self.out_features = out_features
         self.rank = rank
@@ -61,15 +64,16 @@ class SVDQW4A4Linear(nn.Module):
         self.proj_down = nn.Parameter(torch.empty(in_features, rank, dtype=torch_dtype, device=device))
         self.proj_up = nn.Parameter(torch.empty(out_features, rank, dtype=torch_dtype, device=device))
 
-        self.wtscale = None
-        self.wcscales = None
         if precision == "nvfp4":
-            self.wtscale = nn.Parameter(torch.ones(1, dtype=torch_dtype, device=device), requires_grad=False)
             self.wcscales = nn.Parameter(
                 torch.ones(out_features, dtype=torch_dtype, device=device), requires_grad=False
             )
+            self.wtscale = 1.0
+        else:
+            self.wtscale = None
+            self.wcscales = None
 
-        self.act_unsigned = False
+        self.act_unsigned = act_unsigned
 
     @classmethod
     def from_linear(cls, linear: nn.Linear, **kwargs):
@@ -140,9 +144,11 @@ class AWQW4A16Linear(nn.Module):
         bias: bool = True,
         group_size: int = 64,
         torch_dtype: torch.dtype = torch.bfloat16,
-        device: str | torch.device = "cuda",
+        device: str | torch.device | None = None,
     ):
         super(AWQW4A16Linear, self).__init__()
+        if device is None:
+            device = torch.device("cpu")
         self.in_features = in_features
         self.out_features = out_features
 

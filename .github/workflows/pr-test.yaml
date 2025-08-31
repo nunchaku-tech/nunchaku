@@ -34,24 +34,9 @@ jobs:
       COMFYUI_MODELS_ROOT: "/home/nunchaku/comfyui_models"
       NUNCHAKU_TEST_CACHE_ROOT: "/home/nunchaku/nunchaku_test_root"
     steps:
-      - name: Determine ref
-        id: set-ref
-        run: |
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            # Use the merged commit SHA for PRs
-            echo "ref=${{ github.event.pull_request.merge_commit_sha }}" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            # Use github.event.inputs.ref if provided, else default to main
-            if [[ -n "${{ github.event.inputs.ref }}" ]]; then
-              echo "ref=${{ github.event.inputs.ref }}" >> $GITHUB_OUTPUT
-            else
-              echo "ref=main" >> $GITHUB_OUTPUT
-            fi
-          fi
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ steps.set-ref.outputs.ref }}
           submodules: true
       - name: Show current commit
         run: git log -1 --oneline
@@ -67,8 +52,8 @@ jobs:
           which python
           echo "Installing dependencies"
           pip install torch==2.7 torchvision==0.22 torchaudio==2.7 --index-url https://download.pytorch.org/whl/cu128
-          pip install git+https://github.com/huggingface/diffusers
-          pip install ninja wheel transformers==4.51 accelerate==1.7 sentencepiece==0.2 protobuf==6.31 huggingface_hub==0.34
+          pip install diffusers==0.35.1
+          pip install ninja wheel transformers==4.55 accelerate==1.10 sentencepiece==0.2 protobuf==6.31 huggingface_hub==0.34
       - name: Build
         run: |
           source $(conda info --base)/etc/profile.d/conda.sh

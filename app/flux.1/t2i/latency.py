@@ -10,7 +10,12 @@ from utils import get_pipeline
 def get_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "-m", "--model", type=str, default="schnell", choices=["schnell", "dev"], help="Which FLUX.1 model to use"
+        "-m",
+        "--model",
+        type=str,
+        default="schnell",
+        choices=["schnell", "schnell_v2", "dev"],
+        help="Which FLUX.1 model to use",
     )
     parser.add_argument(
         "-p", "--precision", type=str, default="int4", choices=["int4", "fp4", "bf16"], help="Which precision to use"
