@@ -279,8 +279,8 @@ class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuM
         attention_kwargs: Optional[Dict[str, Any]] = None,
         return_dict: bool = True,
     ) -> Union[torch.Tensor, Transformer2DModelOutput]:
+        device = hidden_states.device
         if self.offload:
-            device = hidden_states.device
             offload_manager = BlockOffloadManager(self.transformer_blocks, device=device)
             self.img_in.to(device)
             self.txt_in.to(device)
@@ -310,14 +310,40 @@ class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuM
         image_rotary_emb = self.pos_embed(img_shapes, txt_seq_lens, device=hidden_states.device)
 
         if self.offload:
-            offload_manager.set_device(hidden_states.device)
-        compute_stream = offload_manager.compute_stream if offload_manager is not None else None
-        for index_block, block in enumerate(self.transformer_blocks):
-            # issue compute kernels first so that we could still overlap compute and memcpy if memory is not pinned
-            with torch.cuda.stream(compute_stream):
-                if self.offload:
-                    offload_manager.wait_for_block()
+            stream_compute = torch.cuda.Stream()
+            stream_load = torch.cuda.Stream()
+            event_compute_done = torch.cuda.Event()
+            event_load_done = torch.cuda.Event()
+            event_compute_done.record(torch.cuda.current_stream())
+            event_load_done.record(torch.cuda.current_stream())
+            for block_idx, block in enumerate(self.transformer_blocks):
+                with torch.cuda.stream(stream_compute):
+                    stream_compute.wait_event(event_load_done)
+                    encoder_hidden_states, hidden_states = block(
+                        hidden_states=hidden_states,
+                        encoder_hidden_states=encoder_hidden_states,
+                        encoder_hidden_states_mask=encoder_hidden_states_mask,
+                        temb=temb,
+                        image_rotary_emb=image_rotary_emb,
+                        joint_attention_kwargs=attention_kwargs,
+                    )
+                    next_compute_done = torch.cuda.Event()
+                    next_compute_done.record(stream_compute)
+                with torch.cuda.stream(stream_load):
+                    stream_load.wait_event(event_compute_done)
 
+                    if block_idx - 1 > 0:
+                        self.transformer_blocks[block_idx - 1].to("cpu")
+                    if block_idx + 1 < len(self.transformer_blocks):
+                        self.transformer_blocks[block_idx + 1].to(device)
+
+                    next_load_done = torch.cuda.Event()
+                    next_load_done.record(stream_load)
+                event_compute_done = next_compute_done
+                event_load_done = next_load_done
+                torch.cuda.synchronize()
+        else:
+            for block_idx, block in enumerate(self.transformer_blocks):
                 encoder_hidden_states, hidden_states = block(
                     hidden_states=hidden_states,
                     encoder_hidden_states=encoder_hidden_states,
@@ -326,14 +352,6 @@ class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuM
                     image_rotary_emb=image_rotary_emb,
                     joint_attention_kwargs=attention_kwargs,
                 )
-                if self.offload:
-                    offload_manager.record_compute_done()
-            if self.offload:
-                offload_manager.step()
-
-        if self.offload:
-            offload_manager.compute_stream.synchronize()
-            offload_manager.offload_block(len(self.transformer_blocks) - 1)
 
         # Use only the image part (hidden_states) from the dual-stream blocks
         hidden_states = self.norm_out(hidden_states, temb)
