@@ -1,3 +1,4 @@
+import gc
 import json
 import os
 from pathlib import Path
@@ -12,16 +13,14 @@ from diffusers.models.transformers.transformer_qwenimage import (
     QwenImageTransformerBlock,
 )
 from huggingface_hub import utils
+from torch import nn
 
 from ...utils import get_precision
 from ..attention import NunchakuBaseAttention, NunchakuFeedForward
 from ..attention_processors.qwenimage import NunchakuQwenImageNaiveFA2Processor
 from ..linear import AWQW4A16Linear, SVDQW4A4Linear
-from ..utils import BlockOffloadManager, fuse_linears
+from ..utils import CPUOffloadManager, fuse_linears
 from .utils import NunchakuModelLoaderMixin
-import copy
-from torch import nn
-import gc
 
 
 def copy_params_into(src: nn.Module, dst: nn.Module, non_blocking=True):
@@ -220,6 +219,7 @@ class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuM
 
     def __init__(self, *args, **kwargs):
         self.offload = kwargs.pop("offload", False)
+        self.offload_manager = None
         super().__init__(*args, **kwargs)
 
     def _patch_model(self, **kwargs):
@@ -272,11 +272,32 @@ class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuM
                 if m.wtscale is not None:
                     m.wtscale = model_state_dict.pop(f"{n}.wtscale", 1.0)
         transformer.load_state_dict(model_state_dict)
+        transformer.set_offload(offload)
 
         return transformer
 
-    def set_offload(self, offload: bool):
+    def set_offload(self, offload: bool, use_pin_memory: bool = True):
+        if offload == self.offload:
+            # nothing changed, just return
+            return
         self.offload = offload
+        if offload:
+            self.offload_manager = CPUOffloadManager(
+                self.transformer_blocks,
+                use_pin_memory=use_pin_memory,
+                on_gpu_modules=[
+                    self.img_in,
+                    self.txt_in,
+                    self.txt_norm,
+                    self.time_text_embed,
+                    self.norm_out,
+                    self.proj_out,
+                ],
+            )
+        else:
+            self.offload_manager = None
+            gc.collect()
+            torch.cuda.empty_cache()
 
     def forward(
         self,
@@ -292,28 +313,7 @@ class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuM
     ) -> Union[torch.Tensor, Transformer2DModelOutput]:
         device = hidden_states.device
         if self.offload:
-            # offload_manager = BlockOffloadManager(self.transformer_blocks, device=device)
-            self.transformer_blocks[0].to(device)
-            self.img_in.to(device)
-            self.txt_in.to(device)
-            self.txt_norm.to(device)
-            self.time_text_embed.to(device)
-            self.pos_embed.to(device)
-            self.norm_out.to(device)
-            self.proj_out.to(device)
-            if not hasattr(self, "buffer_blocks"):
-                self.buffer_blocks = []
-                self.buffer_blocks.append(copy.deepcopy(self.transformer_blocks[0]).to(device))
-                self.buffer_blocks.append(copy.deepcopy(self.transformer_blocks[0]).to(device))
-                for i in range(1, len(self.transformer_blocks)):
-                    block = self.transformer_blocks[i]
-                    for p in block.parameters(recurse=True):
-                        p.data = p.data.pin_memory()
-                    p.requires_grad_(False)
-                    for b in block.buffers(recurse=True):
-                        b.data = b.data.pin_memory()
-        else:
-            offload_manager = None
+            self.offload_manager.set_device(device)
 
         hidden_states = self.img_in(hidden_states)
 
@@ -333,48 +333,14 @@ class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuM
         image_rotary_emb = self.pos_embed(img_shapes, txt_seq_lens, device=hidden_states.device)
 
         if self.offload:
-            stream_compute = torch.cuda.Stream()
-            stream_load = torch.cuda.Stream()
-            event_compute_done = torch.cuda.Event()
-            event_load_done = torch.cuda.Event()
-            event_compute_done.record(torch.cuda.current_stream())
-            event_load_done.record(torch.cuda.current_stream())
-            for block_idx, block in enumerate(self.transformer_blocks):
-                with torch.cuda.stream(stream_compute):
-                    stream_compute.wait_event(event_load_done)
-                    if block_idx > 0:
-                        block = self.buffer_blocks[block_idx % 2]
-                    #     print(block)
-                    #     for n, p in block.named_parameters():
-                    #         print(n, p.device)
-                    #         assert p.device.type == "cuda"
-                    encoder_hidden_states, hidden_states = block(
-                        hidden_states=hidden_states,
-                        encoder_hidden_states=encoder_hidden_states,
-                        encoder_hidden_states_mask=encoder_hidden_states_mask,
-                        temb=temb,
-                        image_rotary_emb=image_rotary_emb,
-                        joint_attention_kwargs=attention_kwargs,
-                    )
-                    next_compute_done = torch.cuda.Event()
-                    next_compute_done.record(stream_compute)
-                with torch.cuda.stream(stream_load):
-                    stream_load.wait_event(event_compute_done)
-
-                    if block_idx + 1 < len(self.transformer_blocks):
-                        copy_params_into(
-                            self.transformer_blocks[block_idx + 1], self.buffer_blocks[(block_idx + 1) % 2]
-                        )
-
-                    next_load_done = torch.cuda.Event()
-                    next_load_done.record(stream_load)
-                    event_compute_done = next_compute_done
-                    event_load_done = next_load_done
-
-            torch.cuda.current_stream().wait_event(event_compute_done)
-            torch.cuda.current_stream().wait_event(event_load_done)
+            self.offload_manager.initialize()
+            compute_stream = self.offload_manager.compute_stream
         else:
-            for block_idx, block in enumerate(self.transformer_blocks):
+            compute_stream = torch.cuda.current_stream()
+        for block_idx, block in enumerate(self.transformer_blocks):
+            with torch.cuda.stream(compute_stream):
+                if self.offload:
+                    block = self.offload_manager.get_block(block_idx)
                 encoder_hidden_states, hidden_states = block(
                     hidden_states=hidden_states,
                     encoder_hidden_states=encoder_hidden_states,
@@ -383,8 +349,9 @@ class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuM
                     image_rotary_emb=image_rotary_emb,
                     joint_attention_kwargs=attention_kwargs,
                 )
+            if self.offload:
+                self.offload_manager.step(compute_stream)
 
-        # Use only the image part (hidden_states) from the dual-stream blocks
         hidden_states = self.norm_out(hidden_states, temb)
         output = self.proj_out(hidden_states)
 
