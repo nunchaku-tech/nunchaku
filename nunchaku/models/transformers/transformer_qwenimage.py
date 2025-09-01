@@ -388,6 +388,8 @@ class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuM
         hidden_states = self.norm_out(hidden_states, temb)
         output = self.proj_out(hidden_states)
 
+        torch.cuda.empty_cache()
+
         if not return_dict:
             return (output,)
 
