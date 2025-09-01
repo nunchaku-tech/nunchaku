@@ -19,6 +19,17 @@ from ..attention_processors.qwenimage import NunchakuQwenImageNaiveFA2Processor
 from ..linear import AWQW4A16Linear, SVDQW4A4Linear
 from ..utils import BlockOffloadManager, fuse_linears
 from .utils import NunchakuModelLoaderMixin
+import copy
+from torch import nn
+import gc
+
+
+def copy_params_into(src: nn.Module, dst: nn.Module, non_blocking=True):
+    with torch.no_grad():
+        for ps, pd in zip(src.parameters(), dst.parameters()):
+            pd.copy_(ps, non_blocking=non_blocking)
+        for bs, bd in zip(src.buffers(), dst.buffers()):
+            bd.copy_(bs, non_blocking=non_blocking)
 
 
 class NunchakuQwenAttention(NunchakuBaseAttention):
@@ -281,7 +292,8 @@ class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuM
     ) -> Union[torch.Tensor, Transformer2DModelOutput]:
         device = hidden_states.device
         if self.offload:
-            offload_manager = BlockOffloadManager(self.transformer_blocks, device=device)
+            # offload_manager = BlockOffloadManager(self.transformer_blocks, device=device)
+            self.transformer_blocks[0].to(device)
             self.img_in.to(device)
             self.txt_in.to(device)
             self.txt_norm.to(device)
@@ -289,6 +301,17 @@ class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuM
             self.pos_embed.to(device)
             self.norm_out.to(device)
             self.proj_out.to(device)
+            if not hasattr(self, "buffer_blocks"):
+                self.buffer_blocks = []
+                self.buffer_blocks.append(copy.deepcopy(self.transformer_blocks[0]).to(device))
+                self.buffer_blocks.append(copy.deepcopy(self.transformer_blocks[0]).to(device))
+                for i in range(1, len(self.transformer_blocks)):
+                    block = self.transformer_blocks[i]
+                    for p in block.parameters(recurse=True):
+                        p.data = p.data.pin_memory()
+                    p.requires_grad_(False)
+                    for b in block.buffers(recurse=True):
+                        b.data = b.data.pin_memory()
         else:
             offload_manager = None
 
@@ -319,6 +342,12 @@ class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuM
             for block_idx, block in enumerate(self.transformer_blocks):
                 with torch.cuda.stream(stream_compute):
                     stream_compute.wait_event(event_load_done)
+                    if block_idx > 0:
+                        block = self.buffer_blocks[block_idx % 2]
+                    #     print(block)
+                    #     for n, p in block.named_parameters():
+                    #         print(n, p.device)
+                    #         assert p.device.type == "cuda"
                     encoder_hidden_states, hidden_states = block(
                         hidden_states=hidden_states,
                         encoder_hidden_states=encoder_hidden_states,
@@ -332,16 +361,18 @@ class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuM
                 with torch.cuda.stream(stream_load):
                     stream_load.wait_event(event_compute_done)
 
-                    if block_idx - 1 > 0:
-                        self.transformer_blocks[block_idx - 1].to("cpu")
                     if block_idx + 1 < len(self.transformer_blocks):
-                        self.transformer_blocks[block_idx + 1].to(device)
+                        copy_params_into(
+                            self.transformer_blocks[block_idx + 1], self.buffer_blocks[(block_idx + 1) % 2]
+                        )
 
                     next_load_done = torch.cuda.Event()
                     next_load_done.record(stream_load)
-                event_compute_done = next_compute_done
-                event_load_done = next_load_done
-                torch.cuda.synchronize()
+                    event_compute_done = next_compute_done
+                    event_load_done = next_load_done
+
+            torch.cuda.current_stream().wait_event(event_compute_done)
+            torch.cuda.current_stream().wait_event(event_load_done)
         else:
             for block_idx, block in enumerate(self.transformer_blocks):
                 encoder_hidden_states, hidden_states = block(
