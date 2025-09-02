@@ -78,6 +78,9 @@ jobs:
       matrix:
         python: ["3.10", "3.11", "3.12", "3.13"]
         torch: ["2.5", "2.6", "2.7", "2.8", "2.9"]
+        exclude:
+          - python: "3.13"
+            torch: "2.5"
     steps:
       - name: Checkout to the tag
         uses: actions/checkout@v4
@@ -120,6 +123,9 @@ jobs:
       matrix:
         python: ["3.10", "3.11", "3.12", "3.13"]
         torch: ["2.5", "2.6", "2.7", "2.8", "2.9"]
+        exclude:
+          - python: "3.13"
+            torch: "2.5"
     steps:
       - name: Checkout to the tag
         uses: actions/checkout@v4
