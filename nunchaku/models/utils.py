@@ -36,6 +36,7 @@ class CPUOffloadManager:
         device: str | torch.device = torch.device("cuda"),
         use_pin_memory: bool = True,
         on_gpu_modules: list[nn.Module] = [],
+        empty_cache_freq: int = 0,
     ):
         self.blocks = blocks
         self.use_pin_memory = use_pin_memory
@@ -48,8 +49,8 @@ class CPUOffloadManager:
         self.compute_done = torch.cuda.Event(blocking=False)
         self.memory_done = torch.cuda.Event(blocking=False)
 
-        self.next_compute_done = torch.cuda.Event(blocking=False)
-        self.next_memory_done = torch.cuda.Event(blocking=False)
+        # self.next_compute_done = torch.cuda.Event(blocking=False)
+        # self.next_memory_done = torch.cuda.Event(blocking=False)
 
         for block in blocks:
             block.to("cpu")
@@ -64,6 +65,10 @@ class CPUOffloadManager:
         self.device = None
         self.set_device(device)
         self.buffer_offset = 0  # the buffer block id that stores the block 0
+
+        self.current_block_idx = 0
+        self.forward_counter = 0
+        self.empty_cache_freq = empty_cache_freq
 
     def set_device(self, device: torch.device | str):
         if isinstance(device, str):
@@ -92,12 +97,12 @@ class CPUOffloadManager:
         with torch.cuda.stream(self.memory_stream):
             self.memory_stream.wait_event(self.compute_done)
             self.load_block(self.current_block_idx + 1)  # if the current block is the last block, load the first block
-            self.next_memory_done = torch.cuda.Event()
-            self.next_memory_done.record(self.memory_stream)
-        self.memory_done = self.next_memory_done
-        self.compute_done = self.next_compute_done
+            next_memory_done = torch.cuda.Event()
+            next_memory_done.record(self.memory_stream)
+        self.memory_done = next_memory_done
+        self.compute_done = next_compute_done
         self.current_block_idx += 1
-        if self.current_block_idx <= len(self.blocks):
+        if self.current_block_idx < len(self.blocks):
             # get ready for the next compute
             self.compute_stream.wait_event(self.memory_done)
         else:
@@ -108,6 +113,9 @@ class CPUOffloadManager:
                 next_stream.wait_event(self.compute_done)
             self.current_block_idx = 0
             self.buffer_offset = (self.buffer_offset + len(self.blocks)) % 2
+            self.forward_counter += 1
+            if self.empty_cache_freq > 0 and self.forward_counter % self.empty_cache_freq == 0:
+                torch.cuda.empty_cache()
 
     def get_block(self, block_idx: int | None = None) -> nn.Module:
         if block_idx is None:

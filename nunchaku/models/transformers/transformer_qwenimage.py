@@ -13,7 +13,6 @@ from diffusers.models.transformers.transformer_qwenimage import (
     QwenImageTransformerBlock,
 )
 from huggingface_hub import utils
-from torch import nn
 
 from ...utils import get_precision
 from ..attention import NunchakuBaseAttention, NunchakuFeedForward
@@ -21,14 +20,6 @@ from ..attention_processors.qwenimage import NunchakuQwenImageNaiveFA2Processor
 from ..linear import AWQW4A16Linear, SVDQW4A4Linear
 from ..utils import CPUOffloadManager, fuse_linears
 from .utils import NunchakuModelLoaderMixin
-
-
-def copy_params_into(src: nn.Module, dst: nn.Module, non_blocking=True):
-    with torch.no_grad():
-        for ps, pd in zip(src.parameters(), dst.parameters()):
-            pd.copy_(ps, non_blocking=non_blocking)
-        for bs, bd in zip(src.buffers(), dst.buffers()):
-            bd.copy_(bs, non_blocking=non_blocking)
 
 
 class NunchakuQwenAttention(NunchakuBaseAttention):
@@ -350,7 +341,7 @@ class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuM
                     joint_attention_kwargs=attention_kwargs,
                 )
             if self.offload:
-                self.offload_manager.step(compute_stream)
+                self.offload_manager.step()
 
         hidden_states = self.norm_out(hidden_states, temb)
         output = self.proj_out(hidden_states)
