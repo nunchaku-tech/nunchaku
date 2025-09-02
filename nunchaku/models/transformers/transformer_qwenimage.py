@@ -3,6 +3,7 @@ import json
 import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
+from warnings import warn
 
 import torch
 from diffusers.models.attention_processor import Attention
@@ -20,7 +21,6 @@ from ..attention_processors.qwenimage import NunchakuQwenImageNaiveFA2Processor
 from ..linear import AWQW4A16Linear, SVDQW4A4Linear
 from ..utils import CPUOffloadManager, fuse_linears
 from .utils import NunchakuModelLoaderMixin
-from warnings import warn
 
 
 class NunchakuQwenAttention(NunchakuBaseAttention):

@@ -4,8 +4,8 @@ import torch
 from diffusers import FlowMatchEulerDiscreteScheduler, QwenImagePipeline
 
 from nunchaku.models.transformers.transformer_qwenimage import NunchakuQwenImageTransformer2DModel
-from nunchaku.utils import get_precision
 from nunchaku.pipeline.pipeline_qwenimage import NunchakuQwenImagePipeline
+from nunchaku.utils import get_precision
 
 # From https://github.com/ModelTC/Qwen-Image-Lightning/blob/342260e8f5468d2f24d084ce04f55e101007118b/generate_with_diffusers.py#L82C9-L97C10
 scheduler_config = {
