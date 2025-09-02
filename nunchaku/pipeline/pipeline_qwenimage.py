@@ -156,7 +156,7 @@ class NunchakuQwenImagePipeline(QwenImagePipeline):
         torch.cuda.empty_cache()
 
         # self.transformer.to(device)
-        self.transformer.set_offload(True)
+        # self.transformer.set_offload(True)
 
         # 6. Denoising loop
         self.scheduler.set_begin_index(0)
@@ -222,7 +222,7 @@ class NunchakuQwenImagePipeline(QwenImagePipeline):
                 if i == len(timesteps) - 1 or ((i + 1) > num_warmup_steps and (i + 1) % self.scheduler.order == 0):
                     progress_bar.update()
 
-        self.transformer.to("cpu")
+        # self.transformer.to("cpu")
         gc.collect()
         torch.cuda.empty_cache()
         self.vae.to(device)

@@ -1,7 +1,7 @@
 import torch
+from diffusers import QwenImagePipeline
 
 from nunchaku.models.transformers.transformer_qwenimage import NunchakuQwenImageTransformer2DModel
-from nunchaku.pipeline.pipeline_qwenimage import NunchakuQwenImagePipeline
 from nunchaku.utils import get_precision
 
 model_name = "Qwen/Qwen-Image"
@@ -12,7 +12,10 @@ transformer = NunchakuQwenImageTransformer2DModel.from_pretrained(
 )  # you can also use r128 model to improve the quality
 
 # currently, you need to use this pipeline to offload the model to CPU
-pipe = NunchakuQwenImagePipeline.from_pretrained("Qwen/Qwen-Image", transformer=transformer, torch_dtype=torch.bfloat16)
+pipe = QwenImagePipeline.from_pretrained("Qwen/Qwen-Image", transformer=transformer, torch_dtype=torch.bfloat16)
+# pipe.enable_sequential_cpu_offload()
+# pipe._exclude_from_cpu_offload.append("transformer")
+# pipe.enable_sequential_cpu_offload()
 
 positive_magic = {
     "en": "Ultra HD, 4K, cinematic composition.",  # for english prompt,
