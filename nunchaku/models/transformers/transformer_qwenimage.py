@@ -270,7 +270,7 @@ class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuM
 
         return transformer
 
-    def set_offload(self, offload: bool = True, use_pin_memory: bool = True):
+    def set_offload(self, offload: bool, use_pin_memory: bool = True):
         if offload == self.offload:
             # nothing changed, just return
             return
