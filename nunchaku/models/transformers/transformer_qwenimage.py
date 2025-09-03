@@ -270,7 +270,7 @@ class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuM
 
         return transformer
 
-    def set_offload(self, offload: bool, use_pin_memory: bool = True):
+    def set_offload(self, offload: bool, **kwargs):
         if offload == self.offload:
             # nothing changed, just return
             return
@@ -278,7 +278,7 @@ class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuM
         if offload:
             self.offload_manager = CPUOffloadManager(
                 self.transformer_blocks,
-                use_pin_memory=use_pin_memory,
+                use_pin_memory=kwargs.get("use_pin_memory", True),
                 on_gpu_modules=[
                     self.img_in,
                     self.txt_in,
@@ -287,6 +287,7 @@ class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuM
                     self.norm_out,
                     self.proj_out,
                 ],
+                num_blocks_on_gpu=kwargs.get("num_blocks_on_gpu", 1),
             )
         else:
             self.offload_manager = None
