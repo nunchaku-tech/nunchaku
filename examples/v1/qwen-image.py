@@ -1,18 +1,27 @@
 import torch
+from diffusers import QwenImagePipeline
 
 from nunchaku.models.transformers.transformer_qwenimage import NunchakuQwenImageTransformer2DModel
-from nunchaku.pipeline.pipeline_qwenimage import NunchakuQwenImagePipeline
-from nunchaku.utils import get_precision
+from nunchaku.utils import get_gpu_memory, get_precision
 
 model_name = "Qwen/Qwen-Image"
+rank = 32  # you can also use rank=128 model to improve the quality
 
 # Load the model
 transformer = NunchakuQwenImageTransformer2DModel.from_pretrained(
-    f"nunchaku-tech/nunchaku-qwen-image/svdq-{get_precision()}_r32-qwen-image.safetensors"
-)  # you can also use r128 model to improve the quality
+    f"nunchaku-tech/nunchaku-qwen-image/svdq-{get_precision()}_r{rank}-qwen-image.safetensors"
+)
 
 # currently, you need to use this pipeline to offload the model to CPU
-pipe = NunchakuQwenImagePipeline.from_pretrained("Qwen/Qwen-Image", transformer=transformer, torch_dtype=torch.bfloat16)
+pipe = QwenImagePipeline.from_pretrained("Qwen/Qwen-Image", transformer=transformer, torch_dtype=torch.bfloat16)
+
+if get_gpu_memory() > 18:
+    pipe.enable_model_cpu_offload()
+else:
+    # use per-layer offloading for low VRAM. This only requires 3-4GB of VRAM.
+    transformer.set_offload(True)
+    pipe._exclude_from_cpu_offload.append("transformer")
+    pipe.enable_sequential_cpu_offload()
 
 positive_magic = {
     "en": "Ultra HD, 4K, cinematic composition.",  # for english prompt,
@@ -32,4 +41,4 @@ image = pipe(
     true_cfg_scale=4.0,
 ).images[0]
 
-image.save("qwen-image-r128.png")
+image.save(f"qwen-image-r{rank}.png")

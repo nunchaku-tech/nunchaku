@@ -1,11 +1,10 @@
 import math
 
 import torch
-from diffusers import FlowMatchEulerDiscreteScheduler
+from diffusers import FlowMatchEulerDiscreteScheduler, QwenImagePipeline
 
 from nunchaku.models.transformers.transformer_qwenimage import NunchakuQwenImageTransformer2DModel
-from nunchaku.pipeline.pipeline_qwenimage import NunchakuQwenImagePipeline
-from nunchaku.utils import get_precision
+from nunchaku.utils import get_gpu_memory, get_precision
 
 # From https://github.com/ModelTC/Qwen-Image-Lightning/blob/342260e8f5468d2f24d084ce04f55e101007118b/generate_with_diffusers.py#L82C9-L97C10
 scheduler_config = {
@@ -27,7 +26,7 @@ scheduler_config = {
 scheduler = FlowMatchEulerDiscreteScheduler.from_config(scheduler_config)
 
 num_inference_steps = 4  # you can also use the 8-step model to improve the quality
-rank = 32  # you can also use the r128 or 8-step model to improve the quality
+rank = 32  # you can also use the rank=128 model to improve the quality
 model_paths = {
     4: f"nunchaku-tech/nunchaku-qwen-image/svdq-{get_precision()}_r{rank}-qwen-image-lightningv1.0-4steps.safetensors",
     8: f"nunchaku-tech/nunchaku-qwen-image/svdq-{get_precision()}_r{rank}-qwen-image-lightningv1.1-8steps.safetensors",
@@ -35,9 +34,17 @@ model_paths = {
 
 # Load the model
 transformer = NunchakuQwenImageTransformer2DModel.from_pretrained(model_paths[num_inference_steps])
-pipe = NunchakuQwenImagePipeline.from_pretrained(
+pipe = QwenImagePipeline.from_pretrained(
     "Qwen/Qwen-Image", transformer=transformer, scheduler=scheduler, torch_dtype=torch.bfloat16
 )
+
+if get_gpu_memory() > 18:
+    pipe.enable_model_cpu_offload()
+else:
+    # use per-layer offloading for low VRAM. This only requires 3-4GB of VRAM.
+    transformer.set_offload(True)
+    pipe._exclude_from_cpu_offload.append("transformer")
+    pipe.enable_sequential_cpu_offload()
 
 prompt = """Bookstore window display. A sign displays “New Arrivals This Week”. Below, a shelf tag with the text “Best-Selling Novels Here”. To the side, a colorful poster advertises “Author Meet And Greet on Saturday” with a central portrait of the author. There are four books on the bookshelf, namely “The light between worlds” “When stars are scattered” “The slient patient” “The night circus”"""
 negative_prompt = " "

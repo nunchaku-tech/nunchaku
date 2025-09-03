@@ -6,10 +6,46 @@ import hashlib
 import os
 import warnings
 from pathlib import Path
+from typing import Any
 
 import safetensors
 import torch
 from huggingface_hub import hf_hub_download
+from torch import nn
+
+
+def pad_tensor(tensor: torch.Tensor | None, multiples: int, dim: int, fill: Any = 0) -> torch.Tensor | None:
+    """
+    Pad a tensor along a given dimension to the next multiple of a specified value.
+
+    Parameters
+    ----------
+    tensor : torch.Tensor or None
+        Input tensor. If None, returns None.
+    multiples : int
+        Pad to this multiple. If <= 1, no padding is applied.
+    dim : int
+        Dimension along which to pad.
+    fill : Any, optional
+        Value to use for padding (default: 0).
+
+    Returns
+    -------
+    torch.Tensor or None
+        The padded tensor, or None if input was None.
+    """
+    if multiples <= 1:
+        return tensor
+    if tensor is None:
+        return None
+    shape = list(tensor.shape)
+    if shape[dim] % multiples == 0:
+        return tensor
+    shape[dim] = ceil_divide(shape[dim], multiples) * multiples
+    result = torch.empty(shape, dtype=tensor.dtype, device=tensor.device)
+    result.fill_(fill)
+    result[[slice(0, extent) for extent in tensor.shape]] = tensor
+    return result
 
 
 def sha256sum(filepath: str | os.PathLike[str]) -> str:
@@ -295,3 +331,36 @@ def get_precision_from_quantization_config(quantization_config: dict) -> str:
         return "int4"
     else:
         raise ValueError(f"Unsupported quantization dtype: {quantization_config['weight']['dtype']}")
+
+
+def copy_params_into(src: nn.Module, dst: nn.Module, non_blocking: bool = True):
+    """
+    Copy all parameters and buffers from a source module to a destination module.
+
+    Parameters
+    ----------
+    src : nn.Module
+        Source module from which parameters and buffers are copied.
+    dst : nn.Module
+        Destination module to which parameters and buffers are copied.
+    non_blocking : bool, optional
+        If True, copies are performed asynchronously with respect to the host if possible (default: True).
+
+    Notes
+    -----
+    - The function assumes that `src` and `dst` have the same structure and number of parameters and buffers.
+    - All copying is performed under `torch.no_grad()` context to avoid tracking in autograd.
+    """
+    with torch.no_grad():
+        for ps, pd in zip(src.parameters(), dst.parameters()):
+            pd.copy_(ps, non_blocking=non_blocking)
+        for bs, bd in zip(src.buffers(), dst.buffers()):
+            bd.copy_(bs, non_blocking=non_blocking)
+
+        for ms, md in zip(src.modules(), dst.modules()):
+            # wtscale is a special case which is a float on the CPU
+            if hasattr(ms, "wtscale"):
+                assert hasattr(md, "wtscale")
+                md.wtscale = ms.wtscale
+            else:
+                assert not hasattr(md, "wtscale")

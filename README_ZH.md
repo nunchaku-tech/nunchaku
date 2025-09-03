@@ -82,7 +82,7 @@ https://github.com/user-attachments/assets/fdd4ab68-6489-4c65-8768-259bd866e8f8
 
 ## 联系我们
 
-如有企业合作、技术咨询、赞助或合作意向，请联系 muyangli@mit.edu。
+如有企业合作、技术咨询、赞助或合作意向，请联系 muyangli@nunchaku.tech。
 
 ## 相关项目
 

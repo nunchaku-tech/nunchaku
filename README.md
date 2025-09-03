@@ -84,7 +84,7 @@ Please check [here](https://github.com/nunchaku-tech/nunchaku/issues/431) for th
 
 ## Contact Us
 
-For enterprises interested in adopting SVDQuant or Nunchaku, including technical consulting, sponsorship opportunities, or partnership inquiries, please contact us at muyangli@mit.edu.
+For enterprises interested in adopting SVDQuant or Nunchaku, including technical consulting, sponsorship opportunities, or partnership inquiries, please contact us at muyangli@nunchaku.tech.
 
 ## Related Projects
 

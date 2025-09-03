@@ -1,10 +1,13 @@
+import gc
 import json
 import os
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
+from warnings import warn
 
 import torch
 from diffusers.models.attention_processor import Attention
+from diffusers.models.modeling_outputs import Transformer2DModelOutput
 from diffusers.models.transformers.transformer_qwenimage import (
     QwenEmbedRope,
     QwenImageTransformer2DModel,
@@ -16,7 +19,7 @@ from ...utils import get_precision
 from ..attention import NunchakuBaseAttention, NunchakuFeedForward
 from ..attention_processors.qwenimage import NunchakuQwenImageNaiveFA2Processor
 from ..linear import AWQW4A16Linear, SVDQW4A4Linear
-from ..utils import fuse_linears
+from ..utils import CPUOffloadManager, fuse_linears
 from .utils import NunchakuModelLoaderMixin
 
 
@@ -206,9 +209,16 @@ class NunchakuQwenImageTransformerBlock(QwenImageTransformerBlock):
 
 class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuModelLoaderMixin):
 
+    def __init__(self, *args, **kwargs):
+        self.offload = kwargs.pop("offload", False)
+        self.offload_manager = None
+        self._is_initialized = False
+        super().__init__(*args, **kwargs)
+
     def _patch_model(self, **kwargs):
         for i, block in enumerate(self.transformer_blocks):
             self.transformer_blocks[i] = NunchakuQwenImageTransformerBlock(block, scale_shift=0, **kwargs)
+        self._is_initialized = True
         return self
 
     @classmethod
@@ -216,9 +226,6 @@ class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuM
     def from_pretrained(cls, pretrained_model_name_or_path: str | os.PathLike[str], **kwargs):
         device = kwargs.get("device", "cpu")
         offload = kwargs.get("offload", False)
-
-        if offload:
-            raise NotImplementedError("Offload is not supported for FluxTransformer2DModelV2")
 
         torch_dtype = kwargs.get("torch_dtype", torch.bfloat16)
 
@@ -248,10 +255,139 @@ class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuM
         state_dict = transformer.state_dict()
         for k in state_dict.keys():
             if k not in model_state_dict:
-                assert ".wtscale" in k or ".wcscales" in k
+                assert ".wcscales" in k
                 model_state_dict[k] = torch.ones_like(state_dict[k])
             else:
                 assert state_dict[k].dtype == model_state_dict[k].dtype
+
+        # load the wtscale from the state dict, as it is a float on CPU
+        for n, m in transformer.named_modules():
+            if isinstance(m, SVDQW4A4Linear):
+                if m.wtscale is not None:
+                    m.wtscale = model_state_dict.pop(f"{n}.wtscale", 1.0)
         transformer.load_state_dict(model_state_dict)
+        transformer.set_offload(offload)
 
         return transformer
+
+    def set_offload(self, offload: bool, **kwargs):
+        if offload == self.offload:
+            # nothing changed, just return
+            return
+        self.offload = offload
+        if offload:
+            self.offload_manager = CPUOffloadManager(
+                self.transformer_blocks,
+                use_pin_memory=kwargs.get("use_pin_memory", True),
+                on_gpu_modules=[
+                    self.img_in,
+                    self.txt_in,
+                    self.txt_norm,
+                    self.time_text_embed,
+                    self.norm_out,
+                    self.proj_out,
+                ],
+                num_blocks_on_gpu=kwargs.get("num_blocks_on_gpu", 1),
+            )
+        else:
+            self.offload_manager = None
+            gc.collect()
+            torch.cuda.empty_cache()
+
+    def forward(
+        self,
+        hidden_states: torch.Tensor,
+        encoder_hidden_states: torch.Tensor = None,
+        encoder_hidden_states_mask: torch.Tensor = None,
+        timestep: torch.LongTensor = None,
+        img_shapes: Optional[List[Tuple[int, int, int]]] = None,
+        txt_seq_lens: Optional[List[int]] = None,
+        guidance: torch.Tensor = None,  # TODO: this should probably be removed
+        attention_kwargs: Optional[Dict[str, Any]] = None,
+        return_dict: bool = True,
+    ) -> Union[torch.Tensor, Transformer2DModelOutput]:
+        device = hidden_states.device
+        if self.offload:
+            self.offload_manager.set_device(device)
+
+        hidden_states = self.img_in(hidden_states)
+
+        timestep = timestep.to(hidden_states.dtype)
+        encoder_hidden_states = self.txt_norm(encoder_hidden_states)
+        encoder_hidden_states = self.txt_in(encoder_hidden_states)
+
+        if guidance is not None:
+            guidance = guidance.to(hidden_states.dtype) * 1000
+
+        temb = (
+            self.time_text_embed(timestep, hidden_states)
+            if guidance is None
+            else self.time_text_embed(timestep, guidance, hidden_states)
+        )
+
+        image_rotary_emb = self.pos_embed(img_shapes, txt_seq_lens, device=hidden_states.device)
+
+        if self.offload:
+            self.offload_manager.initialize()
+            compute_stream = self.offload_manager.compute_stream
+        else:
+            compute_stream = torch.cuda.current_stream()
+        for block_idx, block in enumerate(self.transformer_blocks):
+            with torch.cuda.stream(compute_stream):
+                if self.offload:
+                    block = self.offload_manager.get_block(block_idx)
+                encoder_hidden_states, hidden_states = block(
+                    hidden_states=hidden_states,
+                    encoder_hidden_states=encoder_hidden_states,
+                    encoder_hidden_states_mask=encoder_hidden_states_mask,
+                    temb=temb,
+                    image_rotary_emb=image_rotary_emb,
+                    joint_attention_kwargs=attention_kwargs,
+                )
+            if self.offload:
+                self.offload_manager.step()
+
+        hidden_states = self.norm_out(hidden_states, temb)
+        output = self.proj_out(hidden_states)
+
+        torch.cuda.empty_cache()
+
+        if not return_dict:
+            return (output,)
+
+        return Transformer2DModelOutput(sample=output)
+
+    def to(self, *args, **kwargs):
+        """
+        Overwrite the default .to() method.
+        If self.offload is True, avoid moving the model to GPU.
+        """
+        device_arg_or_kwarg_present = any(isinstance(arg, torch.device) for arg in args) or "device" in kwargs
+        dtype_present_in_args = "dtype" in kwargs
+
+        # Try converting arguments to torch.device in case they are passed as strings
+        for arg in args:
+            if not isinstance(arg, str):
+                continue
+            try:
+                torch.device(arg)
+                device_arg_or_kwarg_present = True
+            except RuntimeError:
+                pass
+
+        if not dtype_present_in_args:
+            for arg in args:
+                if isinstance(arg, torch.dtype):
+                    dtype_present_in_args = True
+                    break
+
+        if dtype_present_in_args and self._is_initialized:
+            raise ValueError(
+                "Casting a quantized model to a new `dtype` is unsupported. To set the dtype of unquantized layers, please "
+                "use the `torch_dtype` argument when loading the model using `from_pretrained` or `from_single_file`"
+            )
+        if self.offload:
+            if device_arg_or_kwarg_present:
+                warn("Skipping moving the model to GPU as offload is enabled", UserWarning)
+                return self
+        return super(type(self), self).to(*args, **kwargs)
