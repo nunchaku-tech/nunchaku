@@ -356,3 +356,11 @@ def copy_params_into(src: nn.Module, dst: nn.Module, non_blocking: bool = True):
             pd.copy_(ps, non_blocking=non_blocking)
         for bs, bd in zip(src.buffers(), dst.buffers()):
             bd.copy_(bs, non_blocking=non_blocking)
+
+        for ms, md in zip(src.modules(), dst.modules()):
+            # wtscale is a special case which is a float on the CPU
+            if hasattr(ms, "wtscale"):
+                assert hasattr(md, "wtscale")
+                md.wtscale = ms.wtscale
+            else:
+                assert not hasattr(md, "wtscale")
