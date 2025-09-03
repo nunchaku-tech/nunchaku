@@ -27,9 +27,9 @@ from typing import Any, Dict, Optional, Union
 import torch
 from diffusers.models.modeling_outputs import Transformer2DModelOutput
 
-from nunchaku.caching.fbcache import check_and_apply_cache
-from nunchaku.models.embeddings import pack_rotemb
-from nunchaku.models.transformers.utils import pad_tensor
+from ..models.embeddings import pack_rotemb
+from ..utils import pad_tensor
+from .fbcache import check_and_apply_cache
 
 
 def cached_forward_v2(
