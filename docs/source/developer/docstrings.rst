@@ -1,41 +1,41 @@
 Writing Docstrings
 ==================
 
-This document explains how to write Python docstrings for Nunchaku.
-Nunchaku follows the **NumPy style guide** for docstrings, with additional conventions for specifying variable shapes, dtypes, and notation.
+Use this guide to write clear, consistent Python docstrings for Nunchaku.
+Follow the **NumPy style guide**, and always specify variable shapes, dtypes, and notation.
 
-Docstring Structure
--------------------
+Docstring Format
+----------------
 
-A typical docstring should follow this structure:
+A standard docstring should look like:
 
-.. code-block:: text
+.. code-block:: python
 
     """
-    Summary line (briefly describe what the function or class does)
+    Short summary of what the function or class does.
 
-    Extended description (optional, provide more details if needed)
+    (Optional) Extended description.
 
     Parameters
     ----------
     param1 : type
-        Description of param1.
+        Description.
     param2 : type, optional
-        Description of param2. Default is ...
+        Description. Default is ...
     param3 : array-like, shape (n, m), dtype float
-        Example showing how to specify parameter shape and type.
+        Example of shape and dtype notation.
 
     Returns
     -------
     out1 : type
-        Description of return value.
+        Description.
     out2 : type
-        Description of second return value.
-        
+        Description.
+
     Raises
     ------
     ValueError
-        Description of when this exception is raised.
+        When this exception is raised.
 
     See Also
     --------
@@ -43,7 +43,7 @@ A typical docstring should follow this structure:
 
     Notes
     -----
-    Extra information, such as implementation details or references.
+    Additional details or references.
 
     Examples
     --------
@@ -52,24 +52,21 @@ A typical docstring should follow this structure:
     3
     """
 
-General Guidelines
-------------------
+Guidelines
+----------
 
 - Use triple double quotes (`"""`) for all docstrings.
-- Every public module, class, method, and function should have a docstring.
-- The first line should be a short summary of what the function, class, or module does.
-- Use sections in the following order (as needed): `Parameters`, `Returns`, `Raises`, `See Also`, `Notes`, `Examples`.
+- Every public module, class, method, and function must have a docstring.
+- The first line is a concise summary.
+- Use sections in this order (as needed): `Parameters`, `Returns`, `Raises`, `See Also`, `Notes`, `Examples`.
 
-Shape, Dtype, and Variable Notation
------------------------------------
+Shapes, Dtypes, and Notation
+----------------------------
 
-When documenting function or method parameters and return values, **always specify the expected shape and dtype** of tensors or arrays. Use plain text for shapes (not LaTeX or math symbols), and define all shape symbols in a `Notes` section.
-
-**How to specify shapes and dtypes:**
-
-- In the `Parameters` and `Returns` sections, after the type, add `shape (...)` and `dtype ...` as appropriate.
-- Use clear, single-letter or descriptive variable names for shape dimensions (for example, `B` for batch size, `C` for channels, `H` for height, `W` for width).
-- Define all shape symbols in a `Notes` section at the end of the docstring.
+- Always specify expected shape and dtype for tensors/arrays.
+- Use plain text for shapes (not LaTeX/math symbols).
+- Use clear, single-letter or descriptive names for shape dimensions (e.g., `B` for batch size).
+- Define all shape symbols in a `Notes` section.
 
 **Example:**
 
@@ -81,14 +78,14 @@ When documenting function or method parameters and return values, **always speci
         mask: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """
-        Applies the model forward pass.
+        Forward pass of the model.
 
         Parameters
         ----------
         x : torch.Tensor, shape (B, C, H, W), dtype float32
             Input image tensor.
         mask : Optional[torch.Tensor], shape (B, 1, H, W), dtype bool
-            Optional mask tensor.
+            Optional mask.
 
         Returns
         -------
@@ -98,15 +95,15 @@ When documenting function or method parameters and return values, **always speci
         Raises
         ------
         ValueError
-            If input tensor shapes are incompatible.
+            If input shapes are incompatible.
 
         Notes
         -----
         Notations:
         - B: batch size
-        - C: number of channels
-        - H: image height
-        - W: image width
+        - C: channels
+        - H: height
+        - W: width
         - num_classes: number of output classes
 
         Examples
@@ -119,12 +116,12 @@ When documenting function or method parameters and return values, **always speci
 Best Practices
 --------------
 
-- **Be concise but informative.** The summary line should state what the function or class does, not how it does it.
-- **Document all arguments and return values.** If a parameter can be `None`, state so.
-- **Use the `Examples` section** to show typical usage, especially for public APIs.
-- **Use the `Raises` section** to document all exceptions that may be raised.
-- **Use the `Notes` section** to clarify shape symbols, special behaviors, or implementation details.
-- **Use the `See Also` section** to reference related functions or methods.
+- **Be concise and clear.** The summary should state what the function/class does.
+- **Document all arguments and return values.** State if a parameter can be `None`.
+- **Use `Examples`** to show typical usage.
+- **Use `Raises`** to list all possible exceptions.
+- **Use `Notes`** to clarify shape symbols or special behaviors.
+- **Use `See Also`** for related functions or methods.
 
 Examples
 --------
@@ -136,19 +133,19 @@ Examples
         b: torch.Tensor,
     ) -> torch.Tensor:
         """
-        Adds two tensors elementwise.
+        Elementwise sum of two tensors.
 
         Parameters
         ----------
         a : torch.Tensor, shape (B, D), dtype float32
-            First input tensor.
+            First input.
         b : torch.Tensor, shape (B, D), dtype float32
-            Second input tensor.
+            Second input.
 
         Returns
         -------
         out : torch.Tensor, shape (B, D), dtype float32
-            Elementwise sum of `a` and `b`.
+            Elementwise sum.
 
         Raises
         ------
@@ -172,7 +169,7 @@ Examples
 
     class MyModel(nn.Module):
         """
-        Example model for demonstration.
+        Example model.
 
         Parameters
         ----------
@@ -193,4 +190,4 @@ References
 
 - NumPy docstring guide: https://numpydoc.readthedocs.io/en/latest/format.html
 
-If you have questions or are unsure about formatting, refer to existing Nunchaku code or ask in the development chat.
+For questions or formatting help, see existing Nunchaku code or ask in the dev chat.
