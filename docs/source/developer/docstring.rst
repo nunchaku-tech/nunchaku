@@ -56,10 +56,10 @@ A standard docstring should look like:
 Guidelines
 ----------
 
-- Use triple double quotes (`"""`) for all docstrings.
+- Use triple double quotes (``"""``) for all docstrings.
 - Every public module, class, method, and function must have a docstring.
 - The first line is a concise summary.
-- Use sections in this order (as needed): `Parameters`, `Returns`, `Raises`, `See Also`, `Notes`, `Examples`.
+- Use sections in this order (as needed): ``Parameters``, ``Returns``, ``Raises``, ``See Also``, ``Notes``, ``Examples``.
 
 Shapes, Dtypes, and Notation
 ----------------------------
@@ -117,73 +117,21 @@ Shapes, Dtypes, and Notation
 Best Practices
 --------------
 
-- **Be concise and clear.** The summary should state what the function/class does.
-- **Document all arguments and return values.** State if a parameter can be `None`.
-- **Use `Examples`** to show typical usage.
-- **Use `Raises`** to list all possible exceptions.
-- **Use `Notes`** to clarify shape symbols or special behaviors.
-- **Use `See Also`** for related functions or methods.
+Writing Tips
+~~~~~~~~~~~~
 
-Examples
---------
+- **Be concise and clear.** Start with a short summary describing what the function or class does.
+- **Document all parameters and return values.** Indicate if a parameter can be `None`.
+- **Include an** ``Examples`` **section** to demonstrate typical usage.
+- **List all possible exceptions in a** ``Raises`` **section.**
+- **Use a** ``Notes`` **section** to define shape symbols and explain special behaviors.
+- **Add a** ``See Also`` **section** for related functions or methods.
 
-.. code-block:: python
+Useful Prompts
+~~~~~~~~~~~~~~
 
-    def add(
-        a: torch.Tensor,
-        b: torch.Tensor,
-    ) -> torch.Tensor:
-        """
-        Elementwise sum of two tensors.
+.. code-block:: text
 
-        Parameters
-        ----------
-        a : torch.Tensor, shape (B, D), dtype float32
-            First input.
-        b : torch.Tensor, shape (B, D), dtype float32
-            Second input.
+   Improve the writing of the docstring according to this guide. Be concise. Organize my comments clearly.
 
-        Returns
-        -------
-        out : torch.Tensor, shape (B, D), dtype float32
-            Elementwise sum.
-
-        Raises
-        ------
-        ValueError
-            If input shapes do not match.
-
-        Notes
-        -----
-        Notations:
-        - B: batch size
-        - D: feature dimension
-
-        Examples
-        --------
-        >>> a = torch.ones(2, 3)
-        >>> b = torch.zeros(2, 3)
-        >>> add(a, b)
-        tensor([[1., 1., 1.],
-                [1., 1., 1.]])
-        """
-
-    class MyModel(nn.Module):
-        """
-        Example model.
-
-        Parameters
-        ----------
-        input_dim : int
-            Input feature dimension.
-        output_dim : int
-            Output feature dimension.
-
-        Examples
-        --------
-        >>> model = MyModel(input_dim=128, output_dim=10)
-        >>> x = torch.randn(32, 128)
-        >>> y = model(x)
-        """
-
-For questions or formatting help, see existing Nunchaku code or ask in the dev chat.
+For further questions or formatting help, refer to existing Nunchaku code or ask in the developer chat.
