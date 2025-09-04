@@ -1,5 +1,5 @@
 """
-This module provides Python wrappers for Nunchaku's high-performance AWQ W4A16 GEMV (General Matrix-Vector Multiplication) CUDA kernels.
+Python wrapper for Nunchaku's high-performance GEMV (General Matrix-Vector Multiplication) CUDA kernels.
 """
 
 import torch
@@ -17,22 +17,19 @@ def awq_gemv_w4a16_cuda(
     k: int,
     group_size: int = 64,
 ) -> torch.Tensor:
-    r"""
-    Quantized GEMV using AWQ W4A16 format.
-
-    This function wraps the CUDA kernel for performing quantized general matrix-vector multiplication
-    with 4-bit weights and 16-bit activations (W4A16), using the AWQ quantization scheme.
+    """
+    Performs quantized GEMV using the AWQ W4A16 format.
 
     Parameters
     ----------
-    in_feats : torch.Tensor
-        Input feature vector of shape :math:`(k,)` or :math:`(m, k)`, dtype: torch.float16 or torch.bfloat16.
-    kernel : torch.Tensor
-        Quantized weight matrix of shape :math:`(n / 4, k / 2)`, dtype: torch.int32.
-    scaling_factors : torch.Tensor
-        Per-group scaling factors, shape :math:`(k / \mathrm{group\_size}, n)`, dtype: torch.float16 or torch.bfloat16.
-    zeros : torch.Tensor
-        Per-group zero points, shape :math:`(k / \mathrm{group\_size}, n)`, dtype: torch.float16 or torch.bfloat16.
+    in_feats : torch.Tensor, shape (k,) or (m, k), dtype float16 or bfloat16
+        Input feature vector or batch of vectors.
+    kernel : torch.Tensor, shape (n // 4, k // 2), dtype int32
+        Packed quantized weight matrix.
+    scaling_factors : torch.Tensor, shape (k // group_size, n), dtype float16 or bfloat16
+        Per-group scaling factors.
+    zeros : torch.Tensor, shape (k // group_size, n), dtype float16 or bfloat16
+        Per-group zero points.
     m : int
         Batch size (number of input vectors).
     n : int
@@ -44,7 +41,16 @@ def awq_gemv_w4a16_cuda(
 
     Returns
     -------
-    torch.Tensor
-        Output tensor of shape :math:`(m, n)`, dtype: torch.float16 or torch.bfloat16.
+    torch.Tensor, shape (m, n), dtype float16 or bfloat16
+        Output tensor.
+
+    Notes
+    -----
+    Notations:
+
+    - m: batch size
+    - n: output features
+    - k: input features
+    - group_size: quantization group size
     """
     return ops.gemv_awq(in_feats, kernel, scaling_factors, zeros, m, n, k, group_size)

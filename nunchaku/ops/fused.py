@@ -1,5 +1,5 @@
 """
-This module provides high-performance fused operators for quantized neural network inference.
+High-performance fused operators for quantized neural network inference.
 """
 
 import torch
@@ -15,28 +15,33 @@ def fused_gelu_mlp(x: torch.Tensor, fc1: SVDQW4A4Linear, fc2: SVDQW4A4Linear, pa
     """
     Fused quantized MLP with GELU activation.
 
-    This operator fuses the first quantized linear layer, GELU activation, and the second quantized linear layer
-    into a single high-performance CUDA kernel. It supports both INT4 and NVFP4 quantization.
+    Combines the first quantized linear layer, GELU activation, and the second quantized linear layer into a single CUDA kernel. Supports INT4 and NVFP4 quantization.
 
     Parameters
     ----------
-    x : torch.Tensor
-        Input tensor of shape (batch_size, seq_len, in_features).
+    x : torch.Tensor, shape (B, S, C_in), dtype float16 or bfloat16
+        Input tensor.
     fc1 : SVDQW4A4Linear
-        First quantized linear layer (input to hidden).
+        First quantized linear layer (input → hidden).
     fc2 : SVDQW4A4Linear
-        Second quantized linear layer (hidden to output).
+        Second quantized linear layer (hidden → output).
     pad_size : int, optional
-        Padding size for batch dimension to optimize CUDA kernel performance. Default is 256.
+        Batch padding size for CUDA kernel efficiency. Default is 256.
 
     Returns
     -------
-    torch.Tensor
-        Output tensor of shape (batch_size, seq_len, out_features).
+    torch.Tensor, shape (B, S, C_out), dtype as input
+        Output tensor.
 
     Notes
     -----
-    For INT4 quantization, the activations produced by the GELU function are shifted by 0.171875 to make all values non-negative, enabling the use of unsigned quantization to improve quantization quality. For more information, see: https://github.com/nunchaku-tech/nunchaku/blob/433f0b228a61a53fb700ac676fd2e290368ac94d/src/kernels/zgemm/gemm_w4a4_launch_impl.cuh#L286
+    - Notations:
+
+      - B: batch size
+      - S: sequence length
+      - C_in: input features
+      - C_out: output features
+    - For INT4 quantization, GELU activations are shifted by 0.171875 to ensure non-negativity, enabling unsigned quantization for improved quality. See: https://github.com/nunchaku-tech/nunchaku/blob/433f0b228a61a53fb700ac676fd2e290368ac94d/src/kernels/zgemm/gemm_w4a4_launch_impl.cuh#L286
     """
     batch_size, seq_len, channels = x.shape
     x = x.view(batch_size * seq_len, channels)
@@ -84,34 +89,40 @@ def fused_qkv_norm_rottary(
     attn_tokens: int = 0,
 ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """
-    Fused QKV projection with RMSNorm and rotary embeddings.
+    Fused quantized QKV projection with RMSNorm and rotary embeddings.
 
-    This operator performs quantized QKV projection, applies RMS normalization to Q and K,
-    and fuses rotary embeddings, all in a single CUDA kernel call.
+    Performs quantized QKV projection, applies RMS normalization to Q and K, and fuses rotary embeddings in a single CUDA kernel call.
 
     Parameters
     ----------
-    x : torch.Tensor
-        Input tensor of shape (batch_size, seq_len, in_features).
+    x : torch.Tensor, shape (B, S, C_in), dtype float16 or bfloat16
+        Input tensor.
     proj : SVDQW4A4Linear
-        Quantized linear projection layer for QKV.
+        Quantized QKV projection layer.
     norm_q : RMSNorm
-        RMSNorm module for query normalization.
+        RMSNorm for query.
     norm_k : RMSNorm
-        RMSNorm module for key normalization.
+        RMSNorm for key.
     rotary_emb : torch.Tensor
-        Rotary embedding tensor. The tensor is packed by :func:`~nunchaku.models.embeddings.pack_rotemb`.
+        Packed rotary embedding tensor (see :func:`~nunchaku.models.embeddings.pack_rotemb`).
     output : torch.Tensor or tuple of torch.Tensor, optional
         Output tensor(s). If None, a new tensor is allocated.
-        If tuple, should be (output_q, output_k, output_v). This format is used for nunchaku-fp16 attention to fuse the packing.
+        If tuple, should be (output_q, output_k, output_v) for fused attention packing.
     attn_tokens : int, optional
         Number of attention tokens. Default is 0.
 
     Returns
     -------
     torch.Tensor or tuple of torch.Tensor
-        Output tensor of shape (batch_size, seq_len, out_features), or
-        tuple (output_q, output_k, output_v) for attention.
+        Output tensor of shape (B, S, C_out), or tuple (output_q, output_k, output_v).
+
+    Notes
+    -----
+    Notations:
+    - B: batch size
+    - S: sequence length
+    - C_in: input features
+    - C_out: output features
     """
     assert isinstance(norm_q, RMSNorm)
     assert isinstance(norm_k, RMSNorm)
