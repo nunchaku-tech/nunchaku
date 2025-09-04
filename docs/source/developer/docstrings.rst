@@ -1,7 +1,7 @@
 Writing Docstrings
 ==================
 
-This document describes how to write Python docstrings for Nunchaku.
+This document explains how to write Python docstrings for Nunchaku.
 Nunchaku follows the **NumPy style guide** for docstrings, with additional conventions for specifying variable shapes, dtypes, and notation.
 
 Docstring Structure
@@ -12,9 +12,9 @@ A typical docstring should follow this structure:
 .. code-block:: text
 
     """
-    Summary line (简短描述函数/类做什么)
+    Summary line (briefly describe what the function or class does)
 
-    Extended description (可选，多行详细说明)
+    Extended description (optional, provide more details if needed)
 
     Parameters
     ----------
@@ -23,7 +23,7 @@ A typical docstring should follow this structure:
     param2 : type, optional
         Description of param2. Default is ...
     param3 : array-like, shape (n, m), dtype float
-        Example说明参数的形状和类型
+        Example showing how to specify parameter shape and type.
 
     Returns
     -------
@@ -43,7 +43,7 @@ A typical docstring should follow this structure:
 
     Notes
     -----
-    Extra info, e.g. implementation details, references.
+    Extra information, such as implementation details or references.
 
     Examples
     --------
@@ -57,7 +57,7 @@ General Guidelines
 
 - Use triple double quotes (`"""`) for all docstrings.
 - Every public module, class, method, and function should have a docstring.
-- The first line should be a short summary of the function/class/module.
+- The first line should be a short summary of what the function, class, or module does.
 - Use sections in the following order (as needed): `Parameters`, `Returns`, `Raises`, `See Also`, `Notes`, `Examples`.
 
 Shape, Dtype, and Variable Notation
@@ -68,7 +68,7 @@ When documenting function or method parameters and return values, **always speci
 **How to specify shapes and dtypes:**
 
 - In the `Parameters` and `Returns` sections, after the type, add `shape (...)` and `dtype ...` as appropriate.
-- Use clear, single-letter or descriptive variable names for shape dimensions (e.g., `B` for batch size, `C` for channels, `H` for height, `W` for width).
+- Use clear, single-letter or descriptive variable names for shape dimensions (for example, `B` for batch size, `C` for channels, `H` for height, `W` for width).
 - Define all shape symbols in a `Notes` section at the end of the docstring.
 
 **Example:**
@@ -119,7 +119,7 @@ When documenting function or method parameters and return values, **always speci
 Best Practices
 --------------
 
-- **Be concise but informative.** The summary line should state what the function/class does, not how.
+- **Be concise but informative.** The summary line should state what the function or class does, not how it does it.
 - **Document all arguments and return values.** If a parameter can be `None`, state so.
 - **Use the `Examples` section** to show typical usage, especially for public APIs.
 - **Use the `Raises` section** to document all exceptions that may be raised.
@@ -192,6 +192,5 @@ References
 ----------
 
 - NumPy docstring guide: https://numpydoc.readthedocs.io/en/latest/format.html
-- PyTorch docstring conventions: https://pytorch.org/docs/stable/docstring.html
 
 If you have questions or are unsure about formatting, refer to existing Nunchaku code or ask in the development chat.
