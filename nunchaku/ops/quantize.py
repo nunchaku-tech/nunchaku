@@ -19,50 +19,48 @@ def svdq_quantize_w4a4_act_fuse_lora_cuda(
     fp4: bool = False,
     pad_size: int = 256,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    r"""
-    Quantize input activations and compute the down-projection of the low-rank branch.
-
-    This function wraps the high-performance CUDA kernel for SVDQuant W4A4 quantized GEMM,
-    supporting LoRA fusion and optional GLU activation fusion.
-
-    Notations:
-
-    - :math:`M`: Batch size (number of input tokens)
-    - :math:`K`: Number of input channels (feature dimension)
-    - :math:`N`: Number of output channels
-    - :math:`G`: Number of groups (64 for INT4, 16 for NVFP4)
-    - :math:`R`: Rank of the low-rank branch
-    - :math:`M_\mathrm{pad}`: Padded batch size, computed as :math:`\lceil M / \mathrm{pad\_size} \rceil \times \mathrm{pad\_size}`
+    """
+    Quantizes activations and computes LoRA down-projection using SVDQuant W4A4 CUDA kernel.
 
     Parameters
     ----------
-    input : torch.Tensor
-        Input tensor of shape :math:`(M, K)`.
-    output : torch.Tensor or None, optional
-        Output tensor to store quantized activations. If None, a tensor is allocated.
-    oscales : torch.Tensor or None, optional
-        Output scales tensor. If None, a tensor is allocated.
-    lora_down : torch.Tensor or None, optional
-        Down-projection weights of the low-rank branch of shape :math:`(K, R)`, where :math:`R` is the LoRA rank.
-    lora_act_out : torch.Tensor or None, optional
-        Output tensor for LoRA activations. If None, a tensor is allocated.
-    smooth : torch.Tensor or None, optional
+    input : torch.Tensor, shape (M, K), dtype bfloat16/float16
+        Input activations.
+    output : torch.Tensor or None, shape (M_pad, K // 2), dtype uint8, optional
+        Packed output tensor for quantized activations. Allocated if None.
+    oscales : torch.Tensor or None, shape (K // G, M_pad), dtype float8_e4m3fn for NVFP4 or input dtype for INT4, optional
+        Output scales tensor. Allocated if None.
+    lora_down : torch.Tensor or None, shape (K, R), dtype bfloat16/float16, optional
+        Packed LoRA down-projection weights.
+    lora_act_out : torch.Tensor or None, shape (M_pad, R), dtype float32, optional
+        Packed output tensor for LoRA activations. Allocated if None.
+    smooth : torch.Tensor or None, optional, dtype bfloat16/float16
         Smoothing factor for quantization.
     fuse_glu : bool, default=False
-        Whether to fuse GLU activation.
+        If True, fuse GLU activation.
     fp4 : bool, default=False
-        If True, use NVFP4 quantization (4-bit floating point); otherwise, use INT4.
+        If True, use NVFP4 quantization; else INT4.
     pad_size : int, default=256
         Pad batch size to a multiple of this value for efficient CUDA execution.
 
     Returns
     -------
-    output : torch.Tensor
-        Quantized output tensor of shape :math:`(M_\mathrm{pad}, K / 2)`, packed into dtype uint8.
-    oscales : torch.Tensor
-        Output scales tensor of shape :math:`(K / G, M_\mathrm{pad})`, dtype float8_e4m3fn (for NVFP4) or input dtype (for INT4).
-    lora_act_out : torch.Tensor
-        LoRA activation output tensor of shape :math:`(M_\mathrm{pad}, R)`, dtype float32.
+    output : torch.Tensor, shape (M_pad, K // 2), dtype uint8
+        Packed quantized activations.
+    oscales : torch.Tensor, shape (K // G, M_pad), dtype float8_e4m3fn for NVFP4 or input dtype for INT4
+        Output scales.
+    lora_act_out : torch.Tensor, shape (M_pad, R), dtype float32
+        Packed LoRA activation output.
+
+    Notes
+    -----
+    Notations:
+
+    - M: batch size
+    - K: input channels
+    - R: LoRA rank
+    - G: group size (64 for INT4, 16 for NVFP4)
+    - M_pad: padded batch size = ceil(M / pad_size) * pad_size
     """
     batch_size, channels = input.shape
     rank = lora_down.shape[1]
