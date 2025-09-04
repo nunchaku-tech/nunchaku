@@ -12,7 +12,7 @@ from ..ops.quantize import svdq_quantize_w4a4_act_fuse_lora_cuda
 
 class SVDQW4A4Linear(nn.Module):
     """
-    Quantized linear layer using `SVDQuant <paper_svdquant_>`_ W4A4 (`int4` or `nvfp4`).
+    `SVDQuant <paper_svdquant_>`_ W4A4 quantized linear layer.
 
     Parameters
     ----------
@@ -276,7 +276,7 @@ class SVDQW4A4Linear(nn.Module):
 
 class AWQW4A16Linear(nn.Module):
     """
-    `AWQ <paper_awq_>`_ W4A16 linear layer.
+    `AWQ <paper_awq_>`_ W4A16 quantized linear layer.
 
     Parameters
     ----------
