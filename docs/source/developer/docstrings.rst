@@ -4,13 +4,61 @@ Writing Docstrings
 This document describes how to write Python docstrings for Nunchaku.
 Nunchaku follows the **NumPy style guide** for docstrings, with additional conventions for specifying variable shapes, dtypes, and notation.
 
+Docstring Structure
+-------------------
+
+A typical docstring should follow this structure:
+
+.. code-block:: text
+
+    """
+    Summary line (简短描述函数/类做什么)
+
+    Extended description (可选，多行详细说明)
+
+    Parameters
+    ----------
+    param1 : type
+        Description of param1.
+    param2 : type, optional
+        Description of param2. Default is ...
+    param3 : array-like, shape (n, m), dtype float
+        Example说明参数的形状和类型
+
+    Returns
+    -------
+    out1 : type
+        Description of return value.
+    out2 : type
+        Description of second return value.
+        
+    Raises
+    ------
+    ValueError
+        Description of when this exception is raised.
+
+    See Also
+    --------
+    other_function : brief description
+
+    Notes
+    -----
+    Extra info, e.g. implementation details, references.
+
+    Examples
+    --------
+    >>> result = func(1, 2)
+    >>> print(result)
+    3
+    """
+
 General Guidelines
 ------------------
 
 - Use triple double quotes (`"""`) for all docstrings.
 - Every public module, class, method, and function should have a docstring.
 - The first line should be a short summary of the function/class/module.
-- Use sections in the following order (as needed): `Parameters`, `Returns`, `Raises`, `Examples`, `Notes`.
+- Use sections in the following order (as needed): `Parameters`, `Returns`, `Raises`, `See Also`, `Notes`, `Examples`.
 
 Shape, Dtype, and Variable Notation
 -----------------------------------
@@ -47,13 +95,24 @@ When documenting function or method parameters and return values, **always speci
         out : torch.Tensor, shape (B, num_classes), dtype float32
             Output logits.
 
+        Raises
+        ------
+        ValueError
+            If input tensor shapes are incompatible.
+
         Notes
         -----
-        B: batch size
-        C: number of channels
-        H: image height
-        W: image width
-        num_classes: number of output classes
+        Notations:
+        - B: batch size
+        - C: number of channels
+        - H: image height
+        - W: image width
+        - num_classes: number of output classes
+
+        Examples
+        --------
+        >>> x = torch.randn(8, 3, 224, 224)
+        >>> out = model.forward(x)
         """
         ...
 
@@ -65,6 +124,7 @@ Best Practices
 - **Use the `Examples` section** to show typical usage, especially for public APIs.
 - **Use the `Raises` section** to document all exceptions that may be raised.
 - **Use the `Notes` section** to clarify shape symbols, special behaviors, or implementation details.
+- **Use the `See Also` section** to reference related functions or methods.
 
 Examples
 --------
@@ -90,10 +150,24 @@ Examples
         out : torch.Tensor, shape (B, D), dtype float32
             Elementwise sum of `a` and `b`.
 
+        Raises
+        ------
+        ValueError
+            If input shapes do not match.
+
         Notes
         -----
-        B: batch size
-        D: feature dimension
+        Notations:
+        - B: batch size
+        - D: feature dimension
+
+        Examples
+        --------
+        >>> a = torch.ones(2, 3)
+        >>> b = torch.zeros(2, 3)
+        >>> add(a, b)
+        tensor([[1., 1., 1.],
+                [1., 1., 1.]])
         """
 
     class MyModel(nn.Module):
