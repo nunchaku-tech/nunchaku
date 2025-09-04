@@ -48,3 +48,4 @@ Check out `DeepCompressor <github_deepcompressor_>`_ for the quantization librar
 
     faq/faq.rst
     developer/contribution_guide.rst
+    developer/docstring.rst

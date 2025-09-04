@@ -2,7 +2,8 @@ Writing Docstrings
 ==================
 
 Use this guide to write clear, consistent Python docstrings for Nunchaku.
-Follow the **NumPy style guide**, and always specify variable shapes, dtypes, and notation.
+Follow the `NumPy style guide <https://numpydoc.readthedocs.io/en/latest/format.html>`__, and always specify variable shapes, dtypes, and notation.
+The docstring should be concise and informative.
 
 Docstring Format
 ----------------
@@ -184,10 +185,5 @@ Examples
         >>> x = torch.randn(32, 128)
         >>> y = model(x)
         """
-
-References
-----------
-
-- NumPy docstring guide: https://numpydoc.readthedocs.io/en/latest/format.html
 
 For questions or formatting help, see existing Nunchaku code or ask in the dev chat.
