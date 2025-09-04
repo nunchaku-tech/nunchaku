@@ -327,11 +327,9 @@ class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuM
 
         image_rotary_emb = self.pos_embed(img_shapes, txt_seq_lens, device=hidden_states.device)
 
+        compute_stream = torch.cuda.current_stream()
         if self.offload:
-            self.offload_manager.initialize()
-            compute_stream = self.offload_manager.compute_stream
-        else:
-            compute_stream = torch.cuda.current_stream()
+            self.offload_manager.initialize(compute_stream)
         for block_idx, block in enumerate(self.transformer_blocks):
             with torch.cuda.stream(compute_stream):
                 if self.offload:
@@ -345,7 +343,7 @@ class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuM
                     joint_attention_kwargs=attention_kwargs,
                 )
             if self.offload:
-                self.offload_manager.step()
+                self.offload_manager.step(compute_stream)
 
         hidden_states = self.norm_out(hidden_states, temb)
         output = self.proj_out(hidden_states)
