@@ -134,4 +134,6 @@ Useful Prompts
 
    Improve the writing of the docstring according to this guide. Be concise. Organize my comments clearly.
 
+   Write the docstring for this module (every class and functions) according to this guide. Each function and class that can be shwon properly and beautifully in sphinx html. Be concise. Organize my comments clearly.
+
 For further questions or formatting help, refer to existing Nunchaku code or ask in the developer chat.

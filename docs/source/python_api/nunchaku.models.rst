@@ -7,6 +7,8 @@ nunchaku.models
    nunchaku.models.transformers
    nunchaku.models.text_encoders
    nunchaku.models.linear
+   nunchaku.models.attention
+   nunchaku.models.normalization
    nunchaku.models.embeddings
    nunchaku.models.pulid
    nunchaku.models.ip_adapter
