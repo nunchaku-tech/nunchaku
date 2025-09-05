@@ -1,3 +1,7 @@
+"""
+This module provides implementations of NunchakuQwenImageTransformer2DModel and its building blocks.
+"""
+
 import gc
 import json
 import os
@@ -24,6 +28,19 @@ from .utils import NunchakuModelLoaderMixin
 
 
 class NunchakuQwenAttention(NunchakuBaseAttention):
+    """
+    Nunchaku-optimized quantized attention module for QwenImage.
+
+    Parameters
+    ----------
+    other : Attention
+        The original QwenImage Attention module to wrap and quantize.
+    processor : str, default="flashattn2"
+        The attention processor to use.
+    **kwargs
+        Additional arguments for quantization.
+    """
+
     def __init__(self, other: Attention, processor: str = "flashattn2", **kwargs):
         super(NunchakuQwenAttention, self).__init__(processor)
         self.inner_dim = other.inner_dim
@@ -59,7 +76,7 @@ class NunchakuQwenAttention(NunchakuBaseAttention):
         self.norm_added_q = other.norm_added_q
         self.norm_added_k = other.norm_added_k
 
-        # fuse the qkv
+        # Fuse the QKV projections for quantization
         with torch.device("meta"):
             to_qkv = fuse_linears([other.to_q, other.to_k, other.to_v])
         self.to_qkv = SVDQW4A4Linear.from_linear(to_qkv, **kwargs)
@@ -67,7 +84,7 @@ class NunchakuQwenAttention(NunchakuBaseAttention):
         self.to_out[0] = SVDQW4A4Linear.from_linear(self.to_out[0], **kwargs)
 
         assert self.added_kv_proj_dim is not None
-        # fuse the add_qkv
+        # Fuse the additional QKV projections
         with torch.device("meta"):
             add_qkv_proj = fuse_linears([other.add_q_proj, other.add_k_proj, other.add_v_proj])
         self.add_qkv_proj = SVDQW4A4Linear.from_linear(add_qkv_proj, **kwargs)
@@ -75,13 +92,36 @@ class NunchakuQwenAttention(NunchakuBaseAttention):
 
     def forward(
         self,
-        hidden_states: torch.FloatTensor,  # Image stream
-        encoder_hidden_states: torch.FloatTensor = None,  # Text stream
+        hidden_states: torch.FloatTensor,
+        encoder_hidden_states: torch.FloatTensor = None,
         encoder_hidden_states_mask: torch.FloatTensor = None,
         attention_mask: Optional[torch.FloatTensor] = None,
         image_rotary_emb: Optional[torch.Tensor] = None,
         **kwargs,
     ):
+        """
+        Forward pass for NunchakuQwenAttention.
+
+        Parameters
+        ----------
+        hidden_states : torch.FloatTensor
+            Image stream input.
+        encoder_hidden_states : torch.FloatTensor, optional
+            Text stream input.
+        encoder_hidden_states_mask : torch.FloatTensor, optional
+            Mask for encoder hidden states.
+        attention_mask : torch.FloatTensor, optional
+            Attention mask.
+        image_rotary_emb : torch.Tensor, optional
+            Rotary embedding for images.
+        **kwargs
+            Additional arguments.
+
+        Returns
+        -------
+        tuple
+            Attention outputs for image and text streams.
+        """
         return self.processor(
             self,
             hidden_states,
@@ -93,6 +133,19 @@ class NunchakuQwenAttention(NunchakuBaseAttention):
         )
 
     def set_processor(self, processor: str):
+        """
+        Set the attention processor.
+
+        Parameters
+        ----------
+        processor : str
+            Name of the processor to use. Only "flashattn2" is supported for now. See :class:`~nunchaku.models.attention_processors.qwenimage.NunchakuQwenImageNaiveFA2Processor`.
+
+        Raises
+        ------
+        ValueError
+            If the processor is not supported.
+        """
         if processor == "flashattn2":
             self.processor = NunchakuQwenImageNaiveFA2Processor()
         else:
@@ -100,6 +153,22 @@ class NunchakuQwenAttention(NunchakuBaseAttention):
 
 
 class NunchakuQwenImageTransformerBlock(QwenImageTransformerBlock):
+    """
+    Quantized QwenImage Transformer Block.
+
+    This block supports quantized linear layers and joint attention for image and text streams.
+
+    Parameters
+    ----------
+    other : QwenImageTransformerBlock
+        The original transformer block to wrap and quantize.
+    scale_shift : float, default=1.0
+        Value to add to scale parameters. Default is 1.0.
+        Nunchaku may have already fused the scale_shift into the linear weights, so you may want to set it to 0.
+    **kwargs
+        Additional arguments for quantization.
+    """
+
     def __init__(self, other: QwenImageTransformerBlock, scale_shift: float = 1.0, **kwargs):
         super(QwenImageTransformerBlock, self).__init__()
 
@@ -122,7 +191,21 @@ class NunchakuQwenImageTransformerBlock(QwenImageTransformerBlock):
         self.scale_shift = scale_shift
 
     def _modulate(self, x: torch.Tensor, mod_params: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-        """Apply modulation to input tensor"""
+        """
+        Apply modulation to input tensor.
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            Input tensor.
+        mod_params : torch.Tensor
+            Modulation parameters.
+
+        Returns
+        -------
+        tuple
+            Modulated tensor and gate tensor.
+        """
         shift, scale, gate = mod_params.chunk(3, dim=-1)
         if self.scale_shift != 0:
             scale.add_(self.scale_shift)
@@ -137,6 +220,29 @@ class NunchakuQwenImageTransformerBlock(QwenImageTransformerBlock):
         image_rotary_emb: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
         joint_attention_kwargs: Optional[Dict[str, Any]] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Forward pass for NunchakuQwenImageTransformerBlock.
+
+        Parameters
+        ----------
+        hidden_states : torch.Tensor
+            Image stream input.
+        encoder_hidden_states : torch.Tensor
+            Text stream input.
+        encoder_hidden_states_mask : torch.Tensor
+            Mask for encoder hidden states.
+        temb : torch.Tensor
+            Temporal embedding.
+        image_rotary_emb : tuple of torch.Tensor, optional
+            Rotary embedding for images.
+        joint_attention_kwargs : dict, optional
+            Additional arguments for joint attention.
+
+        Returns
+        -------
+        tuple
+            Updated encoder_hidden_states and hidden_states.
+        """
         # Get modulation parameters for both streams
         img_mod_params = self.img_mod(temb)  # [B, 6*dim]
         txt_mod_params = self.txt_mod(temb)  # [B, 6*dim]
@@ -152,10 +258,6 @@ class NunchakuQwenImageTransformerBlock(QwenImageTransformerBlock):
         img_mod1, img_mod2 = img_mod_params.chunk(2, dim=-1)  # Each [B, 3*dim]
         txt_mod1, txt_mod2 = txt_mod_params.chunk(2, dim=-1)  # Each [B, 3*dim]
 
-        # Split modulation parameters for norm1 and norm2
-        # img_mod1, img_mod2 = img_mod_params.chunk(2, dim=-1)  # Each [B, 3*dim]
-        # txt_mod1, txt_mod2 = txt_mod_params.chunk(2, dim=-1)  # Each [B, 3*dim]
-
         # Process image stream - norm1 + modulation
         img_normed = self.img_norm1(hidden_states)
         img_modulated, img_gate1 = self._modulate(img_normed, img_mod1)
@@ -164,16 +266,10 @@ class NunchakuQwenImageTransformerBlock(QwenImageTransformerBlock):
         txt_normed = self.txt_norm1(encoder_hidden_states)
         txt_modulated, txt_gate1 = self._modulate(txt_normed, txt_mod1)
 
-        # Use QwenAttnProcessor2_0 for joint attention computation
-        # This directly implements the DoubleStreamLayerMegatron logic:
-        # 1. Computes QKV for both streams
-        # 2. Applies QK normalization and RoPE
-        # 3. Concatenates and runs joint attention
-        # 4. Splits results back to separate streams
         joint_attention_kwargs = joint_attention_kwargs or {}
         attn_output = self.attn(
-            hidden_states=img_modulated,  # Image stream (will be processed as "sample")
-            encoder_hidden_states=txt_modulated,  # Text stream (will be processed as "context")
+            hidden_states=img_modulated,
+            encoder_hidden_states=txt_modulated,
             encoder_hidden_states_mask=encoder_hidden_states_mask,
             image_rotary_emb=image_rotary_emb,
             **joint_attention_kwargs,
@@ -208,6 +304,27 @@ class NunchakuQwenImageTransformerBlock(QwenImageTransformerBlock):
 
 
 class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuModelLoaderMixin):
+    """
+    Quantized QwenImage Transformer2DModel.
+
+    This model supports quantized transformer blocks and optional CPU offloading for memory efficiency.
+
+    Parameters
+    ----------
+    *args
+        Positional arguments for the base model.
+    **kwargs
+        Keyword arguments for the base model and quantization.
+
+    Attributes
+    ----------
+    offload : bool
+        Whether CPU offloading is enabled.
+    offload_manager : CPUOffloadManager or None
+        Manager for offloading transformer blocks.
+    _is_initialized : bool
+        Whether the model has been patched for quantization.
+    """
 
     def __init__(self, *args, **kwargs):
         self.offload = kwargs.pop("offload", False)
@@ -216,6 +333,18 @@ class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuM
         super().__init__(*args, **kwargs)
 
     def _patch_model(self, **kwargs):
+        """
+        Patch the transformer blocks for quantization.
+
+        Parameters
+        ----------
+        **kwargs
+            Additional arguments for quantization.
+
+        Returns
+        -------
+        self
+        """
         for i, block in enumerate(self.transformer_blocks):
             self.transformer_blocks[i] = NunchakuQwenImageTransformerBlock(block, scale_shift=0, **kwargs)
         self._is_initialized = True
@@ -224,6 +353,26 @@ class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuM
     @classmethod
     @utils.validate_hf_hub_args
     def from_pretrained(cls, pretrained_model_name_or_path: str | os.PathLike[str], **kwargs):
+        """
+        Load a quantized model from a pretrained checkpoint.
+
+        Parameters
+        ----------
+        pretrained_model_name_or_path : str or os.PathLike
+            Path to the pretrained model checkpoint. It can be a local file or a remote HuggingFace path.
+        **kwargs
+            Additional arguments for loading and quantization.
+
+        Returns
+        -------
+        NunchakuQwenImageTransformer2DModel
+            The loaded and quantized model.
+
+        Raises
+        ------
+        AssertionError
+            If the checkpoint is not a safetensors file.
+        """
         device = kwargs.get("device", "cpu")
         offload = kwargs.get("offload", False)
 
@@ -271,6 +420,20 @@ class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuM
         return transformer
 
     def set_offload(self, offload: bool, **kwargs):
+        """
+        Enable or disable asynchronous CPU offloading for transformer blocks.
+
+        Parameters
+        ----------
+        offload : bool
+            Whether to enable offloading.
+        **kwargs
+            Additional arguments for offload manager.
+
+        See Also
+        --------
+        :class:`~nunchaku.models.utils.CPUOffloadManager`
+        """
         if offload == self.offload:
             # nothing changed, just return
             return
@@ -302,10 +465,39 @@ class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuM
         timestep: torch.LongTensor = None,
         img_shapes: Optional[List[Tuple[int, int, int]]] = None,
         txt_seq_lens: Optional[List[int]] = None,
-        guidance: torch.Tensor = None,  # TODO: this should probably be removed
+        guidance: torch.Tensor = None,
         attention_kwargs: Optional[Dict[str, Any]] = None,
         return_dict: bool = True,
     ) -> Union[torch.Tensor, Transformer2DModelOutput]:
+        """
+        Forward pass for the quantized QwenImage transformer model.
+
+        Parameters
+        ----------
+        hidden_states : torch.Tensor
+            Image stream input.
+        encoder_hidden_states : torch.Tensor, optional
+            Text stream input.
+        encoder_hidden_states_mask : torch.Tensor, optional
+            Mask for encoder hidden states.
+        timestep : torch.LongTensor, optional
+            Timestep for temporal embedding.
+        img_shapes : list of tuple, optional
+            Image shapes for rotary embedding.
+        txt_seq_lens : list of int, optional
+            Text sequence lengths.
+        guidance : torch.Tensor, optional
+            Guidance tensor (for classifier-free guidance).
+        attention_kwargs : dict, optional
+            Additional attention arguments.
+        return_dict : bool, default=True
+            Whether to return a dict or tuple.
+
+        Returns
+        -------
+        torch.Tensor or Transformer2DModelOutput
+            Model output.
+        """
         device = hidden_states.device
         if self.offload:
             self.offload_manager.set_device(device)
@@ -357,8 +549,26 @@ class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuM
 
     def to(self, *args, **kwargs):
         """
-        Overwrite the default .to() method.
-        If self.offload is True, avoid moving the model to GPU.
+        Override the default ``.to()`` method.
+
+        If offload is enabled, prevents moving the model to GPU.
+        Prevents changing dtype after quantization.
+
+        Parameters
+        ----------
+        *args
+            Positional arguments for ``.to()``.
+        **kwargs
+            Keyword arguments for ``.to()``.
+
+        Returns
+        -------
+        self
+
+        Raises
+        ------
+        ValueError
+            If attempting to change dtype after quantization.
         """
         device_arg_or_kwarg_present = any(isinstance(arg, torch.device) for arg in args) or "device" in kwargs
         dtype_present_in_args = "dtype" in kwargs
@@ -382,7 +592,7 @@ class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuM
         if dtype_present_in_args and self._is_initialized:
             raise ValueError(
                 "Casting a quantized model to a new `dtype` is unsupported. To set the dtype of unquantized layers, please "
-                "use the `torch_dtype` argument when loading the model using `from_pretrained` or `from_single_file`"
+                "use the `torch_dtype` argument when loading the model using `from_pretrained` or `from_single_file`."
             )
         if self.offload:
             if device_arg_or_kwarg_present:

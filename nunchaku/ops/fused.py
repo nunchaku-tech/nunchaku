@@ -1,3 +1,7 @@
+"""
+High-performance fused operators for quantized neural network inference.
+"""
+
 import torch
 from torch.nn import RMSNorm
 
@@ -7,8 +11,38 @@ from ..utils import ceil_divide
 from .gemm import svdq_gemm_w4a4_cuda
 
 
-def fused_gelu_mlp(x: torch.Tensor, fc1: SVDQW4A4Linear, fc2: SVDQW4A4Linear, pad_size: int = 256):
-    # a fused operator of fc1 and fc2 with gelu
+def fused_gelu_mlp(x: torch.Tensor, fc1: SVDQW4A4Linear, fc2: SVDQW4A4Linear, pad_size: int = 256) -> torch.Tensor:
+    """
+    Fused quantized MLP with GELU activation.
+
+    Combines the first quantized linear layer, GELU activation, and the second quantized linear layer into a single CUDA kernel. Supports INT4 and NVFP4 quantization.
+
+    Parameters
+    ----------
+    x : torch.Tensor, shape (B, S, C_in), dtype float16 or bfloat16
+        Input tensor.
+    fc1 : SVDQW4A4Linear
+        First quantized linear layer (input → hidden).
+    fc2 : SVDQW4A4Linear
+        Second quantized linear layer (hidden → output).
+    pad_size : int, optional
+        Batch padding size for CUDA kernel efficiency. Default is 256.
+
+    Returns
+    -------
+    torch.Tensor, shape (B, S, C_out), dtype as input
+        Output tensor.
+
+    Notes
+    -----
+    - Notations:
+
+      - B: batch size
+      - S: sequence length
+      - C_in: input features
+      - C_out: output features
+    - For INT4 quantization, GELU activations are shifted by 0.171875 to ensure non-negativity, enabling unsigned quantization for improved quality. See: https://github.com/nunchaku-tech/nunchaku/blob/433f0b228a61a53fb700ac676fd2e290368ac94d/src/kernels/zgemm/gemm_w4a4_launch_impl.cuh#L286
+    """
     batch_size, seq_len, channels = x.shape
     x = x.view(batch_size * seq_len, channels)
     quantized_x, ascales, lora_act = fc1.quantize(x)
@@ -22,8 +56,6 @@ def fused_gelu_mlp(x: torch.Tensor, fc1: SVDQW4A4Linear, fc2: SVDQW4A4Linear, pa
         qout_ascales = torch.empty(fc1.out_features // 64, batch_size_pad, dtype=x.dtype, device=x.device)
     qout_lora_act = torch.empty(batch_size_pad, fc2.proj_down.shape[1], dtype=torch.float32, device=x.device)
 
-    # for int4, we shift the activation after gelu to make it all positive to improve quality.
-    # if we pass the qout to this kernel, it will do the gelu fusion.
     svdq_gemm_w4a4_cuda(
         act=quantized_x,
         wgt=fc1.qweight,
@@ -56,6 +88,42 @@ def fused_qkv_norm_rottary(
     output: torch.Tensor | tuple[torch.Tensor, torch.Tensor, torch.Tensor] | None = None,
     attn_tokens: int = 0,
 ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """
+    Fused quantized QKV projection with RMSNorm and rotary embeddings.
+
+    Performs quantized QKV projection, applies RMS normalization to Q and K, and fuses rotary embeddings in a single CUDA kernel call.
+
+    Parameters
+    ----------
+    x : torch.Tensor, shape (B, S, C_in), dtype float16 or bfloat16
+        Input tensor.
+    proj : SVDQW4A4Linear
+        Quantized QKV projection layer.
+    norm_q : RMSNorm
+        RMSNorm for query.
+    norm_k : RMSNorm
+        RMSNorm for key.
+    rotary_emb : torch.Tensor
+        Packed rotary embedding tensor (see :func:`~nunchaku.models.embeddings.pack_rotemb`).
+    output : torch.Tensor or tuple of torch.Tensor, optional
+        Output tensor(s). If None, a new tensor is allocated.
+        If tuple, should be (output_q, output_k, output_v) for fused attention packing.
+    attn_tokens : int, optional
+        Number of attention tokens. Default is 0.
+
+    Returns
+    -------
+    torch.Tensor or tuple of torch.Tensor
+        Output tensor of shape (B, S, C_out), or tuple (output_q, output_k, output_v).
+
+    Notes
+    -----
+    Notations:
+    - B: batch size
+    - S: sequence length
+    - C_in: input features
+    - C_out: output features
+    """
     assert isinstance(norm_q, RMSNorm)
     assert isinstance(norm_k, RMSNorm)
 
