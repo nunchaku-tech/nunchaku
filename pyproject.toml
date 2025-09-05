@@ -14,12 +14,14 @@ line-length = 120
 dynamic = ["version"]
 name = "nunchaku"
 dependencies = [
-    "diffusers>=0.32.2",
-    "transformers",
-    "accelerate",
+    "diffusers>=0.35.1",
+    "transformers>=4.53.3",
+    "accelerate>=1.9.0",
     "sentencepiece",
     "protobuf",
-    "huggingface_hub",
+    "huggingface_hub>=0.34",
+    "peft>=0.17",
+    "einops",
 ]
 requires-python = ">=3.10"
 
