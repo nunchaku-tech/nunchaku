@@ -13,3 +13,4 @@ nunchaku.models
    nunchaku.models.pulid
    nunchaku.models.ip_adapter
    nunchaku.models.safety_checker
+   nunchaku.models.utils
