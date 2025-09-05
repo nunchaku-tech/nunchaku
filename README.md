@@ -15,7 +15,7 @@ Join our user groups on [**Slack**](https://join.slack.com/t/nunchaku/shared_inv
 
 ## News
 
-- **[2025-09-04]** 🚀 🚀 Official release of **Nunchaku v1.0.0**! Qwen-Image now supports **asynchronous offloading**. Check out the [tutorial](https://nunchaku.tech/docs/nunchaku/usage/qwenimage.html) to get started.
+- **[2025-09-04]** 🚀 Official release of **Nunchaku v1.0.0**! Qwen-Image now supports **asynchronous offloading**, reducing VRAM usage to as little as **3 GiB** with no performance loss. Check out the [tutorial](https://nunchaku.tech/docs/nunchaku/usage/qwenimage.html) to get started.
 - **[2025-08-27]** 🔥 Release **4-bit [4/8-step lightning Qwen-Image](https://huggingface.co/lightx2v/Qwen-Image-Lightning)**! Download on [Hugging Face](https://huggingface.co/nunchaku-tech/nunchaku-qwen-image) or [ModelScope](https://modelscope.cn/models/nunchaku-tech/nunchaku-qwen-image), and try it with our [example script](examples/v1/qwen-image-lightning.py).
 - **[2025-08-15]** 🔥 Our **4-bit Qwen-Image** models are now live on [Hugging Face](https://huggingface.co/nunchaku-tech/nunchaku-qwen-image)! Get started with our [example script](examples/v1/qwen-image.py). *ComfyUI, LoRA, and CPU offloading support are coming soon!*
 - **[2025-08-15]** 🚀 The **Python backend** is now available! Explore our Pythonic FLUX models [here](nunchaku/models/transformers/transformer_flux_v2.py) and see the modular **4-bit linear layer** [here](nunchaku/models/linear.py).
