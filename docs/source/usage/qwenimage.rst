@@ -4,6 +4,9 @@ Qwen-Image
 Original Qwen-Image
 -------------------
 
+.. image:: https://huggingface.co/datasets/nunchaku-tech/cdn/resolve/main/nunchaku/assets/qwen-image.jpg
+   :alt: Qwen-Image with Nunchaku
+
 Below is a minimal example for running the 4-bit quantized `Qwen-Image <hf_qwen-image>`_ model with Nunchaku.
 Nunchaku offers an API compatible with `Diffusers <github_diffusers_>`_, allowing for a familiar user experience.
 
@@ -12,15 +15,15 @@ Nunchaku offers an API compatible with `Diffusers <github_diffusers_>`_, allowin
     :caption: Running Qwen-Image (`examples/v1/qwen-image.py <https://github.com/nunchaku-tech/nunchaku/blob/main/examples/v1/qwen-image.py>`__)
     :linenos:
 
-When using Nunchaku, replace the standard ``QwenImageTransformer2dModel`` with :class:`~nunchaku.models.transformers.transformer_qwenimage.NunchakuQwenImageTransformer2dModel`.
-The :meth:`~nunchaku.models.transformers.transformer_qwenimage.NunchakuQwenImageTransformer2dModel.from_pretrained` method loads quantized models from either Hugging Face or local file paths.
+When using Nunchaku, replace the standard ``QwenImageTransformer2dModel`` with :class:`~nunchaku.models.transformers.transformer_qwenimage.NunchakuQwenImageTransformer2DModel`.
+The :meth:`~nunchaku.models.transformers.transformer_qwenimage.NunchakuQwenImageTransformer2DModel.from_pretrained` method loads quantized models from either Hugging Face or local file paths.
 
 .. note::
 
    - The :func:`~nunchaku.utils.get_precision` function automatically detects whether your GPU supports INT4 or FP4 quantization.
      Use FP4 models for Blackwell GPUs (RTX 50-series) and INT4 models for other architectures.
    - Increasing the rank (e.g., to 128) can improve output quality.
-   - To reduce VRAM usage, enable asynchronous CPU offloading with :meth:`~nunchaku.models.transformers.transformer_qwenimage.NunchakuQwenImageTransformer2dModel.set_offload`. For further savings, you may also enable Diffusers' ``pipeline.enable_sequential_cpu_offload()``, but be sure to exclude ``transformer`` from offloading, as Nunchaku's offloading mechanism differs from Diffusers'. With these settings, VRAM usage can be reduced to approximately 3GB.
+   - To reduce VRAM usage, enable asynchronous CPU offloading with :meth:`~nunchaku.models.transformers.transformer_qwenimage.NunchakuQwenImageTransformer2DModel.set_offload`. For further savings, you may also enable Diffusers' ``pipeline.enable_sequential_cpu_offload()``, but be sure to exclude ``transformer`` from offloading, as Nunchaku's offloading mechanism differs from Diffusers'. With these settings, VRAM usage can be reduced to approximately 3GB.
 
 Distilled Qwen-Image (Qwen-Image-Lightning)
 -------------------------------------------
