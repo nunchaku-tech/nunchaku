@@ -5,4 +5,3 @@ nunchaku.models.attention_processors.flux
    :members:
    :undoc-members:
    :show-inheritance:
-

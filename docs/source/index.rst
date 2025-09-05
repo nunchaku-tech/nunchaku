@@ -16,6 +16,7 @@ Check out `DeepCompressor <github_deepcompressor_>`_ for the quantization librar
     :caption: Usage Tutorials
 
     usage/basic_usage.rst
+    usage/qwenimage.rst
     usage/lora.rst
     usage/kontext.rst
     usage/controlnet.rst

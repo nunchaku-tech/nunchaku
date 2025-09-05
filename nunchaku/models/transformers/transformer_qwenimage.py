@@ -421,7 +421,7 @@ class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuM
 
     def set_offload(self, offload: bool, **kwargs):
         """
-        Enable or disable CPU offloading for transformer blocks.
+        Enable or disable asynchronous CPU offloading for transformer blocks.
 
         Parameters
         ----------
@@ -429,6 +429,10 @@ class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuM
             Whether to enable offloading.
         **kwargs
             Additional arguments for offload manager.
+
+        See Also
+        --------
+        :class:`~nunchaku.models.utils.CPUOffloadManager`
         """
         if offload == self.offload:
             # nothing changed, just return
