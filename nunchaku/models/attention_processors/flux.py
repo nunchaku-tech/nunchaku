@@ -1,3 +1,7 @@
+"""
+Attention processor implementations for :class:`~nunchaku.models.transformers.transformer_flux_v2.NunchakuFluxAttention`.
+"""
+
 import math
 from typing import Optional, Tuple
 
@@ -9,6 +13,12 @@ from ...ops.fused import fused_qkv_norm_rottary
 
 
 class NunchakuFluxFA2Processor:
+    """
+    Fused attention processor using PyTorch's scaled dot-product attention.
+
+    This processor applies fused QKV projection, normalization, and rotary embedding,
+    then computes attention using PyTorch's built-in scaled_dot_product_attention.
+    """
 
     def __call__(
         self,
@@ -19,7 +29,40 @@ class NunchakuFluxFA2Processor:
         image_rotary_emb: Tuple[torch.Tensor, torch.Tensor] | torch.Tensor = None,
         **kwargs,
     ) -> torch.Tensor | Tuple[torch.Tensor, torch.Tensor]:
-        # Adapted from https://github.com/huggingface/diffusers/blob/50dea89dc6036e71a00bc3d57ac062a80206d9eb/src/diffusers/models/attention_processor.py#L2275
+        """
+        Forward pass for fused attention.
+
+        Parameters
+        ----------
+        attn : :class:`~nunchaku.models.transformers.transformer_flux_v2.NunchakuFluxAttention`
+            Attention module.
+        hidden_states : torch.Tensor, shape (B, T, C), dtype float32/float16
+            Input hidden states.
+        encoder_hidden_states : Optional[torch.Tensor], shape (B, T_enc, C), optional
+            Encoder hidden states for cross/joint attention.
+        attention_mask : Optional[torch.Tensor], optional
+            Not supported. Must be None.
+        image_rotary_emb : tuple or torch.Tensor
+            Rotary embeddings. Tuple for joint attention, tensor for single stream.
+        **kwargs
+            Additional arguments (unused).
+
+        Returns
+        -------
+        out : torch.Tensor or tuple of torch.Tensor
+            Output hidden states. If joint attention, returns (img_out, txt_out).
+
+        Raises
+        ------
+        NotImplementedError
+            If attention_mask is not None.
+
+        Notes
+        -----
+        - B: batch size
+        - T: sequence length
+        - C: channels (C = heads * head_dim)
+        """
         if attention_mask is not None:
             raise NotImplementedError("attention_mask is not supported")
 
@@ -69,6 +112,15 @@ class NunchakuFluxFA2Processor:
 
 
 class NunchakuFluxFP16AttnProcessor:
+    """
+    Fused attention processor with custom Nunchaku FP16 accumulation.
+    This is faster than the :class:`~nunchaku.models.attention_processors.flux.NunchakuFluxFA2Processor`.
+
+    Parameters
+    ----------
+    pad_size : int, optional
+        Padding size for sequence length. Default is 256.
+    """
 
     def __init__(self, pad_size: int = 256):
         self.pad_size = pad_size
@@ -82,6 +134,40 @@ class NunchakuFluxFP16AttnProcessor:
         image_rotary_emb: Tuple[torch.Tensor, torch.Tensor] | torch.Tensor = None,
         **kwargs,
     ) -> torch.Tensor | Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Forward pass for Nunchaku FP16 attention.
+
+        Parameters
+        ----------
+        attn : :class:`~nunchaku.models.transformers.transformer_flux_v2.NunchakuFluxAttention`
+            Attention module.
+        hidden_states : torch.Tensor, shape (B, T, C), dtype float16
+            Input hidden states.
+        encoder_hidden_states : Optional[torch.Tensor], shape (B, T_enc, C), optional
+            Encoder hidden states for cross/joint attention.
+        attention_mask : Optional[torch.Tensor], optional
+            Not supported. Must be None.
+        image_rotary_emb : tuple or torch.Tensor
+            Rotary embeddings. Tuple for joint attention, tensor for single stream.
+        **kwargs
+            Additional arguments (unused).
+
+        Returns
+        -------
+        out : torch.Tensor or tuple of torch.Tensor
+            Output hidden states. If joint attention, returns (img_out, txt_out).
+
+        Raises
+        ------
+        AssertionError
+            If input shapes or types are incompatible.
+
+        Notes
+        -----
+        - B: batch size
+        - T: sequence length
+        - C: channels (C = heads * head_dim)
+        """
         pad_size = self.pad_size
         batch_size, _, channels = hidden_states.shape
         assert channels == attn.heads * attn.head_dim

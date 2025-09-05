@@ -124,6 +124,9 @@ class NunchakuFluxAttention(NunchakuBaseAttention):
         processor : str
             Name of the processor ("flashattn2" or "nunchaku-fp16").
 
+            - ``"flashattn2"``: Standard FlashAttention-2. See :class:`~nunchaku.models.attention_processors.flux.NunchakuFluxFA2Processor`.
+            - ``"nunchaku-fp16"``: Uses FP16 attention accumulation, up to 1.2× faster than FlashAttention-2 on NVIDIA 30-, 40-, and 50-series GPUs. See :class:`~nunchaku.models.attention_processors.flux.NunchakuFluxFP16AttnProcessor`.
+
         Raises
         ------
         ValueError

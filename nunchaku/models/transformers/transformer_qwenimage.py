@@ -139,7 +139,7 @@ class NunchakuQwenAttention(NunchakuBaseAttention):
         Parameters
         ----------
         processor : str
-            Name of the processor to use. Only "flashattn2" is supported for now.
+            Name of the processor to use. Only "flashattn2" is supported for now. See :class:`~nunchaku.models.attention_processors.qwenimage.NunchakuQwenImageNaiveFA2Processor`.
 
         Raises
         ------
@@ -559,7 +559,7 @@ class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuM
 
         Returns
         -------
-        self or ``super().to(*args, **kwargs)``
+        self
 
         Raises
         ------
