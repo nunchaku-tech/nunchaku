@@ -107,6 +107,8 @@ def merge_safetensors(
     state_dict = unquantized_part_sd
     state_dict.update(transformer_block_sd)
 
+    rank = next((v.shape[1] for k, v in transformer_block_sd.items() if ".lora_down" in k), 32)
+
     precision = "int4"
     for v in state_dict.values():
         assert isinstance(v, torch.Tensor)
@@ -130,6 +132,7 @@ def merge_safetensors(
             "scale_dtype": "fp8_e4m3_nan" if precision == "fp4" else None,
             "group_size": 16 if precision == "fp4" else 64,
         },
+        "rank": rank,
     }
     return state_dict, {
         "config": Path(config_path).read_text(),
