@@ -5,7 +5,7 @@ from torch.nn import functional as F
 
 
 class NunchakuSDXLFA2Processor:
-    
+
     def __call__(
         self,
         attn,
@@ -15,7 +15,7 @@ class NunchakuSDXLFA2Processor:
         **cross_attention_kwargs,
     ):
         # Adapted from https://github.com/huggingface/diffusers/blob/50dea89dc6036e71a00bc3d57ac062a80206d9eb/src/diffusers/models/attention_processor.py#AttnProcessor2_0
-        
+
         # if len(args) > 0 or kwargs.get("scale", None) is not None:
         #     deprecation_message = "The `scale` argument is deprecated and will be ignored. Please remove it, as passing it will raise an error in the future. `scale` should directly be passed while calling the underlying pipeline component i.e., via `cross_attention_kwargs`."
         #     deprecate("scale", "1.0.0", deprecation_message)
@@ -59,8 +59,12 @@ class NunchakuSDXLFA2Processor:
             query, key, value = qkv.chunk(3, dim=-1)
             # query, key, value = attn.to_q(hidden_states), attn.to_k(hidden_states), attn.to_v(hidden_states)
         else:
-            query, key, value = attn.to_q(hidden_states), attn.to_k(encoder_hidden_states), attn.to_v(encoder_hidden_states)
-            
+            query, key, value = (
+                attn.to_q(hidden_states),
+                attn.to_k(encoder_hidden_states),
+                attn.to_v(encoder_hidden_states),
+            )
+
         ############# end of qkv ################
 
         inner_dim = key.shape[-1]

@@ -1,35 +1,38 @@
 import json
 import os
-from typing import Any, Dict, Optional
-from huggingface_hub import utils
 from pathlib import Path
+from typing import Any, Dict, Optional
 
-from diffusers.models.unets.unet_2d_condition import UNet2DConditionModel
-from diffusers.models.attention_processor import Attention
 import torch
-from torch import nn
 import torch.nn.functional as F
+from diffusers.models.attention import BasicTransformerBlock, FeedForward
+from diffusers.models.attention_processor import Attention
+from diffusers.models.unets.unet_2d_blocks import (  # DownBlock2D,; UpBlock2D,
+    CrossAttnDownBlock2D,
+    CrossAttnUpBlock2D,
+    Transformer2DModel,
+    UNetMidBlock2DCrossAttn,
+)
+from diffusers.models.unets.unet_2d_condition import UNet2DConditionModel
+from torch import nn
 
-from ..attention import NunchakuBaseAttention, NunchakuFeedForward, _patch_linear
-from ..attention_processors.sdxl import NunchakuSDXLFA2Processor
 from nunchaku.utils import get_precision
+
+from ..attention import NunchakuBaseAttention, _patch_linear
+from ..attention_processors.sdxl import NunchakuSDXLFA2Processor
+from ..linear import SVDQW4A4Linear
 from ..transformers.utils import NunchakuModelLoaderMixin
 from ..utils import fuse_linears
-from ..linear import SVDQW4A4Linear
-from diffusers.models.unets.unet_2d_blocks import DownBlock2D, UpBlock2D, CrossAttnDownBlock2D, UNetMidBlock2DCrossAttn, CrossAttnUpBlock2D, Transformer2DModel
-from diffusers.models.attention import BasicTransformerBlock, FeedForward
-
-
 
 
 class NunchakuSDXLAttention(NunchakuBaseAttention):
     def __init__(self, orig_attn: Attention, processor: str = "flashattn2", **kwargs):
         super(NunchakuSDXLAttention, self).__init__(processor)
-        
+
         self.is_cross_attention = orig_attn.is_cross_attention
         self.heads = orig_attn.heads
         self.rescale_output_factor = orig_attn.rescale_output_factor
-        
+
         if not orig_attn.is_cross_attention:
             # fuse the qkv
             with torch.device("meta"):
@@ -42,10 +45,9 @@ class NunchakuSDXLAttention(NunchakuBaseAttention):
             self.to_q = SVDQW4A4Linear.from_linear(orig_attn.to_q, **kwargs)
             self.to_k = orig_attn.to_k
             self.to_v = orig_attn.to_v
-        
+
         self.to_out = orig_attn.to_out
         self.to_out[0] = SVDQW4A4Linear.from_linear(self.to_out[0], **kwargs)
-
 
     def forward(
         self,
@@ -59,10 +61,9 @@ class NunchakuSDXLAttention(NunchakuBaseAttention):
             hidden_states=hidden_states,
             encoder_hidden_states=encoder_hidden_states,
             attention_mask=attention_mask,
-            **cross_attention_kwargs
+            **cross_attention_kwargs,
         )
 
-    
     def set_processor(self, processor: str):
         if processor == "flashattn2":
             self.processor = NunchakuSDXLFA2Processor()
@@ -70,13 +71,13 @@ class NunchakuSDXLAttention(NunchakuBaseAttention):
         #     self.processor = NunchakuFluxFP16AttnProcessor()  # TODO check
         else:
             raise ValueError(f"Processor {processor} is not supported")
-        
+
 
 class NunchakuSDXLFeedForward(FeedForward):
     def __init__(self, ff: FeedForward, **kwargs):
         super(FeedForward, self).__init__()
         self.net = _patch_linear(ff.net, SVDQW4A4Linear, **kwargs)
-    
+
     def forward(self, hidden_states: torch.Tensor) -> torch.Tensor:
         for module in self.net:
             hidden_states = module(hidden_states)
@@ -86,11 +87,11 @@ class NunchakuSDXLFeedForward(FeedForward):
 class NunchakuSDXLTransformerBlock(BasicTransformerBlock):
     def __init__(self, block: BasicTransformerBlock, **kwargs):
         super(BasicTransformerBlock, self).__init__()
-        
+
         self.norm_type = block.norm_type
         self.pos_embed = block.pos_embed
         self.only_cross_attention = block.only_cross_attention
-        
+
         self.norm1 = block.norm1
         self.norm2 = block.norm2
         self.norm3 = block.norm3
@@ -98,7 +99,6 @@ class NunchakuSDXLTransformerBlock(BasicTransformerBlock):
         self.attn2 = NunchakuSDXLAttention(block.attn2, **kwargs)
         self.ff = NunchakuSDXLFeedForward(block.ff, **kwargs)
 
-        
     def forward(
         self,
         hidden_states: torch.Tensor,
@@ -110,9 +110,9 @@ class NunchakuSDXLTransformerBlock(BasicTransformerBlock):
         class_labels: Optional[torch.LongTensor] = None,
         added_cond_kwargs: Optional[Dict[str, torch.Tensor]] = None,
     ) -> torch.Tensor:
-        
+
         # Adapted from diffusers.models.attention#BasicTransformerBlock#forward
-        
+
         # if cross_attention_kwargs is not None:
         #     if cross_attention_kwargs.get("scale", None) is not None:
         #         logger.warning("Passing `scale` to `cross_attention_kwargs` is deprecated. `scale` will be ignored.")
@@ -139,7 +139,7 @@ class NunchakuSDXLTransformerBlock(BasicTransformerBlock):
         #     norm_hidden_states = norm_hidden_states * (1 + scale_msa) + shift_msa
         # else:
         #     raise ValueError("Incorrect norm used")
-        
+
         if self.norm_type == "layer_norm":
             norm_hidden_states = self.norm1(hidden_states)
         else:
@@ -150,7 +150,7 @@ class NunchakuSDXLTransformerBlock(BasicTransformerBlock):
 
         # 1. Prepare GLIGEN inputs # TODO check
         cross_attention_kwargs = cross_attention_kwargs.copy() if cross_attention_kwargs is not None else {}
-        gligen_kwargs = cross_attention_kwargs.pop("gligen", None) 
+        gligen_kwargs = cross_attention_kwargs.pop("gligen", None)
 
         # attn_output = self.attn1(
         #     norm_hidden_states,
@@ -158,7 +158,7 @@ class NunchakuSDXLTransformerBlock(BasicTransformerBlock):
         #     attention_mask=attention_mask,
         #     **cross_attention_kwargs,
         # )
-        
+
         if self.only_cross_attention:
             raise ValueError("only_cross_attetion cannot be True")
         attn_output = self.attn1(
@@ -195,7 +195,7 @@ class NunchakuSDXLTransformerBlock(BasicTransformerBlock):
             #     norm_hidden_states = self.norm2(hidden_states, added_cond_kwargs["pooled_text_emb"])
             # else:
             #     raise ValueError("Incorrect norm")
-            
+
             if self.norm_type == "layer_norm":
                 norm_hidden_states = self.norm2(hidden_states)
             else:
@@ -243,23 +243,24 @@ class NunchakuSDXLTransformerBlock(BasicTransformerBlock):
             hidden_states = hidden_states.squeeze(1)
 
         return hidden_states
-        
+
 
 class NunchakuSDXLShiftedConv2d(nn.Module):
     # Adapted from https://github.com/nunchaku-tech/deepcompressor/blob/main/deepcompressor/nn/patch/conv.py#ShiftedConv2d
-    def __init__(self,
-                 orig_in_channels,
-                 orig_out_channels,
-                 orig_kernel_size,
-                 orig_stride,
-                 orig_padding,
-                 orig_dilation,
-                 orig_groups,
-                #  orig_bias,
-                 orig_padding_mode,
-                 orig_device,
-                 orig_dtype
-                 ):
+    def __init__(
+        self,
+        orig_in_channels,
+        orig_out_channels,
+        orig_kernel_size,
+        orig_stride,
+        orig_padding,
+        orig_dilation,
+        orig_groups,
+        #  orig_bias,
+        orig_padding_mode,
+        orig_device,
+        orig_dtype,
+    ):
         super().__init__()
         self.conv = nn.Conv2d(
             in_channels=orig_in_channels,
@@ -274,9 +275,9 @@ class NunchakuSDXLShiftedConv2d(nn.Module):
             device=orig_device,
             dtype=orig_dtype,
         )
-        self.shift = nn.Parameter(torch.empty(1, 1, 1, 1, dtype=orig_dtype), requires_grad=False) # hard code
+        self.shift = nn.Parameter(torch.empty(1, 1, 1, 1, dtype=orig_dtype), requires_grad=False)  # hard code
         self.out_channels = orig_out_channels
-        
+
         self.padding_size = self.conv._reversed_padding_repeated_twice
         if all(p == 0 for p in self.padding_size):
             self.padding_mode = ""
@@ -289,7 +290,6 @@ class NunchakuSDXLShiftedConv2d(nn.Module):
         self.conv.padding_mode = "zeros"
         self.conv._reversed_padding_repeated_twice = [0, 0] * len(self.conv.kernel_size)
 
-        
     def forward(self, input: torch.Tensor) -> torch.Tensor:
         input = input + self.shift
         if self.padding_mode == "constant":
@@ -298,7 +298,7 @@ class NunchakuSDXLShiftedConv2d(nn.Module):
             input = F.pad(input, self.padding_size, mode=self.padding_mode, value=None)
         return self.conv(input)
 
-    
+
 class NunchakuSDXLConcatShiftedConv2d(nn.Module):
     # Adapted from https://github.com/nunchaku-tech/deepcompressor/blob/main/deepcompressor/nn/patch/conv.py#ConcatConv2d
     def __init__(self, orig_conv: nn.Conv2d, split: int):
@@ -321,12 +321,12 @@ class NunchakuSDXLConcatShiftedConv2d(nn.Module):
                     # bias if idx == num_convs - 1 else False,
                     orig_conv.padding_mode,
                     orig_conv.weight.device,
-                    orig_conv.weight.dtype
+                    orig_conv.weight.dtype,
                 )
                 for split_in_channels in splits
             ]
         )
-        
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # slice x based on in_channels_list
         x_splits: list[torch.Tensor] = x.split(self.in_channels_list, dim=1)
@@ -350,7 +350,7 @@ class NunchakuSDXLUNet2DConditionModel(UNet2DConditionModel, NunchakuModelLoader
                     nunchaku_sdxl_transformer_block = NunchakuSDXLTransformerBlock(transformer_block, **kwargs)
                     nunchaku_sdxl_transformer_blocks.append(nunchaku_sdxl_transformer_block)
                 attn.transformer_blocks = nn.ModuleList(nunchaku_sdxl_transformer_blocks)
-                
+
         # def _patch_resnets_convs(block: CrossAttnDownBlock2D | CrossAttnUpBlock2D | UNetMidBlock2DCrossAttn | UpBlock2D | DownBlock2D,
         #                         up_block_idx: int | None = None
         #                         ):
@@ -393,13 +393,12 @@ class NunchakuSDXLUNet2DConditionModel(UNet2DConditionModel, NunchakuModelLoader
         #             resnet.conv2.weight.dtype
         #         )
 
-
         for _, down_block in enumerate(self.down_blocks):
             if isinstance(down_block, CrossAttnDownBlock2D):
                 _patch_attentions(down_block)
                 # _patch_resnets_convs(down_block)
             # elif isinstance(down_block, DownBlock2D):
-                # _patch_resnets_convs(down_block)
+            # _patch_resnets_convs(down_block)
 
         for up_block_idx, up_block in enumerate(self.up_blocks):
             if isinstance(up_block, CrossAttnUpBlock2D):
@@ -407,7 +406,7 @@ class NunchakuSDXLUNet2DConditionModel(UNet2DConditionModel, NunchakuModelLoader
             #     _patch_resnets_convs(up_block, up_block_idx=up_block_idx)
             # elif isinstance(up_block, UpBlock2D):
             #     _patch_resnets_convs(up_block, up_block_idx=up_block_idx)
-                
+
         assert isinstance(self.mid_block, UNetMidBlock2DCrossAttn), "Only UNetMidBlock2DCrossAttn is supported"
         _patch_attentions(self.mid_block)
         # _patch_resnets_convs(self.mid_block)
@@ -431,24 +430,24 @@ class NunchakuSDXLUNet2DConditionModel(UNet2DConditionModel, NunchakuModelLoader
         assert pretrained_model_path.is_file() or pretrained_model_path.name.endswith(
             (".safetensors", ".sft")
         ), "Only safetensors are supported"
-        
+
         unet, model_state_dict, metadata = cls._build_model(pretrained_model_path, **kwargs)
         quantization_config = json.loads(metadata.get("quantization_config", "{}"))
         rank = quantization_config.get("rank", 32)
         unet = unet.to(torch_dtype)
-        
+
         precision = get_precision()
         if precision == "fp4":
             precision = "nvfp4"
-            
+
         unet._patch_model(precision=precision, rank=rank)
         unet = unet.to_empty(device=device)
         converted_state_dict = convert_sdxl_state_dict(model_state_dict)
-        
+
         unet.load_state_dict(converted_state_dict)
-        
+
         return unet
-        
+
 
 def convert_sdxl_state_dict(state_dict: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
     new_state_dict = {}
@@ -467,5 +466,5 @@ def convert_sdxl_state_dict(state_dict: dict[str, torch.Tensor]) -> dict[str, to
             new_state_dict[new_k] = v
         else:
             new_state_dict[k] = v
-                
+
     return new_state_dict

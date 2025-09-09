@@ -123,7 +123,7 @@ def fused_qkv_norm_rottary(
     - S: sequence length
     - C_in: input features
     - C_out: output features
-    """    
+    """
     assert norm_q is None or isinstance(norm_q, RMSNorm)
     assert norm_k is None or isinstance(norm_k, RMSNorm)
 
