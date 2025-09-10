@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 from warnings import warn
 
+import numpy as np
 import torch
 from diffusers.models.attention_processor import Attention
 from diffusers.models.modeling_outputs import Transformer2DModelOutput
@@ -17,6 +18,7 @@ from diffusers.models.transformers.transformer_qwenimage import (
     QwenImageTransformer2DModel,
     QwenImageTransformerBlock,
 )
+from diffusers.utils import USE_PEFT_BACKEND, logging as diffusers_logging, scale_lora_layers, unscale_lora_layers
 from huggingface_hub import utils
 
 from ...utils import get_precision
@@ -25,6 +27,8 @@ from ..attention_processors.qwenimage import NunchakuQwenImageNaiveFA2Processor
 from ..linear import AWQW4A16Linear, SVDQW4A4Linear
 from ..utils import CPUOffloadManager, fuse_linears
 from .utils import NunchakuModelLoaderMixin
+
+logger = diffusers_logging.get_logger(__name__)
 
 
 class NunchakuQwenAttention(NunchakuBaseAttention):
@@ -467,19 +471,20 @@ class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuM
         txt_seq_lens: Optional[List[int]] = None,
         guidance: torch.Tensor = None,
         attention_kwargs: Optional[Dict[str, Any]] = None,
+        controlnet_block_samples=None,
         return_dict: bool = True,
     ) -> Union[torch.Tensor, Transformer2DModelOutput]:
         """
-        Forward pass for the quantized QwenImage transformer model.
+        Forward pass for the Nunchaku QwenImage transformer model with ControlNet support.
 
         Parameters
         ----------
         hidden_states : torch.Tensor
-            Image stream input.
+            Image stream input of shape `(batch_size, image_sequence_length, in_channels)`.
         encoder_hidden_states : torch.Tensor, optional
-            Text stream input.
+            Text stream input of shape `(batch_size, text_sequence_length, joint_attention_dim)`.
         encoder_hidden_states_mask : torch.Tensor, optional
-            Mask for encoder hidden states.
+            Mask for encoder hidden states of shape `(batch_size, text_sequence_length)`.
         timestep : torch.LongTensor, optional
             Timestep for temporal embedding.
         img_shapes : list of tuple, optional
@@ -489,15 +494,33 @@ class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuM
         guidance : torch.Tensor, optional
             Guidance tensor (for classifier-free guidance).
         attention_kwargs : dict, optional
-            Additional attention arguments.
+            Additional attention arguments. A kwargs dictionary that if specified is passed along to the `AttentionProcessor`.
+        controlnet_block_samples : optional
+            ControlNet block samples for residual connections.
         return_dict : bool, default=True
             Whether to return a dict or tuple.
 
         Returns
         -------
         torch.Tensor or Transformer2DModelOutput
-            Model output.
+            If `return_dict` is True, an [`~models.transformer_2d.Transformer2DModelOutput`] is returned, otherwise a
+            `tuple` where the first element is the sample tensor.
         """
+        if attention_kwargs is not None:
+            attention_kwargs = attention_kwargs.copy()
+            lora_scale = attention_kwargs.pop("scale", 1.0)
+        else:
+            lora_scale = 1.0
+
+        if USE_PEFT_BACKEND:
+            # weight the lora layers by setting `lora_scale` for each PEFT layer
+            scale_lora_layers(self, lora_scale)
+        else:
+            if attention_kwargs is not None and attention_kwargs.get("scale", None) is not None:
+                logger.warning(
+                    "Passing `scale` via `joint_attention_kwargs` when not using the PEFT backend is ineffective."
+                )
+
         device = hidden_states.device
         if self.offload:
             self.offload_manager.set_device(device)
@@ -526,19 +549,41 @@ class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuM
             with torch.cuda.stream(compute_stream):
                 if self.offload:
                     block = self.offload_manager.get_block(block_idx)
-                encoder_hidden_states, hidden_states = block(
-                    hidden_states=hidden_states,
-                    encoder_hidden_states=encoder_hidden_states,
-                    encoder_hidden_states_mask=encoder_hidden_states_mask,
-                    temb=temb,
-                    image_rotary_emb=image_rotary_emb,
-                    joint_attention_kwargs=attention_kwargs,
-                )
+                
+                if torch.is_grad_enabled() and self.gradient_checkpointing:
+                    encoder_hidden_states, hidden_states = self._gradient_checkpointing_func(
+                        block,
+                        hidden_states,
+                        encoder_hidden_states,
+                        encoder_hidden_states_mask,
+                        temb,
+                        image_rotary_emb,
+                    )
+                else:
+                    encoder_hidden_states, hidden_states = block(
+                        hidden_states=hidden_states,
+                        encoder_hidden_states=encoder_hidden_states,
+                        encoder_hidden_states_mask=encoder_hidden_states_mask,
+                        temb=temb,
+                        image_rotary_emb=image_rotary_emb,
+                        joint_attention_kwargs=attention_kwargs,
+                    )
+
+                # controlnet residual - same logic as in diffusers QwenImageTransformer2DModel
+                if controlnet_block_samples is not None:
+                    interval_control = len(self.transformer_blocks) / len(controlnet_block_samples)
+                    interval_control = int(np.ceil(interval_control))
+                    hidden_states = hidden_states + controlnet_block_samples[block_idx // interval_control]
+            
             if self.offload:
                 self.offload_manager.step(compute_stream)
 
         hidden_states = self.norm_out(hidden_states, temb)
         output = self.proj_out(hidden_states)
+
+        if USE_PEFT_BACKEND:
+            # remove `lora_scale` from each PEFT layer
+            unscale_lora_layers(self, lora_scale)
 
         torch.cuda.empty_cache()
 
