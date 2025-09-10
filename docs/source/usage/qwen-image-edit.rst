@@ -24,7 +24,7 @@ The :meth:`~nunchaku.models.transformers.transformer_qwenimage.NunchakuQwenImage
    - To reduce VRAM usage, enable asynchronous CPU offloading with :meth:`~nunchaku.models.transformers.transformer_qwenimage.NunchakuQwenImageTransformer2DModel.set_offload`. For further savings, you may also enable Diffusers' ``pipeline.enable_sequential_cpu_offload()``, but be sure to exclude ``transformer`` from offloading, as Nunchaku's offloading mechanism differs from Diffusers'. With these settings, VRAM usage can be reduced to approximately 3GB.
 
 Distilled Qwen-Image-Edit (Qwen-Image-Lightning)
------------------------------------------------
+------------------------------------------------
 
 For faster inference, we provide pre-quantized 4-step and 8-step Qwen-Image-Edit models by integrating `Qwen-Image-Lightning LoRAs <hf_qwen-image-lightning>`_.
 See the example script below:
