@@ -153,7 +153,7 @@ class NunchakuQwenAttention(NunchakuBaseAttention):
         if processor == "flashattn2":
             self.processor = NunchakuQwenImageNaiveFA2Processor()
         else:
-            raise ValueError(f"Processor {processor} is not supported")
+            raise ValueError(f"Processor {processor} is not supported")            
 
 
 class NunchakuQwenImageTransformerBlock(QwenImageTransformerBlock):
@@ -222,6 +222,7 @@ class NunchakuQwenImageTransformerBlock(QwenImageTransformerBlock):
         encoder_hidden_states_mask: torch.Tensor,
         temb: torch.Tensor,
         image_rotary_emb: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
+        joint_attention_kwargs: Optional[Dict[str, Any]] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Forward pass for NunchakuQwenImageTransformerBlock.
@@ -269,11 +270,13 @@ class NunchakuQwenImageTransformerBlock(QwenImageTransformerBlock):
         txt_normed = self.txt_norm1(encoder_hidden_states)
         txt_modulated, txt_gate1 = self._modulate(txt_normed, txt_mod1)
 
+        joint_attention_kwargs = joint_attention_kwargs or {}
         attn_output = self.attn(
             hidden_states=img_modulated,
             encoder_hidden_states=txt_modulated,
             encoder_hidden_states_mask=encoder_hidden_states_mask,
             image_rotary_emb=image_rotary_emb,
+            **joint_attention_kwargs,
         )
 
         # QwenAttnProcessor2_0 returns (img_output, txt_output) when encoder_hidden_states is provided
@@ -548,6 +551,7 @@ class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuM
                         encoder_hidden_states_mask=encoder_hidden_states_mask,
                         temb=temb,
                         image_rotary_emb=image_rotary_emb,
+                        joint_attention_kwargs=attention_kwargs,
                     )
 
                 # controlnet residual - same logic as in diffusers QwenImageTransformer2DModel
