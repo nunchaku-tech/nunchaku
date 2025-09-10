@@ -18,7 +18,7 @@ from diffusers.models.transformers.transformer_qwenimage import (
     QwenImageTransformer2DModel,
     QwenImageTransformerBlock,
 )
-from diffusers.utils import USE_PEFT_BACKEND, logging as diffusers_logging, scale_lora_layers, unscale_lora_layers
+from diffusers.utils import logging as diffusers_logging
 from huggingface_hub import utils
 
 from ...utils import get_precision
@@ -222,7 +222,6 @@ class NunchakuQwenImageTransformerBlock(QwenImageTransformerBlock):
         encoder_hidden_states_mask: torch.Tensor,
         temb: torch.Tensor,
         image_rotary_emb: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
-        joint_attention_kwargs: Optional[Dict[str, Any]] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Forward pass for NunchakuQwenImageTransformerBlock.
@@ -270,13 +269,11 @@ class NunchakuQwenImageTransformerBlock(QwenImageTransformerBlock):
         txt_normed = self.txt_norm1(encoder_hidden_states)
         txt_modulated, txt_gate1 = self._modulate(txt_normed, txt_mod1)
 
-        joint_attention_kwargs = joint_attention_kwargs or {}
         attn_output = self.attn(
             hidden_states=img_modulated,
             encoder_hidden_states=txt_modulated,
             encoder_hidden_states_mask=encoder_hidden_states_mask,
             image_rotary_emb=image_rotary_emb,
-            **joint_attention_kwargs,
         )
 
         # QwenAttnProcessor2_0 returns (img_output, txt_output) when encoder_hidden_states is provided
@@ -506,21 +503,6 @@ class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuM
             If `return_dict` is True, an [`~models.transformer_2d.Transformer2DModelOutput`] is returned, otherwise a
             `tuple` where the first element is the sample tensor.
         """
-        if attention_kwargs is not None:
-            attention_kwargs = attention_kwargs.copy()
-            lora_scale = attention_kwargs.pop("scale", 1.0)
-        else:
-            lora_scale = 1.0
-
-        if USE_PEFT_BACKEND:
-            # weight the lora layers by setting `lora_scale` for each PEFT layer
-            scale_lora_layers(self, lora_scale)
-        else:
-            if attention_kwargs is not None and attention_kwargs.get("scale", None) is not None:
-                logger.warning(
-                    "Passing `scale` via `joint_attention_kwargs` when not using the PEFT backend is ineffective."
-                )
-
         device = hidden_states.device
         if self.offload:
             self.offload_manager.set_device(device)
@@ -566,7 +548,6 @@ class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuM
                         encoder_hidden_states_mask=encoder_hidden_states_mask,
                         temb=temb,
                         image_rotary_emb=image_rotary_emb,
-                        joint_attention_kwargs=attention_kwargs,
                     )
 
                 # controlnet residual - same logic as in diffusers QwenImageTransformer2DModel
@@ -580,10 +561,6 @@ class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuM
 
         hidden_states = self.norm_out(hidden_states, temb)
         output = self.proj_out(hidden_states)
-
-        if USE_PEFT_BACKEND:
-            # remove `lora_scale` from each PEFT layer
-            unscale_lora_layers(self, lora_scale)
 
         torch.cuda.empty_cache()
 
