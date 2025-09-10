@@ -9,7 +9,7 @@ rank = 128  # you can also use rank=128 model to improve the quality
 
 # Load the model
 transformer = NunchakuQwenImageTransformer2DModel.from_pretrained(
-    f"Lmxyy/nunchaku-qwen-image-edit/svdq-{get_precision()}_r{rank}-qwen-image-edit.safetensors"
+    f"nunchaku-tech/nunchaku-qwen-image-edit/svdq-{get_precision()}_r{rank}-qwen-image-edit.safetensors"
 )
 
 pipeline = QwenImageEditPipeline.from_pretrained(
