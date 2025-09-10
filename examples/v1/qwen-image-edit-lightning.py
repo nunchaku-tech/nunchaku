@@ -1,9 +1,10 @@
 import math
 
 import torch
-from diffusers import FlowMatchEulerDiscreteScheduler, QwenImagePipeline
+from diffusers import FlowMatchEulerDiscreteScheduler, QwenImageEditPipeline
+from diffusers.utils import load_image
 
-from nunchaku.models.transformers.transformer_qwenimage import NunchakuQwenImageTransformer2DModel
+from nunchaku import NunchakuQwenImageTransformer2DModel
 from nunchaku.utils import get_gpu_memory, get_precision
 
 # From https://github.com/ModelTC/Qwen-Image-Lightning/blob/342260e8f5468d2f24d084ce04f55e101007118b/generate_with_diffusers.py#L82C9-L97C10
@@ -28,34 +29,40 @@ scheduler = FlowMatchEulerDiscreteScheduler.from_config(scheduler_config)
 num_inference_steps = 4  # you can also use the 8-step model to improve the quality
 rank = 32  # you can also use the rank=128 model to improve the quality
 model_paths = {
-    4: f"nunchaku-tech/nunchaku-qwen-image/svdq-{get_precision()}_r{rank}-qwen-image-lightningv1.0-4steps.safetensors",
-    8: f"nunchaku-tech/nunchaku-qwen-image/svdq-{get_precision()}_r{rank}-qwen-image-lightningv1.1-8steps.safetensors",
+    4: f"Lmxyy/nunchaku-qwen-image-edit/svdq-{get_precision()}_r{rank}-qwen-image-edit-lightningv1.0-4steps.safetensors",
+    8: f"Lmxyy/nunchaku-qwen-image-edit/svdq-{get_precision()}_r{rank}-qwen-image-edit-lightningv1.0-8steps.safetensors",
 }
+
 
 # Load the model
 transformer = NunchakuQwenImageTransformer2DModel.from_pretrained(model_paths[num_inference_steps])
-pipe = QwenImagePipeline.from_pretrained(
-    "Qwen/Qwen-Image", transformer=transformer, scheduler=scheduler, torch_dtype=torch.bfloat16
+
+pipeline = QwenImageEditPipeline.from_pretrained(
+    "Qwen/Qwen-Image-Edit", transformer=transformer, scheduler=scheduler, torch_dtype=torch.bfloat16
 )
 
 if get_gpu_memory() > 18:
-    pipe.enable_model_cpu_offload()
+    pipeline.enable_model_cpu_offload()
 else:
     # use per-layer offloading for low VRAM. This only requires 3-4GB of VRAM.
     transformer.set_offload(
         True, use_pin_memory=False, num_blocks_on_gpu=1
     )  # increase num_blocks_on_gpu if you have more VRAM
-    pipe._exclude_from_cpu_offload.append("transformer")
-    pipe.enable_sequential_cpu_offload()
+    pipeline._exclude_from_cpu_offload.append("transformer")
+    pipeline.enable_sequential_cpu_offload()
 
-prompt = """Bookstore window display. A sign displays “New Arrivals This Week”. Below, a shelf tag with the text “Best-Selling Novels Here”. To the side, a colorful poster advertises “Author Meet And Greet on Saturday” with a central portrait of the author. There are four books on the bookshelf, namely “The light between worlds” “When stars are scattered” “The slient patient” “The night circus”"""
-negative_prompt = " "
-image = pipe(
-    prompt=prompt,
-    negative_prompt=negative_prompt,
-    width=1024,
-    height=1024,
-    num_inference_steps=num_inference_steps,
-    true_cfg_scale=1.0,
-).images[0]
-image.save(f"qwen-image-lightning_r{rank}.png")
+image = load_image(
+    "https://qwen-qwen-image-edit.hf.space/gradio_api/file=/tmp/gradio/d02be0b3422c33fc0ad3c64445959f17d3d61286c2d7dba985df3cd53d484b77/neon_sign.png"
+).convert("RGB")
+prompt = "change the text to read '双截棍 Qwen Image Edit is here'"
+inputs = {
+    "image": image,
+    "prompt": prompt,
+    "true_cfg_scale": 1,
+    "negative_prompt": " ",
+    "num_inference_steps": num_inference_steps,
+}
+
+output = pipeline(**inputs)
+output_image = output.images[0]
+output_image.save(f"qwen-image-edit-lightning-r{rank}-{num_inference_steps}steps.png")
