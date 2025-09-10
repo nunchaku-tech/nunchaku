@@ -54,7 +54,7 @@ controlnet = QwenImageControlNetModel.from_pretrained(
     torch_dtype=torch.bfloat16
 )
 transformer = NunchakuQwenImageTransformer2DModel.from_pretrained(
-    f"/home/ti/Downloads/svdq-fp4_r{rank}-qwen-image.safetensors"
+    f"nunchaku-tech/nunchaku-qwen-image/svdq-{get_precision()}_r{rank}-qwen-image.safetensors"
 )
 
 # Create pipeline
@@ -86,5 +86,5 @@ image = pipeline(
    ).images[0]
 
 # Save the result
-image.save(f"controlnet_depth_r{rank}-000.png")
+image.save(f"controlnet_depth_r{rank}.png")
 
