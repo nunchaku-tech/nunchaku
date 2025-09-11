@@ -7,11 +7,13 @@ import torch
 import torch.nn.functional as F
 from diffusers.models.attention import BasicTransformerBlock, FeedForward
 from diffusers.models.attention_processor import Attention
-from diffusers.models.unets.unet_2d_blocks import (  # DownBlock2D,; UpBlock2D,
+from diffusers.models.unets.unet_2d_blocks import (
     CrossAttnDownBlock2D,
     CrossAttnUpBlock2D,
+    DownBlock2D,
     Transformer2DModel,
     UNetMidBlock2DCrossAttn,
+    UpBlock2D,
 )
 from diffusers.models.unets.unet_2d_condition import UNet2DConditionModel
 from torch import nn
@@ -38,9 +40,6 @@ class NunchakuSDXLAttention(NunchakuBaseAttention):
             with torch.device("meta"):
                 to_qkv = fuse_linears([orig_attn.to_q, orig_attn.to_k, orig_attn.to_v])
             self.to_qkv = SVDQW4A4Linear.from_linear(to_qkv, **kwargs)
-            # self.to_q = SVDQW4A4Linear.from_linear(orig_attn.to_q, **kwargs)
-            # self.to_k = SVDQW4A4Linear.from_linear(orig_attn.to_k, **kwargs)
-            # self.to_v = SVDQW4A4Linear.from_linear(orig_attn.to_v, **kwargs)
         else:
             self.to_q = SVDQW4A4Linear.from_linear(orig_attn.to_q, **kwargs)
             self.to_k = orig_attn.to_k
@@ -67,8 +66,6 @@ class NunchakuSDXLAttention(NunchakuBaseAttention):
     def set_processor(self, processor: str):
         if processor == "flashattn2":
             self.processor = NunchakuSDXLFA2Processor()
-        # elif processor == "nunchaku-fp16":
-        #     self.processor = NunchakuFluxFP16AttnProcessor()  # TODO check
         else:
             raise ValueError(f"Processor {processor} is not supported")
 
@@ -113,33 +110,6 @@ class NunchakuSDXLTransformerBlock(BasicTransformerBlock):
 
         # Adapted from diffusers.models.attention#BasicTransformerBlock#forward
 
-        # if cross_attention_kwargs is not None:
-        #     if cross_attention_kwargs.get("scale", None) is not None:
-        #         logger.warning("Passing `scale` to `cross_attention_kwargs` is deprecated. `scale` will be ignored.")
-
-        # Notice that normalization is always applied before the real computation in the following blocks.
-        # 0. Self-Attention
-        # batch_size = hidden_states.shape[0]
-
-        # if self.norm_type == "ada_norm":
-        #     norm_hidden_states = self.norm1(hidden_states, timestep)
-        # elif self.norm_type == "ada_norm_zero":
-        #     norm_hidden_states, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.norm1(
-        #         hidden_states, timestep, class_labels, hidden_dtype=hidden_states.dtype
-        #     )
-        # elif self.norm_type in ["layer_norm", "layer_norm_i2vgen"]:
-        #     norm_hidden_states = self.norm1(hidden_states)
-        # elif self.norm_type == "ada_norm_continuous":
-        #     norm_hidden_states = self.norm1(hidden_states, added_cond_kwargs["pooled_text_emb"])
-        # elif self.norm_type == "ada_norm_single":
-        #     shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = (
-        #         self.scale_shift_table[None] + timestep.reshape(batch_size, 6, -1)
-        #     ).chunk(6, dim=1)
-        #     norm_hidden_states = self.norm1(hidden_states)
-        #     norm_hidden_states = norm_hidden_states * (1 + scale_msa) + shift_msa
-        # else:
-        #     raise ValueError("Incorrect norm used")
-
         if self.norm_type == "layer_norm":
             norm_hidden_states = self.norm1(hidden_states)
         else:
@@ -148,16 +118,9 @@ class NunchakuSDXLTransformerBlock(BasicTransformerBlock):
         if self.pos_embed is not None:
             norm_hidden_states = self.pos_embed(norm_hidden_states)
 
-        # 1. Prepare GLIGEN inputs # TODO check
+        # 1. Prepare GLIGEN inputs
         cross_attention_kwargs = cross_attention_kwargs.copy() if cross_attention_kwargs is not None else {}
         gligen_kwargs = cross_attention_kwargs.pop("gligen", None)
-
-        # attn_output = self.attn1(
-        #     norm_hidden_states,
-        #     encoder_hidden_states=encoder_hidden_states if self.only_cross_attention else None,
-        #     attention_mask=attention_mask,
-        #     **cross_attention_kwargs,
-        # )
 
         if self.only_cross_attention:
             raise ValueError("only_cross_attetion cannot be True")
@@ -167,11 +130,6 @@ class NunchakuSDXLTransformerBlock(BasicTransformerBlock):
             attention_mask=attention_mask,
             **cross_attention_kwargs,
         )
-
-        # if self.norm_type == "ada_norm_zero":
-        #     attn_output = gate_msa.unsqueeze(1) * attn_output
-        # elif self.norm_type == "ada_norm_single":
-        #     attn_output = gate_msa * attn_output
 
         hidden_states = attn_output + hidden_states
         if hidden_states.ndim == 4:
@@ -183,18 +141,6 @@ class NunchakuSDXLTransformerBlock(BasicTransformerBlock):
 
         # 3. Cross-Attention
         if self.attn2 is not None:
-            # if self.norm_type == "ada_norm":
-            #     norm_hidden_states = self.norm2(hidden_states, timestep)
-            # elif self.norm_type in ["ada_norm_zero", "layer_norm", "layer_norm_i2vgen"]:
-            #     norm_hidden_states = self.norm2(hidden_states)
-            # elif self.norm_type == "ada_norm_single":
-            #     # For PixArt norm2 isn't applied here:
-            #     # https://github.com/PixArt-alpha/PixArt-alpha/blob/0f55e922376d8b797edd44d25d0e7464b260dcab/diffusion/model/nets/PixArtMS.py#L70C1-L76C103
-            #     norm_hidden_states = hidden_states
-            # elif self.norm_type == "ada_norm_continuous":
-            #     norm_hidden_states = self.norm2(hidden_states, added_cond_kwargs["pooled_text_emb"])
-            # else:
-            #     raise ValueError("Incorrect norm")
 
             if self.norm_type == "layer_norm":
                 norm_hidden_states = self.norm2(hidden_states)
@@ -213,30 +159,10 @@ class NunchakuSDXLTransformerBlock(BasicTransformerBlock):
             hidden_states = attn_output + hidden_states
 
         # 4. Feed-forward
-        # i2vgen doesn't have this norm 🤷‍♂️
-        # if self.norm_type == "ada_norm_continuous":
-        #     norm_hidden_states = self.norm3(hidden_states, added_cond_kwargs["pooled_text_emb"])
-        # elif not self.norm_type == "ada_norm_single":
-        #     norm_hidden_states = self.norm3(hidden_states)
+
         norm_hidden_states = self.norm3(hidden_states)
 
-        # if self.norm_type == "ada_norm_zero":
-        #     norm_hidden_states = norm_hidden_states * (1 + scale_mlp[:, None]) + shift_mlp[:, None]
-
-        # if self.norm_type == "ada_norm_single":
-        #     norm_hidden_states = self.norm2(hidden_states)
-        #     norm_hidden_states = norm_hidden_states * (1 + scale_mlp) + shift_mlp
-
-        # if self._chunk_size is not None:
-        #     # "feed_forward_chunk_size" can be used to save memory
-        #     ff_output = _chunked_feed_forward(self.ff, norm_hidden_states, self._chunk_dim, self._chunk_size)
-        # else:
         ff_output = self.ff(norm_hidden_states)
-
-        # if self.norm_type == "ada_norm_zero":
-        #     ff_output = gate_mlp.unsqueeze(1) * ff_output
-        # elif self.norm_type == "ada_norm_single":
-        #     ff_output = gate_mlp * ff_output
 
         hidden_states = ff_output + hidden_states
         if hidden_states.ndim == 4:
@@ -351,65 +277,60 @@ class NunchakuSDXLUNet2DConditionModel(UNet2DConditionModel, NunchakuModelLoader
                     nunchaku_sdxl_transformer_blocks.append(nunchaku_sdxl_transformer_block)
                 attn.transformer_blocks = nn.ModuleList(nunchaku_sdxl_transformer_blocks)
 
-        # def _patch_resnets_convs(block: CrossAttnDownBlock2D | CrossAttnUpBlock2D | UNetMidBlock2DCrossAttn | UpBlock2D | DownBlock2D,
-        #                         up_block_idx: int | None = None
-        #                         ):
-        #     for resnet_idx, resnet in enumerate(block.resnets):
-        #         if isinstance(block, (CrossAttnUpBlock2D, UpBlock2D)):
-        #             if resnet_idx == 0:
-        #                 if up_block_idx == 0:
-        #                     prev_block = self.mid_block
-        #                 else:
-        #                     prev_block = self.up_blocks[up_block_idx - 1]
-        #                 split = prev_block.resnets[-1].conv2.out_channels
-        #             else:
-        #                 split = block.resnets[resnet_idx - 1].conv2.out_channels
-        #             resnet.conv1 = NunchakuSDXLConcatShiftedConv2d(resnet.conv1, split)
-        #         else:
-        #             resnet.conv1 = NunchakuSDXLShiftedConv2d(
-        #                 resnet.conv1.in_channels,
-        #                 resnet.conv1.out_channels,
-        #                 resnet.conv1.kernel_size,
-        #                 resnet.conv1.stride,
-        #                 resnet.conv1.padding,
-        #                 resnet.conv1.dilation,
-        #                 resnet.conv1.groups,
-        #                 #  orig_bias,
-        #                 resnet.conv1.padding_mode,
-        #                 resnet.conv1.weight.device,
-        #                 resnet.conv1.weight.dtype
-        #             )
-        #         resnet.conv2 = NunchakuSDXLShiftedConv2d(
-        #             resnet.conv2.in_channels,
-        #             resnet.conv2.out_channels,
-        #             resnet.conv2.kernel_size,
-        #             resnet.conv2.stride,
-        #             resnet.conv2.padding,
-        #             resnet.conv2.dilation,
-        #             resnet.conv2.groups,
-        #             #  orig_bias,
-        #             resnet.conv2.padding_mode,
-        #             resnet.conv2.weight.device,
-        #             resnet.conv2.weight.dtype
-        #         )
+        # _patch_resnets_convs is not used since the support from the inference engine is not completed.
+        def _patch_resnets_convs(
+            block: CrossAttnDownBlock2D | CrossAttnUpBlock2D | UNetMidBlock2DCrossAttn | UpBlock2D | DownBlock2D,
+            up_block_idx: int | None = None,
+        ):
+            for resnet_idx, resnet in enumerate(block.resnets):
+                if isinstance(block, (CrossAttnUpBlock2D, UpBlock2D)):
+                    if resnet_idx == 0:
+                        if up_block_idx == 0:
+                            prev_block = self.mid_block
+                        else:
+                            prev_block = self.up_blocks[up_block_idx - 1]
+                        split = prev_block.resnets[-1].conv2.out_channels
+                    else:
+                        split = block.resnets[resnet_idx - 1].conv2.out_channels
+                    resnet.conv1 = NunchakuSDXLConcatShiftedConv2d(resnet.conv1, split)
+                else:
+                    resnet.conv1 = NunchakuSDXLShiftedConv2d(
+                        resnet.conv1.in_channels,
+                        resnet.conv1.out_channels,
+                        resnet.conv1.kernel_size,
+                        resnet.conv1.stride,
+                        resnet.conv1.padding,
+                        resnet.conv1.dilation,
+                        resnet.conv1.groups,
+                        #  orig_bias,
+                        resnet.conv1.padding_mode,
+                        resnet.conv1.weight.device,
+                        resnet.conv1.weight.dtype,
+                    )
+                resnet.conv2 = NunchakuSDXLShiftedConv2d(
+                    resnet.conv2.in_channels,
+                    resnet.conv2.out_channels,
+                    resnet.conv2.kernel_size,
+                    resnet.conv2.stride,
+                    resnet.conv2.padding,
+                    resnet.conv2.dilation,
+                    resnet.conv2.groups,
+                    #  orig_bias,
+                    resnet.conv2.padding_mode,
+                    resnet.conv2.weight.device,
+                    resnet.conv2.weight.dtype,
+                )
 
         for _, down_block in enumerate(self.down_blocks):
             if isinstance(down_block, CrossAttnDownBlock2D):
                 _patch_attentions(down_block)
-                # _patch_resnets_convs(down_block)
-            # elif isinstance(down_block, DownBlock2D):
-            # _patch_resnets_convs(down_block)
 
-        for up_block_idx, up_block in enumerate(self.up_blocks):
+        for _, up_block in enumerate(self.up_blocks):
             if isinstance(up_block, CrossAttnUpBlock2D):
                 _patch_attentions(up_block)
-            #     _patch_resnets_convs(up_block, up_block_idx=up_block_idx)
-            # elif isinstance(up_block, UpBlock2D):
-            #     _patch_resnets_convs(up_block, up_block_idx=up_block_idx)
 
         assert isinstance(self.mid_block, UNetMidBlock2DCrossAttn), "Only UNetMidBlock2DCrossAttn is supported"
         _patch_attentions(self.mid_block)
-        # _patch_resnets_convs(self.mid_block)
 
         return self
 
