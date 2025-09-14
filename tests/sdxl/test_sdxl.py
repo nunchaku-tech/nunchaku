@@ -1,16 +1,14 @@
 import gc
 import os
-import time
 from pathlib import Path
 
-import matplotlib.pyplot as plt
-import numpy as np
 import pytest
 import torch
 from diffusers import AutoPipelineForText2Image
 
 from nunchaku.models.unets.unet_sdxl import NunchakuSDXLUNet2DConditionModel
 from nunchaku.utils import get_precision, is_turing
+from tests.sdxl.test_sdxl_turbo import plot, run_benchmark
 
 from ..flux.utils import already_generate, compute_lpips, hash_str_to_int
 
@@ -93,100 +91,12 @@ def test_sdxl_lpips(expected_lpips: float):
     assert lpips < expected_lpips * 1.15
 
 
-class PerfHook:
-    def __init__(self):
-        self.start = []
-        self.end = []
-
-    def pre_hook(self, module, input):
-        self.start.append(time.perf_counter())
-
-    def post_hook(self, module, input, output):
-        self.end.append(time.perf_counter())
-
-
-def run_benchmark(pipeline, batch_size, device, runs, inference_steps):
-
-    prompt = "A cinematic shot of a baby racoon wearing an intricate italian priest robe."
-    # warmup
-    _ = pipeline(
-        prompt=prompt, guidance_scale=0.0, num_inference_steps=inference_steps, num_images_per_prompt=batch_size
-    ).images
-    time_cost = []
-
-    unet = pipeline.unet
-
-    perf_hook = PerfHook()
-
-    handle_pre = unet.register_forward_pre_hook(perf_hook.pre_hook)
-    handle_post = unet.register_forward_hook(perf_hook.post_hook)
-
-    # run
-    for _ in range(runs):
-        _ = pipeline(
-            prompt=prompt, guidance_scale=5.0, num_inference_steps=inference_steps, num_images_per_prompt=batch_size
-        ).images
-    time_cost = [perf_hook.end[i] - perf_hook.start[i] for i in range(len(perf_hook.start))]
-
-    # to numpy for stats
-    time_cost = np.array(time_cost)
-    print(f"device: {device}")
-    print(f"runs :{runs}")
-    print(f"batch_size: {batch_size}")
-    print(f"max :{time_cost.max():.4f}")
-    print(f"min :{time_cost.min():.4f}")
-    print(f"avg :{time_cost.mean():.4f}")
-    print(f"std :{time_cost.std():.4f}")
-
-    handle_pre.remove()
-    handle_post.remove()
-
-    return time_cost
-
-
-def plot(batch_sizes, results, device_name, runs, inference_steps, plot_save_path):
-    # 画图
-    x = np.arange(len(batch_sizes))  # x 轴位置
-    width = 0.35  # 柱状图宽度
-
-    fig, ax = plt.subplots()
-    rects1 = ax.bar(x - width / 2, results["Original FP16"], width, label="Original FP16")
-    rects2 = ax.bar(x + width / 2, results["Nunchaku INT4"], width, label="Nunchaku INT4")
-
-    # 添加文字和标签
-    ax.set_ylabel(f"Average time cost (seconds)\n{runs} runs of {inference_steps} inference steps each.")
-    ax.set_xlabel("Batch size")
-    ax.set_title(f"SDXL diffusion time cost\n(GPU: {device_name})")
-    ax.set_xticks(x)
-    ax.set_xticklabels(batch_sizes)
-    ax.legend()
-
-    # 在柱子上显示数值
-    def autolabel(rects):
-        for rect in rects:
-            height = rect.get_height()
-            ax.annotate(
-                f"{height:.3f}",
-                xy=(rect.get_x() + rect.get_width() / 2, height),
-                xytext=(0, 3),  # 垂直偏移
-                textcoords="offset points",
-                ha="center",
-                va="bottom",
-            )
-
-    autolabel(rects1)
-    autolabel(rects2)
-
-    plt.tight_layout()
-    # plt.show()
-    plt.savefig(plot_save_path / "plot.png", dpi=300, bbox_inches="tight")
-
-
 @pytest.mark.skipif(is_turing(), reason="Skip tests due to using Turing GPUs")
 def test_sdxl_time_cost():
     batch_sizes = [2, 4, 8]
     runs = 20
     inference_steps = 50
+    guidance_scale = 5.0
     device_name = torch.cuda.get_device_name(0)
     results = {"Original FP16": [], "Nunchaku INT4": []}
 
@@ -195,7 +105,9 @@ def test_sdxl_time_cost():
     ).to("cuda")
 
     for batch_size in batch_sizes:
-        benchmark_original = run_benchmark(pipeline_original, batch_size, device_name, runs, inference_steps)
+        benchmark_original = run_benchmark(
+            pipeline_original, batch_size, guidance_scale, device_name, runs, inference_steps
+        )
         results["Original FP16"].append(benchmark_original.mean() * inference_steps)
 
     pipeline_original = None
@@ -212,11 +124,13 @@ def test_sdxl_time_cost():
     pipeline_quantized = pipeline_quantized.to("cuda")
 
     for batch_size in batch_sizes:
-        benchmark_quantized = run_benchmark(pipeline_quantized, batch_size, device_name, runs, inference_steps)
+        benchmark_quantized = run_benchmark(
+            pipeline_quantized, batch_size, guidance_scale, device_name, runs, inference_steps
+        )
         results["Nunchaku INT4"].append(benchmark_quantized.mean() * inference_steps)
 
     ref_root = Path(os.environ.get("NUNCHAKU_TEST_CACHE_ROOT", os.path.join("test_results", "ref")))
     plot_save_path = ref_root / "time_cost" / "sdxl"
     os.makedirs(plot_save_path, exist_ok=True)
 
-    plot(batch_sizes, results, device_name, runs, inference_steps, plot_save_path)
+    plot(batch_sizes, results, device_name, runs, inference_steps, plot_save_path, "SDXL")

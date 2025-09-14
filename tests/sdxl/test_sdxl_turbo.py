@@ -105,12 +105,15 @@ class PerfHook:
         self.end.append(time.perf_counter())
 
 
-def run_benchmark(pipeline, batch_size, device, runs, inference_steps):
+def run_benchmark(pipeline, batch_size, guidance_scale, device, runs, inference_steps):
 
     prompt = "A cinematic shot of a baby racoon wearing an intricate italian priest robe."
     # warmup
     _ = pipeline(
-        prompt=prompt, guidance_scale=0.0, num_inference_steps=inference_steps, num_images_per_prompt=batch_size
+        prompt=prompt,
+        guidance_scale=guidance_scale,
+        num_inference_steps=inference_steps,
+        num_images_per_prompt=batch_size,
     ).images
     time_cost = []
 
@@ -124,7 +127,10 @@ def run_benchmark(pipeline, batch_size, device, runs, inference_steps):
     # run
     for _ in range(runs):
         _ = pipeline(
-            prompt=prompt, guidance_scale=0.0, num_inference_steps=inference_steps, num_images_per_prompt=batch_size
+            prompt=prompt,
+            guidance_scale=guidance_scale,
+            num_inference_steps=inference_steps,
+            num_images_per_prompt=batch_size,
         ).images
     time_cost = [perf_hook.end[i] - perf_hook.start[i] for i in range(len(perf_hook.start))]
 
@@ -144,31 +150,28 @@ def run_benchmark(pipeline, batch_size, device, runs, inference_steps):
     return time_cost
 
 
-def plot(batch_sizes, results, device_name, runs, inference_steps, plot_save_path):
-    # 画图
-    x = np.arange(len(batch_sizes))  # x 轴位置
-    width = 0.35  # 柱状图宽度
+def plot(batch_sizes, results, device_name, runs, inference_steps, plot_save_path, title):
+    x = np.arange(len(batch_sizes))
+    width = 0.35
 
     fig, ax = plt.subplots()
     rects1 = ax.bar(x - width / 2, results["Original FP16"], width, label="Original FP16")
     rects2 = ax.bar(x + width / 2, results["Nunchaku INT4"], width, label="Nunchaku INT4")
 
-    # 添加文字和标签
     ax.set_ylabel(f"Average time cost (seconds)\n{runs} runs of {inference_steps} inference steps each.")
     ax.set_xlabel("Batch size")
-    ax.set_title(f"SDXL-Turbo diffusion time cost\n(GPU: {device_name})")
+    ax.set_title(f"{title} diffusion time cost\n(GPU: {device_name})")
     ax.set_xticks(x)
     ax.set_xticklabels(batch_sizes)
     ax.legend()
 
-    # 在柱子上显示数值
     def autolabel(rects):
         for rect in rects:
             height = rect.get_height()
             ax.annotate(
                 f"{height:.3f}",
                 xy=(rect.get_x() + rect.get_width() / 2, height),
-                xytext=(0, 3),  # 垂直偏移
+                xytext=(0, 3),
                 textcoords="offset points",
                 ha="center",
                 va="bottom",
@@ -178,7 +181,6 @@ def plot(batch_sizes, results, device_name, runs, inference_steps, plot_save_pat
     autolabel(rects2)
 
     plt.tight_layout()
-    # plt.show()
     plt.savefig(plot_save_path / "plot.png", dpi=300, bbox_inches="tight")
 
 
@@ -186,6 +188,7 @@ def plot(batch_sizes, results, device_name, runs, inference_steps, plot_save_pat
 def test_sdxl_turbo_time_cost():
     batch_sizes = [4, 8, 16]
     runs = 20
+    guidance_scale = 0.0
     inference_steps = 4
     device_name = torch.cuda.get_device_name(0)
     results = {"Original FP16": [], "Nunchaku INT4": []}
@@ -195,7 +198,9 @@ def test_sdxl_turbo_time_cost():
     ).to("cuda")
 
     for batch_size in batch_sizes:
-        benchmark_original = run_benchmark(pipeline_original, batch_size, device_name, runs, inference_steps)
+        benchmark_original = run_benchmark(
+            pipeline_original, batch_size, guidance_scale, device_name, runs, inference_steps
+        )
         results["Original FP16"].append(benchmark_original.mean() * inference_steps)
 
     pipeline_original = None
@@ -212,11 +217,13 @@ def test_sdxl_turbo_time_cost():
     pipeline_quantized = pipeline_quantized.to("cuda")
 
     for batch_size in batch_sizes:
-        benchmark_quantized = run_benchmark(pipeline_quantized, batch_size, device_name, runs, inference_steps)
+        benchmark_quantized = run_benchmark(
+            pipeline_quantized, batch_size, guidance_scale, device_name, runs, inference_steps
+        )
         results["Nunchaku INT4"].append(benchmark_quantized.mean() * inference_steps)
 
     ref_root = Path(os.environ.get("NUNCHAKU_TEST_CACHE_ROOT", os.path.join("test_results", "ref")))
     plot_save_path = ref_root / "time_cost" / "sdxl-turbo"
     os.makedirs(plot_save_path, exist_ok=True)
 
-    plot(batch_sizes, results, device_name, runs, inference_steps, plot_save_path)
+    plot(batch_sizes, results, device_name, runs, inference_steps, plot_save_path, "SDXL-Turbo")
