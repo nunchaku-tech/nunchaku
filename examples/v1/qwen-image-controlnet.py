@@ -43,4 +43,4 @@ image = pipeline(
 ).images[0]
 
 # Save the result
-image.save(f"controlnet_depth_r{rank}.png")
+image.save(f"qwen-image-controlnet-r{rank}.png")
