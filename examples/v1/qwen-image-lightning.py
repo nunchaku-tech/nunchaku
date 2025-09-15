@@ -42,7 +42,9 @@ if get_gpu_memory() > 18:
     pipe.enable_model_cpu_offload()
 else:
     # use per-layer offloading for low VRAM. This only requires 3-4GB of VRAM.
-    transformer.set_offload(True)
+    transformer.set_offload(
+        True, use_pin_memory=False, num_blocks_on_gpu=1
+    )  # increase num_blocks_on_gpu if you have more VRAM
     pipe._exclude_from_cpu_offload.append("transformer")
     pipe.enable_sequential_cpu_offload()
 

@@ -7,6 +7,7 @@ Original Qwen-Image
 .. image:: https://huggingface.co/datasets/nunchaku-tech/cdn/resolve/main/nunchaku/assets/qwen-image.jpg
    :alt: Qwen-Image with Nunchaku
 
+`Qwen-Image <hf_qwen-image>`_ is an image generation foundation model in the Qwen series that achieves significant advances in complex text rendering.
 Below is a minimal example for running the 4-bit quantized `Qwen-Image <hf_qwen-image>`_ model with Nunchaku.
 Nunchaku offers an API compatible with `Diffusers <github_diffusers_>`_, allowing for a familiar user experience.
 

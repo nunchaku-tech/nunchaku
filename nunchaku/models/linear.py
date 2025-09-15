@@ -179,12 +179,12 @@ class SVDQW4A4Linear(nn.Module):
         B: batch size, S: sequence length
         """
         batch_size, seq_len, channels = x.shape
-        x = x.view(batch_size * seq_len, channels)
+        x = x.reshape(batch_size * seq_len, channels)
         if output is None:
             output = torch.empty(batch_size * seq_len, self.out_features, dtype=x.dtype, device=x.device)
         quantized_x, ascales, lora_act_out = self.quantize(x)
         output = self.forward_quant(quantized_x, ascales, lora_act_out, output)
-        output = output.view(batch_size, seq_len, -1)
+        output = output.reshape(batch_size, seq_len, -1)
         return output
 
     def quantize(self, x: torch.Tensor, pad_size: int = 256) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
