@@ -12,7 +12,7 @@ from diffusers import AutoPipelineForText2Image
 from nunchaku.models.unets.unet_sdxl import NunchakuSDXLUNet2DConditionModel
 from nunchaku.utils import get_precision, is_turing
 
-from ..flux.utils import already_generate, compute_lpips, hash_str_to_int
+from ...flux.utils import already_generate, compute_lpips, hash_str_to_int
 
 
 @pytest.mark.skipif(is_turing(), reason="Skip tests due to using Turing GPUs")

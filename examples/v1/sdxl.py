@@ -14,6 +14,6 @@ if __name__ == "__main__":
     ).to("cuda")
     prompt = "A cinematic shot of a baby racoon wearing an intricate italian priest robe."
 
-    image = pipeline(prompt=prompt, guidance_scale=0.0, num_inference_steps=4).images[0]
+    image = pipeline(prompt=prompt, guidance_scale=5.0, num_inference_steps=50).images[0]
 
     image.save("sdxl.png")
