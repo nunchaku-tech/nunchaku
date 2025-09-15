@@ -1,10 +1,12 @@
-from diffusers import QwenImageControlNetPipeline, QwenImageControlNetModel
-from diffusers.utils import load_image
-from typing import Union, List, Optional
-from PIL import Image
-from nunchaku.models.transformers.transformer_qwenimage import NunchakuQwenImageTransformer2DModel
+from typing import List, Optional, Union
+
 import torch
+from diffusers import QwenImageControlNetModel, QwenImageControlNetPipeline
+from diffusers.utils import load_image
+
+from nunchaku.models.transformers.transformer_qwenimage import NunchakuQwenImageTransformer2DModel
 from nunchaku.utils import get_gpu_memory, get_precision
+
 
 class PatchedQwenImageControlNetPipeline(QwenImageControlNetPipeline):
     def _get_qwen_prompt_embeds(
@@ -23,7 +25,9 @@ class PatchedQwenImageControlNetPipeline(QwenImageControlNetPipeline):
         txt = [template.format(e) for e in prompt]
         txt_tokens = self.tokenizer(
             txt, max_length=self.tokenizer_max_length + drop_idx, padding=True, truncation=True, return_tensors="pt"
-        ).to(device) # <--- The fix
+        ).to(
+            device
+        )  # <--- The fix
         encoder_hidden_states = self.text_encoder(
             input_ids=txt_tokens.input_ids,
             attention_mask=txt_tokens.attention_mask,
@@ -45,13 +49,13 @@ class PatchedQwenImageControlNetPipeline(QwenImageControlNetPipeline):
 
         return prompt_embeds, encoder_attention_mask
 
+
 model_name = "Qwen/Qwen-Image"
 rank = 32  # you can also use rank=128 model to improve the quality
 
 # Load components with correct dtype
 controlnet = QwenImageControlNetModel.from_pretrained(
-    "InstantX/Qwen-Image-ControlNet-Union",
-    torch_dtype=torch.bfloat16
+    "InstantX/Qwen-Image-ControlNet-Union", torch_dtype=torch.bfloat16
 )
 transformer = NunchakuQwenImageTransformer2DModel.from_pretrained(
     f"nunchaku-tech/nunchaku-qwen-image/svdq-{get_precision()}_r{rank}-qwen-image.safetensors"
@@ -59,10 +63,7 @@ transformer = NunchakuQwenImageTransformer2DModel.from_pretrained(
 
 # Create pipeline
 pipeline = PatchedQwenImageControlNetPipeline.from_pretrained(
-       model_name, 
-       transformer=transformer, 
-       controlnet=controlnet,
-       torch_dtype=torch.bfloat16
+    model_name, transformer=transformer, controlnet=controlnet, torch_dtype=torch.bfloat16
 )
 
 if get_gpu_memory() > 18:
@@ -77,14 +78,13 @@ control_image = load_image("https://huggingface.co/InstantX/Qwen-Image-ControlNe
 
 # Generate with control
 image = pipeline(
-       prompt="A swanky, minimalist living room with a huge floor-to-ceiling window letting in loads of natural light. A beige couch with white cushions sits on a wooden floor, with a matching coffee table in front. The walls are a soft, warm beige, decorated with two framed botanical prints. A potted plant chills in the corner near the window. Sunlight pours through the leaves outside, casting cool shadows on the floor.",
-       negative_prompt=" ",
-       control_image=control_image,
-       controlnet_conditioning_scale=1.0,
-       num_inference_steps=30,
-       true_cfg_scale=4.0
-   ).images[0]
+    prompt="A swanky, minimalist living room with a huge floor-to-ceiling window letting in loads of natural light. A beige couch with white cushions sits on a wooden floor, with a matching coffee table in front. The walls are a soft, warm beige, decorated with two framed botanical prints. A potted plant chills in the corner near the window. Sunlight pours through the leaves outside, casting cool shadows on the floor.",
+    negative_prompt=" ",
+    control_image=control_image,
+    controlnet_conditioning_scale=1.0,
+    num_inference_steps=30,
+    true_cfg_scale=4.0,
+).images[0]
 
 # Save the result
 image.save(f"controlnet_depth_r{rank}.png")
-

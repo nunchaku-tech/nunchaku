@@ -153,7 +153,7 @@ class NunchakuQwenAttention(NunchakuBaseAttention):
         if processor == "flashattn2":
             self.processor = NunchakuQwenImageNaiveFA2Processor()
         else:
-            raise ValueError(f"Processor {processor} is not supported")            
+            raise ValueError(f"Processor {processor} is not supported")
 
 
 class NunchakuQwenImageTransformerBlock(QwenImageTransformerBlock):
@@ -534,7 +534,7 @@ class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuM
             with torch.cuda.stream(compute_stream):
                 if self.offload:
                     block = self.offload_manager.get_block(block_idx)
-                
+
                 if torch.is_grad_enabled() and self.gradient_checkpointing:
                     encoder_hidden_states, hidden_states = self._gradient_checkpointing_func(
                         block,
@@ -559,7 +559,7 @@ class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuM
                     interval_control = len(self.transformer_blocks) / len(controlnet_block_samples)
                     interval_control = int(np.ceil(interval_control))
                     hidden_states = hidden_states + controlnet_block_samples[block_idx // interval_control]
-            
+
             if self.offload:
                 self.offload_manager.step(compute_stream)
 
