@@ -1,3 +1,4 @@
+# please use diffusers>=0.36
 import torch
 from diffusers import QwenImageControlNetModel, QwenImageControlNetPipeline
 from diffusers.utils import load_image
