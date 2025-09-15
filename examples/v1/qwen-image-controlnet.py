@@ -7,49 +7,6 @@ from diffusers.utils import load_image
 from nunchaku.models.transformers.transformer_qwenimage import NunchakuQwenImageTransformer2DModel
 from nunchaku.utils import get_gpu_memory, get_precision
 
-
-class PatchedQwenImageControlNetPipeline(QwenImageControlNetPipeline):
-    def _get_qwen_prompt_embeds(
-        self,
-        prompt: Union[str, List[str]] = None,
-        device: Optional[torch.device] = None,
-        dtype: Optional[torch.dtype] = None,
-    ):
-        device = device or self._execution_device
-        dtype = dtype or self.text_encoder.dtype
-
-        prompt = [prompt] if isinstance(prompt, str) else prompt
-
-        template = self.prompt_template_encode
-        drop_idx = self.prompt_template_encode_start_idx
-        txt = [template.format(e) for e in prompt]
-        txt_tokens = self.tokenizer(
-            txt, max_length=self.tokenizer_max_length + drop_idx, padding=True, truncation=True, return_tensors="pt"
-        ).to(
-            device
-        )  # <--- The fix
-        encoder_hidden_states = self.text_encoder(
-            input_ids=txt_tokens.input_ids,
-            attention_mask=txt_tokens.attention_mask,
-            output_hidden_states=True,
-        )
-        hidden_states = encoder_hidden_states.hidden_states[-1]
-        split_hidden_states = self._extract_masked_hidden(hidden_states, txt_tokens.attention_mask)
-        split_hidden_states = [e[drop_idx:] for e in split_hidden_states]
-        attn_mask_list = [torch.ones(e.size(0), dtype=torch.long, device=e.device) for e in split_hidden_states]
-        max_seq_len = max([e.size(0) for e in split_hidden_states])
-        prompt_embeds = torch.stack(
-            [torch.cat([u, u.new_zeros(max_seq_len - u.size(0), u.size(1))]) for u in split_hidden_states]
-        )
-        encoder_attention_mask = torch.stack(
-            [torch.cat([u, u.new_zeros(max_seq_len - u.size(0))]) for u in attn_mask_list]
-        )
-
-        prompt_embeds = prompt_embeds.to(dtype=dtype, device=device)
-
-        return prompt_embeds, encoder_attention_mask
-
-
 model_name = "Qwen/Qwen-Image"
 rank = 32  # you can also use rank=128 model to improve the quality
 
@@ -61,8 +18,9 @@ transformer = NunchakuQwenImageTransformer2DModel.from_pretrained(
     f"nunchaku-tech/nunchaku-qwen-image/svdq-{get_precision()}_r{rank}-qwen-image.safetensors"
 )
 
+# pip install git+https://github.com/huggingface/diffusers
 # Create pipeline
-pipeline = PatchedQwenImageControlNetPipeline.from_pretrained(
+pipeline = QwenImageControlNetPipeline.from_pretrained(
     model_name, transformer=transformer, controlnet=controlnet, torch_dtype=torch.bfloat16
 )
 
