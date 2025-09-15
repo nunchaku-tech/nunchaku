@@ -1,5 +1,3 @@
-from typing import List, Optional, Union
-
 import torch
 from diffusers import QwenImageControlNetModel, QwenImageControlNetPipeline
 from diffusers.utils import load_image
