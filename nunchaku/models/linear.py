@@ -149,11 +149,12 @@ class SVDQW4A4Linear(nn.Module):
         SVDQW4A4Linear
         """
         in_features = kwargs.pop("in_features", linear.in_features)
+        torch_dtype = kwargs.pop("torch_dtype", linear.weight.dtype)
         return cls(
             in_features=in_features,
             out_features=linear.out_features,
             bias=linear.bias is not None,
-            torch_dtype=linear.weight.dtype,
+            torch_dtype=torch_dtype,
             device=linear.weight.device,
             **kwargs,
         )

@@ -357,18 +357,26 @@ class NunchakuFluxTransformer2DModelV2(FluxTransformer2DModel, NunchakuModelLoad
         Parameters
         ----------
         **kwargs
-            Additional arguments for quantization.
+            Additional arguments for quantization, including torch_dtype.
 
         Returns
         -------
         self : NunchakuFluxTransformer2DModelV2
             The patched model.
         """
+        # Extract torch_dtype from kwargs if provided
+        torch_dtype = kwargs.get('torch_dtype', None)
+
         self.pos_embed = NunchakuFluxPosEmbed(dim=self.inner_dim, theta=10000, axes_dim=self.pos_embed.axes_dim)
         for i, block in enumerate(self.transformer_blocks):
             self.transformer_blocks[i] = NunchakuFluxTransformerBlock(block, scale_shift=0, **kwargs)
         for i, block in enumerate(self.single_transformer_blocks):
             self.single_transformer_blocks[i] = NunchakuFluxSingleTransformerBlock(block, scale_shift=0, **kwargs)
+
+        # Convert all quantization buffers to the correct dtype if torch_dtype is provided
+        if torch_dtype is not None:
+            convert_awq_buffers_to_dtype(self, torch_dtype)
+
         return self
 
     @classmethod
@@ -421,7 +429,7 @@ class NunchakuFluxTransformer2DModelV2(FluxTransformer2DModel, NunchakuModelLoad
         precision = get_precision()
         if precision == "fp4":
             precision = "nvfp4"
-        transformer._patch_model(precision=precision, rank=rank)
+        transformer._patch_model(precision=precision, rank=rank, torch_dtype=torch_dtype)
 
         transformer = transformer.to_empty(device=device)
         converted_state_dict = convert_flux_state_dict(model_state_dict)
@@ -433,13 +441,13 @@ class NunchakuFluxTransformer2DModelV2(FluxTransformer2DModel, NunchakuModelLoad
                 assert ".wcscales" in k
                 converted_state_dict[k] = torch.ones_like(state_dict[k])
             else:
-                # Match floating-point tensors to model dtype
                 v = converted_state_dict[k]
                 if isinstance(v, torch.Tensor) and v.is_floating_point():
-                    converted_state_dict[k] = v.to(transformer._dtype)
-                else:
-                    converted_state_dict[k] = v
-
+                    try:
+                        converted_state_dict[k] = v.to(transformer._dtype)
+                    except:
+                        assert state_dict[k].dtype == converted_state_dict[k].dtype
+        
         # Extract wtscale values for SVDQ layers
         for n, m in transformer.named_modules():
             if isinstance(m, SVDQW4A4Linear):
@@ -447,9 +455,6 @@ class NunchakuFluxTransformer2DModelV2(FluxTransformer2DModel, NunchakuModelLoad
                     m.wtscale = converted_state_dict.pop(f"{n}.wtscale", 1.0)
 
         transformer.load_state_dict(converted_state_dict)
-
-        # Convert all quantization buffers to model dtype
-        convert_awq_buffers_to_dtype(transformer, transformer._dtype)
 
         return transformer
 

@@ -250,10 +250,8 @@ Returns:
 */
 Tensor gemv_awq(
     Tensor _in_feats, Tensor _kernel, Tensor _scaling_factors, Tensor _zeros, int m, int n, int k, int group_size) {
-    return dispatchFloat16(_in_feats.scalar_type(), [&]<typename half_t>() {
+    return dispatchFloat16(_scaling_factors.scalar_type(), [&]<typename half_t>() {
         assert(isTypeMatch<half_t>(_in_feats.dtype()));
-        assert(isTypeMatch<half_t>(_scaling_factors.dtype()));
-        assert(isTypeMatch<half_t>(_zeros.dtype()));
 
         auto output_shape   = _in_feats.shape.dataExtent;
         output_shape.back() = n;
