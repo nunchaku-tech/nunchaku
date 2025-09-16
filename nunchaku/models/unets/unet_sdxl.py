@@ -1,3 +1,7 @@
+"""
+Implements the :class:`NunchakuSDXLUNet2DConditionModel`, providing Nunchaku quantized version of Stable Diffusion XL UNet2DConditionModel unet and its building blocks.
+"""
+
 import json
 import os
 from pathlib import Path
@@ -16,6 +20,7 @@ from diffusers.models.unets.unet_2d_blocks import (
     UpBlock2D,
 )
 from diffusers.models.unets.unet_2d_condition import UNet2DConditionModel
+from huggingface_hub import utils
 from torch import nn
 
 from nunchaku.utils import get_precision
@@ -28,6 +33,19 @@ from ..utils import fuse_linears
 
 
 class NunchakuSDXLAttention(NunchakuBaseAttention):
+    """
+    Nunchaku-optimized SDXLAttention module with quantized and fused QKV projections.
+
+    Parameters
+    ----------
+    orig_attn : Attention
+        The original Attention module used by Stable Diffusion XL to wrap and quantize.
+    processor : str, optional
+        The attention processor to use (valid value: "flashattn2").
+    **kwargs
+        Additional arguments for quantization.
+    """
+
     def __init__(self, orig_attn: Attention, processor: str = "flashattn2", **kwargs):
         super(NunchakuSDXLAttention, self).__init__(processor)
 
@@ -55,6 +73,24 @@ class NunchakuSDXLAttention(NunchakuBaseAttention):
         attention_mask: Optional[torch.Tensor] = None,
         **cross_attention_kwargs,
     ) -> torch.Tensor:
+        """
+        Forward pass for NunchakuSDXLAttention.
+
+        Parameters
+        ----------
+        hidden_states : torch.Tensor
+            Input tensor.
+        encoder_hidden_states : torch.Tensor, optional
+            Encoder hidden states for cross-attention.
+        attention_mask : torch.Tensor, optional
+            Attention mask.
+        **cross_attention_kwargs
+            Additional arguments for cross attention.
+
+        Returns
+        -------
+        Output of the attention processor.
+        """
         return self.processor(
             self,
             hidden_states=hidden_states,
@@ -64,6 +100,21 @@ class NunchakuSDXLAttention(NunchakuBaseAttention):
         )
 
     def set_processor(self, processor: str):
+        """
+        Set the attention processor.
+
+        Parameters
+        ----------
+        processor : str
+            Name of the processor, "flashattn2" is supported. Others would be supported in future.
+
+            - ``"flashattn2"``: Standard FlashAttention-2. Adapted from https://github.com/huggingface/diffusers/blob/50dea89dc6036e71a00bc3d57ac062a80206d9eb/src/diffusers/models/attention_processor.py#AttnProcessor2_0
+
+        Raises
+        ------
+        ValueError
+            If the processor is not supported.
+        """
         if processor == "flashattn2":
             self.processor = NunchakuSDXLFA2Processor()
         else:
@@ -71,17 +122,54 @@ class NunchakuSDXLAttention(NunchakuBaseAttention):
 
 
 class NunchakuSDXLFeedForward(FeedForward):
+    """
+    Quantized feed-forward (MLP) block for :class:`NunchakuSDXLTransformerBlock`.
+
+    Replaces linear layers in a FeedForward block with :class:`~nunchaku.models.linear.SVDQW4A4Linear` for quantized inference.
+
+    Parameters
+    ----------
+    ff : FeedForward
+        Source FeedForward block to quantize.
+    **kwargs :
+        Additional arguments for SVDQW4A4Linear.
+    """
+
     def __init__(self, ff: FeedForward, **kwargs):
         super(FeedForward, self).__init__()
         self.net = _patch_linear(ff.net, SVDQW4A4Linear, **kwargs)
 
     def forward(self, hidden_states: torch.Tensor) -> torch.Tensor:
+        """
+        Forward pass for the quantized feed-forward block.
+
+        Parameters
+        ----------
+        hidden_states : torch.Tensor, shape (B, D)
+            Input tensor.
+
+        Returns
+        -------
+        torch.Tensor, shape (B, D)
+            Output tensor after feed-forward transformation.
+        """
         for module in self.net:
             hidden_states = module(hidden_states)
         return hidden_states
 
 
 class NunchakuSDXLTransformerBlock(BasicTransformerBlock):
+    """
+    Nunchaku-optimized transformer block for Stable Diffusion XL with quantized attention and feedforward layers.
+
+    Parameters
+    ----------
+    block : BasicTransformerBlock
+        The original block from within UNet2DConditionModel to wrap and quantize.
+    **kwargs
+        Additional arguments for quantization.
+    """
+
     def __init__(self, block: BasicTransformerBlock, **kwargs):
         super(BasicTransformerBlock, self).__init__()
 
@@ -107,6 +195,33 @@ class NunchakuSDXLTransformerBlock(BasicTransformerBlock):
         class_labels: Optional[torch.LongTensor] = None,
         added_cond_kwargs: Optional[Dict[str, torch.Tensor]] = None,
     ) -> torch.Tensor:
+        """
+        Forward pass for the transformer block.
+
+        Parameters
+        ----------
+        hidden_states : torch.Tensor
+            Input hidden states.
+        attention_mask: torch.Tensor, optional
+            The attention mask.
+        encoder_hidden_states : torch.Tensor
+            Encoder hidden states for cross-attention.
+        encoder_attention_mask: torch.Tensor, optional
+            The encoder attention mask.
+        cross_attention_kwargs: dict
+            Addtional cross attention kwargs.
+
+
+        Returns
+        -------
+        hidden_states: torch.Tensor
+            The hidden states after processing.
+
+        Raises
+        ------
+        ValueError
+            If norm_type is not  "layer_norm" or only_cross_attetion is true.
+        """
 
         # Adapted from diffusers.models.attention#BasicTransformerBlock#forward
 
@@ -264,8 +379,24 @@ class NunchakuSDXLConcatShiftedConv2d(nn.Module):
 
 
 class NunchakuSDXLUNet2DConditionModel(UNet2DConditionModel, NunchakuModelLoaderMixin):
+    """
+    Nunchaku-optimized UNet2DConditionModel for Stable Diffusion XL.
+    """
 
     def _patch_model(self, **kwargs):
+        """
+        Patch the model by replace the orginal BasicTransformerBlock with :class:`NunchakuSDXLTransformerBlock`
+
+        Parameters
+        ----------
+        **kwargs
+            Additional arguments for quantization.
+
+        Returns
+        -------
+        self : NunchakuSDXLUNet2DConditionModel
+            The patched model.
+        """
 
         def _patch_attentions(block: CrossAttnDownBlock2D | CrossAttnUpBlock2D | UNetMidBlock2DCrossAttn):
             for _, attn in enumerate(block.attentions):
@@ -335,8 +466,30 @@ class NunchakuSDXLUNet2DConditionModel(UNet2DConditionModel, NunchakuModelLoader
         return self
 
     @classmethod
-    # @utils.validate_hf_hub_args
+    @utils.validate_hf_hub_args
     def from_pretrained(cls, pretrained_model_path: str | os.PathLike[str], **kwargs):
+        """
+        Load a pretrained NunchakuSDXLUNet2DConditionModel from a safetensors file.
+
+        Parameters
+        ----------
+        pretrained_model_name_or_path : str or os.PathLike
+            Path to the safetensors file. It can be a local file or a remote HuggingFace path.
+        **kwargs
+            Additional arguments (e.g., device, torch_dtype).
+
+        Returns
+        -------
+        NunchakuSDXLUNet2DConditionModel
+            The loaded and quantized model.
+
+        Raises
+        ------
+        NotImplementedError
+            If offload is requested.
+        AssertionError
+            If the file is not a safetensors file.
+        """
         device = kwargs.get("device", "cpu")
         offload = kwargs.get("offload", False)
 
