@@ -7,13 +7,16 @@ from nunchaku.utils import get_gpu_memory, get_precision
 model_name = "Qwen/Qwen-Image"
 rank = 32  # you can also use rank=128 model to improve the quality
 
+torch_dtype = torch.bfloat16  # You can also use torch.float16 for older GPUs
+
 # Load the model
 transformer = NunchakuQwenImageTransformer2DModel.from_pretrained(
-    f"nunchaku-tech/nunchaku-qwen-image/svdq-{get_precision()}_r{rank}-qwen-image.safetensors"
+    f"nunchaku-tech/nunchaku-qwen-image/svdq-{get_precision()}_r{rank}-qwen-image.safetensors",
+    torch_dtype=torch_dtype
 )
 
 # currently, you need to use this pipeline to offload the model to CPU
-pipe = QwenImagePipeline.from_pretrained("Qwen/Qwen-Image", transformer=transformer, torch_dtype=torch.bfloat16)
+pipe = QwenImagePipeline.from_pretrained("Qwen/Qwen-Image", transformer=transformer, torch_dtype=torch_dtype)
 
 if get_gpu_memory() > 18:
     pipe.enable_model_cpu_offload()

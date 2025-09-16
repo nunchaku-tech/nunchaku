@@ -19,6 +19,7 @@ from diffusers.models.transformers.transformer_qwenimage import (
 )
 from huggingface_hub import utils
 
+from nunchaku.dtype_utils import convert_awq_buffers_to_dtype
 from ...utils import get_precision
 from ..attention import NunchakuBaseAttention, NunchakuFeedForward
 from ..attention_processors.qwenimage import NunchakuQwenImageNaiveFA2Processor
@@ -339,14 +340,22 @@ class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuM
         Parameters
         ----------
         **kwargs
-            Additional arguments for quantization.
+            Additional arguments for quantization, including torch_dtype.
 
         Returns
         -------
         self
         """
+        # Extract torch_dtype from kwargs if provided
+        torch_dtype = kwargs.get('torch_dtype', None)
+
         for i, block in enumerate(self.transformer_blocks):
             self.transformer_blocks[i] = NunchakuQwenImageTransformerBlock(block, scale_shift=0, **kwargs)
+
+        # Convert all quantization buffers to the correct dtype if torch_dtype is provided
+        if torch_dtype is not None:
+            convert_awq_buffers_to_dtype(self, torch_dtype)
+
         self._is_initialized = True
         return self
 
