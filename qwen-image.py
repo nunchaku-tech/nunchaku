@@ -7,7 +7,7 @@ from nunchaku.utils import get_gpu_memory, get_precision
 model_name = "Qwen/Qwen-Image"
 rank = 32  # you can also use rank=128 model to improve the quality
 
-torch_dtype = torch.bfloat16  # You can also use torch.float16 for older GPUs
+torch_dtype = torch.float16  # You can also use torch.float16 for older GPUs
 
 # Load the model
 transformer = NunchakuQwenImageTransformer2DModel.from_pretrained(

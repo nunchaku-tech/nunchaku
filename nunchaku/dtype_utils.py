@@ -56,7 +56,7 @@ def ensure_arch_compatible(dtype: torch.dtype, device: Optional[int] = None) -> 
             return torch.float16
     return dtype
 
-
+'''
 def convert_awq_buffers_to_dtype(module: torch.nn.Module, dtype: torch.dtype) -> None:
     """
     Convert all floating-point buffers in quantized modules to target dtype.
@@ -102,3 +102,33 @@ def convert_awq_buffers_to_dtype(module: torch.nn.Module, dtype: torch.dtype) ->
 
     for child in module.children():
         convert_awq_buffers_to_dtype(child, dtype)
+'''
+
+def convert_awq_buffers_to_dtype(module: torch.nn.Module, dtype: torch.dtype, precision: str) -> None:
+    """
+    Convert all floating-point buffers and parameters in quantized modules to target dtype.
+    """
+
+    # Convert all parameters
+    for name, param in module.named_parameters(recurse=False):
+        if param.is_floating_point():
+            # Preserve FP8 tensors in nvfp4 mode
+            if precision == "nvfp4" and param.dtype in [torch.float8_e4m3fn, torch.float8_e5m2]:
+                continue
+            param.data = param.data.to(dtype)
+
+    # Convert all buffers
+    for name, buf in module.named_buffers(recurse=False):
+        if buf.is_floating_point():
+            # Preserve FP8 tensors in nvfp4 mode
+            if precision == "nvfp4" and buf.dtype in [torch.float8_e4m3fn, torch.float8_e5m2]:
+                continue
+            setattr(module, name, buf.to(dtype))
+
+    # Update module dtype attribute for consistency
+    if hasattr(module, "torch_dtype"):
+        module.torch_dtype = dtype
+
+    # Recursively apply to all child modules
+    for child in module.children():
+        convert_awq_buffers_to_dtype(child, dtype, precision)

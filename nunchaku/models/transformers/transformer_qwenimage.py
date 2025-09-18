@@ -19,7 +19,7 @@ from diffusers.models.transformers.transformer_qwenimage import (
 )
 from huggingface_hub import utils
 
-from nunchaku.dtype_utils import convert_awq_buffers_to_dtype
+from nunchaku.dtype_utils import convert_awq_buffers_to_dtype, ensure_arch_compatible, pick_model_dtype
 from ...utils import get_precision
 from ..attention import NunchakuBaseAttention, NunchakuFeedForward
 from ..attention_processors.qwenimage import NunchakuQwenImageNaiveFA2Processor
@@ -385,7 +385,10 @@ class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuM
         device = kwargs.get("device", "cpu")
         offload = kwargs.get("offload", False)
 
-        torch_dtype = kwargs.get("torch_dtype", torch.bfloat16)
+        #torch_dtype = kwargs.get("torch_dtype", torch.bfloat16)
+        torch_dtype = kwargs.get("torch_dtype", None)
+        torch_dtype = pick_model_dtype(torch_dtype, device if isinstance(device, int) else 0)
+        torch_dtype = ensure_arch_compatible(torch_dtype, device if isinstance(device, int) else 0)
 
         if isinstance(pretrained_model_name_or_path, str):
             pretrained_model_name_or_path = Path(pretrained_model_name_or_path)
@@ -402,7 +405,7 @@ class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuM
         precision = get_precision()
         if precision == "fp4":
             precision = "nvfp4"
-        transformer._patch_model(precision=precision, rank=rank)
+        transformer._patch_model(precision=precision, rank=rank, torch_dtype=torch_dtype)
 
         transformer = transformer.to_empty(device=device)
         # need to re-init the pos_embed as to_empty does not work on it
@@ -416,7 +419,13 @@ class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuM
                 assert ".wcscales" in k
                 model_state_dict[k] = torch.ones_like(state_dict[k])
             else:
-                assert state_dict[k].dtype == model_state_dict[k].dtype
+                #assert state_dict[k].dtype == model_state_dict[k].dtype
+                v = model_state_dict[k]
+                if isinstance(v, torch.Tensor) and v.is_floating_point():
+                    try:
+                        model_state_dict[k] = v.to(transformer.dtype)
+                    except:
+                        assert state_dict[k].dtype == model_state_dict[k].dtype
 
         # load the wtscale from the state dict, as it is a float on CPU
         for n, m in transformer.named_modules():

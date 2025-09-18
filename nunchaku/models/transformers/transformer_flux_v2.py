@@ -366,6 +366,7 @@ class NunchakuFluxTransformer2DModelV2(FluxTransformer2DModel, NunchakuModelLoad
         """
         # Extract torch_dtype from kwargs if provided
         torch_dtype = kwargs.get('torch_dtype', None)
+        precision = kwargs.get('precision', None)
 
         self.pos_embed = NunchakuFluxPosEmbed(dim=self.inner_dim, theta=10000, axes_dim=self.pos_embed.axes_dim)
         for i, block in enumerate(self.transformer_blocks):
@@ -375,7 +376,7 @@ class NunchakuFluxTransformer2DModelV2(FluxTransformer2DModel, NunchakuModelLoad
 
         # Convert all quantization buffers to the correct dtype if torch_dtype is provided
         if torch_dtype is not None:
-            convert_awq_buffers_to_dtype(self, torch_dtype)
+            convert_awq_buffers_to_dtype(self, torch_dtype, precision)
 
         return self
 
@@ -442,7 +443,10 @@ class NunchakuFluxTransformer2DModelV2(FluxTransformer2DModel, NunchakuModelLoad
                 converted_state_dict[k] = torch.ones_like(state_dict[k])
             else:
                 v = converted_state_dict[k]
-                if isinstance(v, torch.Tensor) and v.is_floating_point():
+                if v.dtype in [torch.float8_e4m3fn, torch.float8_e5m2]:
+                    # Keep FP8 tensors as-is
+                    converted_state_dict[k] = v
+                elif v.is_floating_point():
                     try:
                         converted_state_dict[k] = v.to(transformer._dtype)
                     except:
