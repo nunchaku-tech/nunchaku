@@ -15,7 +15,9 @@ from nunchaku.utils import get_precision, is_turing
 from ...flux.utils import already_generate, compute_lpips, hash_str_to_int
 
 
-@pytest.mark.skipif(is_turing(), reason="Skip tests due to using Turing GPUs")
+@pytest.mark.skipif(
+    is_turing() or get_precision() == "fp4", reason="Skip tests due to using Turing GPUs or FP4 precision"
+)
 @pytest.mark.parametrize("expected_lpips", [0.25 if get_precision() == "int4" else 0.18])
 def test_sdxl_turbo_lpips(expected_lpips: float):
     gc.collect()
@@ -65,7 +67,7 @@ def test_sdxl_turbo_lpips(expected_lpips: float):
 
     if not already_generate(results_dir_nunchaku, 5):
         quantized_unet = NunchakuSDXLUNet2DConditionModel.from_pretrained(
-            "/data/dongd/quantized-models/merged/sdxl-turbo-merged-20250908_1116.safetensors"
+            "nunchaku-tech/nunchaku-sdxl-turbo/svdq-int4_r32-sdxl-turbo.safetensors"
         )
         pipeline = AutoPipelineForText2Image.from_pretrained(
             "stabilityai/sdxl-turbo", torch_dtype=torch.bfloat16, variant="fp16"
@@ -184,7 +186,9 @@ def plot(batch_sizes, results, device_name, runs, inference_steps, plot_save_pat
     plt.savefig(plot_save_path / "plot.png", dpi=300, bbox_inches="tight")
 
 
-@pytest.mark.skipif(is_turing(), reason="Skip tests due to using Turing GPUs")
+@pytest.mark.skipif(
+    is_turing() or get_precision() == "fp4", reason="Skip tests due to using Turing GPUs or FP4 precision"
+)
 def test_sdxl_turbo_time_cost():
     batch_sizes = [4, 8, 16]
     runs = 20
@@ -211,7 +215,7 @@ def test_sdxl_turbo_time_cost():
         "stabilityai/sdxl-turbo", torch_dtype=torch.bfloat16, variant="fp16"
     )
     quantized_unet = NunchakuSDXLUNet2DConditionModel.from_pretrained(
-        "/data/dongd/quantized-models/merged/sdxl-turbo-merged-20250908_1116.safetensors"
+        "nunchaku-tech/nunchaku-sdxl-turbo/svdq-int4_r32-sdxl-turbo.safetensors"
     )
     pipeline_quantized.unet = quantized_unet
     pipeline_quantized = pipeline_quantized.to("cuda")

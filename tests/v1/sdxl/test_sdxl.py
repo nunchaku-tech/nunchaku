@@ -13,7 +13,9 @@ from ...flux.utils import already_generate, compute_lpips, hash_str_to_int
 from .test_sdxl_turbo import plot, run_benchmark
 
 
-@pytest.mark.skipif(is_turing(), reason="Skip tests due to using Turing GPUs")
+@pytest.mark.skipif(
+    is_turing() or get_precision() == "fp4", reason="Skip tests due to using Turing GPUs or FP4 precision"
+)
 @pytest.mark.parametrize("expected_lpips", [0.25 if get_precision() == "int4" else 0.18])
 def test_sdxl_lpips(expected_lpips: float):
     gc.collect()
@@ -63,7 +65,7 @@ def test_sdxl_lpips(expected_lpips: float):
 
     if not already_generate(results_dir_nunchaku, 5):
         quantized_unet = NunchakuSDXLUNet2DConditionModel.from_pretrained(
-            "/data/dongd/quantized-models/merged/sdxl-merged-20250913_2231.safetensors"
+            "nunchaku-tech/nunchaku-sdxl/svdq-int4_r32-sdxl.safetensors"
         )
         pipeline = AutoPipelineForText2Image.from_pretrained(
             "stabilityai/stable-diffusion-xl-base-1.0", torch_dtype=torch.bfloat16, use_safetensors=True, variant="fp16"
@@ -118,7 +120,7 @@ def test_sdxl_time_cost():
         "stabilityai/stable-diffusion-xl-base-1.0", torch_dtype=torch.bfloat16, use_safetensors=True, variant="fp16"
     )
     quantized_unet = NunchakuSDXLUNet2DConditionModel.from_pretrained(
-        "/data/dongd/quantized-models/merged/sdxl-merged-20250913_2231.safetensors"
+        "nunchaku-tech/nunchaku-sdxl/svdq-int4_r32-sdxl.safetensors"
     )
     pipeline_quantized.unet = quantized_unet
     pipeline_quantized = pipeline_quantized.to("cuda")
