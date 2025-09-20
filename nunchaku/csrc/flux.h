@@ -197,7 +197,7 @@ public:
         });
     }
 
-    void setAttentionImpl(std::string name) {
+    void setAttentionImpl(std::string name, pybind11::function attn_func) {
         if (name.empty() || name == "default") {
             name = "flashattn2";
         }
@@ -205,9 +205,17 @@ public:
         spdlog::info("Set attention implementation to {}", name);
 
         if (name == "flashattn2") {
-            net->setAttentionImpl(AttentionImpl::FlashAttention2);
+            net->setAttentionImpl(AttentionImpl::FlashAttention2, nullptr);
         } else if (name == "nunchaku-fp16") {
-            net->setAttentionImpl(AttentionImpl::NunchakuFP16);
+            net->setAttentionImpl(AttentionImpl::NunchakuFP16, nullptr);
+        } else if (name == "custom") {
+            pybind11::object f = attn_func;
+            net->setAttentionImpl(AttentionImpl::Custom, [f](Tensor qkv) -> Tensor {
+                torch::Tensor torch_qkv = to_torch(qkv, true);
+                pybind11::object result = f(torch_qkv);
+                torch::Tensor output    = result.cast<torch::Tensor>();
+                return from_torch(output);
+            });
         } else {
             throw std::invalid_argument(spdlog::fmt_lib::format("Invalid attention implementation {}", name));
         }
