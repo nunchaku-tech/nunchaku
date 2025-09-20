@@ -5,6 +5,7 @@ nunchaku.models
    :maxdepth: 4
 
    nunchaku.models.transformers
+   nunchaku.models.unets
    nunchaku.models.text_encoders
    nunchaku.models.linear
    nunchaku.models.attention

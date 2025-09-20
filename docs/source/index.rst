@@ -20,6 +20,7 @@ Check out `DeepCompressor <github_deepcompressor_>`_ for the quantization librar
     usage/qwen-image-edit.rst
     usage/lora.rst
     usage/kontext.rst
+    usage/sdxl.rst
     usage/controlnet.rst
     usage/qencoder.rst
     usage/offload.rst
