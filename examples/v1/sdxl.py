@@ -4,7 +4,9 @@ from diffusers import StableDiffusionXLPipeline
 from nunchaku.models.unets.unet_sdxl import NunchakuSDXLUNet2DConditionModel
 
 if __name__ == "__main__":
-    unet = NunchakuSDXLUNet2DConditionModel.from_pretrained("/data/models/nunchaku-sdxl/svdq-int4_r32-sdxl.safetensors")
+    unet = NunchakuSDXLUNet2DConditionModel.from_pretrained(
+        "nunchaku-tech/nunchaku-sdxl/svdq-int4_r32-sdxl.safetensors"
+    )
     pipeline = StableDiffusionXLPipeline.from_pretrained(
         "stabilityai/stable-diffusion-xl-base-1.0",
         unet=unet,

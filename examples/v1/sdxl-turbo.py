@@ -5,7 +5,7 @@ from nunchaku.models.unets.unet_sdxl import NunchakuSDXLUNet2DConditionModel
 
 if __name__ == "__main__":
     unet = NunchakuSDXLUNet2DConditionModel.from_pretrained(
-        "/data/models/nunchaku-sdxl/svdq-int4_r32-sdxl-turbo.safetensors"
+        "nunchaku-tech/nunchaku-sdxl-turbo/svdq-int4_r32-sdxl-turbo.safetensors"
     )
     pipeline = StableDiffusionXLPipeline.from_pretrained(
         "stabilityai/sdxl-turbo", unet=unet, torch_dtype=torch.bfloat16, variant="fp16"
