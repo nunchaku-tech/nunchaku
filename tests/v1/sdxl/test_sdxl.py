@@ -97,28 +97,17 @@ def test_sdxl_lpips(expected_lpips: float):
     assert lpips < expected_lpips * 1.15
 
 
-@pytest.mark.skipif(is_turing(), reason="Skip tests due to using Turing GPUs")
-def test_sdxl_time_cost():
-    batch_sizes = [2, 4, 8]
-    runs = 20
+@pytest.mark.skipif(
+    is_turing() or get_precision() == "fp4", reason="Skip tests due to using Turing GPUs or FP4 precision"
+)
+@pytest.mark.parametrize("expected_latency", [7.455])
+def test_sdxl_time_cost(expected_latency: float):
+    batch_size = 2
+    runs = 5
     inference_steps = 50
     guidance_scale = 5.0
     device_name = torch.cuda.get_device_name(0)
-    results = {"Original FP16": [], "Nunchaku INT4": []}
-
-    pipeline_original = StableDiffusionXLPipeline.from_pretrained(
-        "stabilityai/stable-diffusion-xl-base-1.0", torch_dtype=torch.bfloat16, use_safetensors=True, variant="fp16"
-    ).to("cuda")
-
-    for batch_size in batch_sizes:
-        benchmark_original = run_benchmark(
-            pipeline_original, batch_size, guidance_scale, device_name, runs, inference_steps
-        )
-        results["Original FP16"].append(benchmark_original.mean() * inference_steps)
-
-    pipeline_original = None
-    gc.collect()
-    torch.cuda.empty_cache()
+    results = {"Nunchaku INT4": []}
 
     quantized_unet = NunchakuSDXLUNet2DConditionModel.from_pretrained(
         "nunchaku-tech/nunchaku-sdxl/svdq-int4_r32-sdxl.safetensors"
@@ -131,17 +120,18 @@ def test_sdxl_time_cost():
         variant="fp16",
     )
 
-    pipeline_quantized.unet = quantized_unet
     pipeline_quantized = pipeline_quantized.to("cuda")
 
-    for batch_size in batch_sizes:
-        benchmark_quantized = run_benchmark(
-            pipeline_quantized, batch_size, guidance_scale, device_name, runs, inference_steps
-        )
-        results["Nunchaku INT4"].append(benchmark_quantized.mean() * inference_steps)
+    benchmark_quantized = run_benchmark(
+        pipeline_quantized, batch_size, guidance_scale, device_name, runs, inference_steps
+    )
+    avg_latency = benchmark_quantized.mean() * inference_steps
+    results["Nunchaku INT4"].append(avg_latency)
 
     ref_root = Path(os.environ.get("NUNCHAKU_TEST_CACHE_ROOT", os.path.join("test_results", "ref")))
     plot_save_path = ref_root / "time_cost" / "sdxl"
     os.makedirs(plot_save_path, exist_ok=True)
 
-    plot(batch_sizes, results, device_name, runs, inference_steps, plot_save_path, "SDXL")
+    plot([batch_size], results, device_name, runs, inference_steps, plot_save_path, "SDXL")
+
+    assert avg_latency < expected_latency * 1.1

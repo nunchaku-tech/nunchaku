@@ -156,7 +156,6 @@ def plot(batch_sizes, results, device_name, runs, inference_steps, plot_save_pat
     width = 0.35
 
     fig, ax = plt.subplots()
-    rects1 = ax.bar(x - width / 2, results["Original FP16"], width, label="Original FP16")
     rects2 = ax.bar(x + width / 2, results["Nunchaku INT4"], width, label="Nunchaku INT4")
 
     ax.set_ylabel(f"Average time cost (seconds)\n{runs} runs of {inference_steps} inference steps each.")
@@ -178,7 +177,6 @@ def plot(batch_sizes, results, device_name, runs, inference_steps, plot_save_pat
                 va="bottom",
             )
 
-    autolabel(rects1)
     autolabel(rects2)
 
     plt.tight_layout()
@@ -188,27 +186,14 @@ def plot(batch_sizes, results, device_name, runs, inference_steps, plot_save_pat
 @pytest.mark.skipif(
     is_turing() or get_precision() == "fp4", reason="Skip tests due to using Turing GPUs or FP4 precision"
 )
-def test_sdxl_turbo_time_cost():
-    batch_sizes = [4, 8, 16]
-    runs = 20
+@pytest.mark.parametrize("expected_latency", [0.306])
+def test_sdxl_turbo_time_cost(expected_latency: float):
+    batch_size = 8
+    runs = 5
     guidance_scale = 0.0
     inference_steps = 4
     device_name = torch.cuda.get_device_name(0)
-    results = {"Original FP16": [], "Nunchaku INT4": []}
-
-    pipeline_original = StableDiffusionXLPipeline.from_pretrained(
-        "stabilityai/sdxl-turbo", torch_dtype=torch.bfloat16, variant="fp16"
-    ).to("cuda")
-
-    for batch_size in batch_sizes:
-        benchmark_original = run_benchmark(
-            pipeline_original, batch_size, guidance_scale, device_name, runs, inference_steps
-        )
-        results["Original FP16"].append(benchmark_original.mean() * inference_steps)
-
-    pipeline_original = None
-    gc.collect()
-    torch.cuda.empty_cache()
+    results = {"Nunchaku INT4": []}
 
     quantized_unet = NunchakuSDXLUNet2DConditionModel.from_pretrained(
         "nunchaku-tech/nunchaku-sdxl-turbo/svdq-int4_r32-sdxl-turbo.safetensors"
@@ -217,17 +202,18 @@ def test_sdxl_turbo_time_cost():
         "stabilityai/sdxl-turbo", unet=quantized_unet, torch_dtype=torch.bfloat16, variant="fp16"
     )
 
-    pipeline_quantized.unet = quantized_unet
     pipeline_quantized = pipeline_quantized.to("cuda")
 
-    for batch_size in batch_sizes:
-        benchmark_quantized = run_benchmark(
-            pipeline_quantized, batch_size, guidance_scale, device_name, runs, inference_steps
-        )
-        results["Nunchaku INT4"].append(benchmark_quantized.mean() * inference_steps)
+    benchmark_quantized = run_benchmark(
+        pipeline_quantized, batch_size, guidance_scale, device_name, runs, inference_steps
+    )
+    avg_latency = benchmark_quantized.mean() * inference_steps
+    results["Nunchaku INT4"].append(avg_latency)
 
     ref_root = Path(os.environ.get("NUNCHAKU_TEST_CACHE_ROOT", os.path.join("test_results", "ref")))
     plot_save_path = ref_root / "time_cost" / "sdxl-turbo"
     os.makedirs(plot_save_path, exist_ok=True)
 
-    plot(batch_sizes, results, device_name, runs, inference_steps, plot_save_path, "SDXL-Turbo")
+    plot([batch_size], results, device_name, runs, inference_steps, plot_save_path, "SDXL-Turbo")
+
+    assert avg_latency < expected_latency * 1.1
