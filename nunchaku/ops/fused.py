@@ -82,9 +82,9 @@ def fused_gelu_mlp(x: torch.Tensor, fc1: SVDQW4A4Linear, fc2: SVDQW4A4Linear, pa
 def fused_qkv_norm_rottary(
     x: torch.Tensor,
     proj: SVDQW4A4Linear,
-    norm_q: RMSNorm,
-    norm_k: RMSNorm,
-    rotary_emb: torch.Tensor,
+    norm_q: RMSNorm | None = None,
+    norm_k: RMSNorm | None = None,
+    rotary_emb: torch.Tensor | None = None,
     output: torch.Tensor | tuple[torch.Tensor, torch.Tensor, torch.Tensor] | None = None,
     attn_tokens: int = 0,
 ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
@@ -124,8 +124,8 @@ def fused_qkv_norm_rottary(
     - C_in: input features
     - C_out: output features
     """
-    assert isinstance(norm_q, RMSNorm)
-    assert isinstance(norm_k, RMSNorm)
+    assert norm_q is None or isinstance(norm_q, RMSNorm)
+    assert norm_k is None or isinstance(norm_k, RMSNorm)
 
     batch_size, seq_len, channels = x.shape
     x = x.view(batch_size * seq_len, channels)
@@ -148,8 +148,8 @@ def fused_qkv_norm_rottary(
             fp4=proj.precision == "nvfp4",
             alpha=proj.wtscale,
             wcscales=proj.wcscales,
-            norm_q=norm_q.weight,
-            norm_k=norm_k.weight,
+            norm_q=norm_q.weight if norm_q is not None else None,
+            norm_k=norm_k.weight if norm_k is not None else None,
             rotary_emb=rotary_emb,
             out_q=output_q,
             out_k=output_k,
@@ -170,8 +170,8 @@ def fused_qkv_norm_rottary(
             fp4=proj.precision == "nvfp4",
             alpha=proj.wtscale,
             wcscales=proj.wcscales,
-            norm_q=norm_q.weight,
-            norm_k=norm_k.weight,
+            norm_q=norm_q.weight if norm_q is not None else None,
+            norm_k=norm_k.weight if norm_k is not None else None,
             rotary_emb=rotary_emb,
         )
         output = output.view(batch_size, seq_len, -1)
