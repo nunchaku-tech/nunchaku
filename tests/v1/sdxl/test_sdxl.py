@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 import torch
-from diffusers import AutoPipelineForText2Image
+from diffusers import StableDiffusionXLPipeline
 
 from nunchaku.models.unets.unet_sdxl import NunchakuSDXLUNet2DConditionModel
 from nunchaku.utils import get_precision, is_turing
@@ -39,7 +39,7 @@ def test_sdxl_lpips(expected_lpips: float):
     ]
 
     if not already_generate(results_dir_original, 5):
-        pipeline = AutoPipelineForText2Image.from_pretrained(
+        pipeline = StableDiffusionXLPipeline.from_pretrained(
             "stabilityai/stable-diffusion-xl-base-1.0", torch_dtype=torch.bfloat16, use_safetensors=True, variant="fp16"
         ).to("cuda")
 
@@ -67,8 +67,12 @@ def test_sdxl_lpips(expected_lpips: float):
         quantized_unet = NunchakuSDXLUNet2DConditionModel.from_pretrained(
             "nunchaku-tech/nunchaku-sdxl/svdq-int4_r32-sdxl.safetensors"
         )
-        pipeline = AutoPipelineForText2Image.from_pretrained(
-            "stabilityai/stable-diffusion-xl-base-1.0", torch_dtype=torch.bfloat16, use_safetensors=True, variant="fp16"
+        pipeline = StableDiffusionXLPipeline.from_pretrained(
+            "stabilityai/stable-diffusion-xl-base-1.0",
+            unet=quantized_unet,
+            torch_dtype=torch.bfloat16,
+            use_safetensors=True,
+            variant="fp16",
         )
         pipeline.unet = quantized_unet
         pipeline = pipeline.to("cuda")
@@ -102,7 +106,7 @@ def test_sdxl_time_cost():
     device_name = torch.cuda.get_device_name(0)
     results = {"Original FP16": [], "Nunchaku INT4": []}
 
-    pipeline_original = AutoPipelineForText2Image.from_pretrained(
+    pipeline_original = StableDiffusionXLPipeline.from_pretrained(
         "stabilityai/stable-diffusion-xl-base-1.0", torch_dtype=torch.bfloat16, use_safetensors=True, variant="fp16"
     ).to("cuda")
 
@@ -116,12 +120,17 @@ def test_sdxl_time_cost():
     gc.collect()
     torch.cuda.empty_cache()
 
-    pipeline_quantized = AutoPipelineForText2Image.from_pretrained(
-        "stabilityai/stable-diffusion-xl-base-1.0", torch_dtype=torch.bfloat16, use_safetensors=True, variant="fp16"
-    )
     quantized_unet = NunchakuSDXLUNet2DConditionModel.from_pretrained(
         "nunchaku-tech/nunchaku-sdxl/svdq-int4_r32-sdxl.safetensors"
     )
+    pipeline_quantized = StableDiffusionXLPipeline.from_pretrained(
+        "stabilityai/stable-diffusion-xl-base-1.0",
+        unet=quantized_unet,
+        torch_dtype=torch.bfloat16,
+        use_safetensors=True,
+        variant="fp16",
+    )
+
     pipeline_quantized.unet = quantized_unet
     pipeline_quantized = pipeline_quantized.to("cuda")
 
