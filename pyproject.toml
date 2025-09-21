@@ -46,7 +46,7 @@ dev = [
     "torchmetrics",
     "mediapipe",
     "pytest-rerunfailures",
-    "git+https://github.com/asomoza/image_gen_aux.git",
+    "image-gen-aux @ git+https://github.com/asomoza/image_gen_aux.git",
     "controlnet_aux",
 ]
 full = [
@@ -55,13 +55,13 @@ full = [
     "facexlib",
     "onnxruntime",
     "timm",
-    "git+https://github.com/asomoza/image_gen_aux.git",
+    "image-gen-aux @ git+https://github.com/asomoza/image_gen_aux.git",
     "controlnet_aux",
 ]
 demo = [
     "gradio==5.39",
     "spaces",
-    "git+https://github.com/asomoza/image_gen_aux.git",
+    "image-gen-aux @ git+https://github.com/asomoza/image_gen_aux.git",
     "controlnet_aux",
 ]
 docs = [
