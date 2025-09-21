@@ -156,19 +156,15 @@ See :doc:`Window Setup Guide <setup_windows>` for more details.
 
     pip install -e ".[dev]"
 
-The command above installs Nunchaku in editable mode with all development dependencies.
-If you do not need development tools, you may omit them by running either ``pip install -e "."`` or ``python setup.py develop`` instead after cloning the repository.
+This command installs Nunchaku in editable mode along with all development dependencies, making it ideal for contributing or running tests.
 
-For efficient development and faster incremental builds, run:
+.. tip::
+   If you only need to use Nunchaku (and not develop or test it),
+   you can skip the development dependencies by running either ``pip install -e "."`` or ``python setup.py develop`` after cloning the repository.
 
-.. code-block:: shell
-
-    python setup.py develop
-
-This command enables incremental rebuilds after the initial compilation.
-
-.. note::
-   The first time you run ``python setup.py develop``, the build will take longer as it compiles the entire project. Subsequent builds will be much faster.
+.. tip::
+   For a faster development workflow and efficient incremental builds, use ``python setup.py develop`` for the future builds.
+   The first run will take longer as it compiles the entire project, but subsequent builds will be much faster.
 
 **(Optional) Build a wheel for distribution:**
 

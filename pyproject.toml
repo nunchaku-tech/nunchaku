@@ -45,6 +45,7 @@ optional-dependencies.dev = [
   "mediapipe",
   "onnxruntime",
   "opencv-python",
+  "pre-commit",
   "pytest",
   "pytest-rerunfailures",
   "timm",

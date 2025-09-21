@@ -6,7 +6,7 @@ Follow this guide to build the Nunchaku documentation locally using Sphinx.
 Step 1: Set Up the Environment
 ------------------------------
 
-First, ensure your environment is prepared. This process is similar to :ref:`Installation <build-from-source>`.  
+First, ensure your environment is prepared. This process is similar to :ref:`Installation <build-from-source>`.
 If you only want the documentation dependencies (and not the full development set), use the ``docs`` extra:
 
 .. code-block:: shell
