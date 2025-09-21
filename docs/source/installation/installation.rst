@@ -154,12 +154,12 @@ See :doc:`Window Setup Guide <setup_windows>` for more details.
 
 .. code-block:: shell
 
-    pip install -e ".[dev]"
+    pip install -e ".[dev,docs]"
 
 This command installs Nunchaku in editable mode along with all development dependencies, making it ideal for contributing or running tests.
 
 .. tip::
-   If you only need to use Nunchaku (and not develop or test it),
+   If you only need to use Nunchaku (and not develop, test, or build the documentation),
    you can skip the development dependencies by running either ``pip install -e "."`` or ``python setup.py develop`` after cloning the repository.
 
 .. tip::

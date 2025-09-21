@@ -7,11 +7,11 @@ Step 1: Set Up the Environment
 ------------------------------
 
 First, ensure your environment is prepared. This process is similar to :ref:`Installation <build-from-source>`.
-If you only want the documentation dependencies (and not the full development set), use the ``docs`` extra:
+Make sure you have installed all the necessary development and documentation dependencies with the ``dev,docs`` extras:
 
 .. code-block:: shell
 
-    pip install -e ".[docs]"
+    pip install -e ".[dev,docs]"
 
 Step 2: Build the Documentation
 -------------------------------

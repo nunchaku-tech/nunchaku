@@ -28,6 +28,7 @@ dependencies = [
   "peft>=0.17",
   "protobuf",
   "sentencepiece",
+  "torchvision>=0.20",
   "transformers>=4.53.3",
 ]
 optional-dependencies.demo = [
