@@ -1,83 +1,43 @@
-# import math
-# import os
+import gc
+import os
+from pathlib import Path
 
-# from diffusers.utils import load_image
-# from tqdm import tqdm
+import torch
+from diffusers import DiffusionPipeline
+from tqdm import tqdm
+
+from ..utils import hash_str_to_int
 
 
-# def run_pipeline(dataset, batch_size: int, task: str, pipeline: FluxPipeline, save_dir: str, forward_kwargs: dict = {}):
-#     os.makedirs(save_dir, exist_ok=True)
-#     pipeline.set_progress_bar_config(desc="Sampling", leave=False, dynamic_ncols=True, position=1)
+def run_pipeline(
+    dataset: list[dict],
+    batch_size: int,
+    pipeline: DiffusionPipeline,
+    save_dir: os.PathLike[str],
+    forward_kwargs: dict = {},
+):
+    if isinstance(save_dir, str):
+        save_dir = Path(save_dir)
+    assert isinstance(save_dir, Path)
+    save_dir.mkdir(parents=True, exist_ok=True)
 
-#     if task == "canny":
-#         processor = CannyDetector()
-#     elif task == "depth":
-#         processor = DepthPreprocessor.from_pretrained("LiheYoung/depth-anything-large-hf")
-#     elif task == "redux":
-#         processor = FluxPriorReduxPipeline.from_pretrained(
-#             "black-forest-labs/FLUX.1-Redux-dev", torch_dtype=torch.bfloat16
-#         ).to("cuda")
-#     else:
-#         assert task in ["t2i", "fill"]
-#         processor = None
+    pipeline.set_progress_bar_config(desc="Sampling", leave=False, dynamic_ncols=True, position=1)
+    for batch_idx in tqdm(len(dataset) // batch_size):
+        start_idx = batch_idx * batch_size
+        end_idx = start_idx + batch_size
+        batch = dataset[start_idx:end_idx]
 
-#     for row in tqdm(
-#         dataset.iter(batch_size=batch_size, drop_last_batch=False),
-#         desc="Batch",
-#         total=math.ceil(len(dataset) // batch_size),
-#         position=0,
-#         leave=False,
-#     ):
-#         filenames = row["filename"]
-#         prompts = row["prompt"]
-
-#         _forward_kwargs = {k: v for k, v in forward_kwargs.items()}
-
-#         if task == "canny":
-#             assert forward_kwargs.get("height", 1024) == 1024
-#             assert forward_kwargs.get("width", 1024) == 1024
-#             control_images = []
-#             for canny_image_path in row["canny_image_path"]:
-#                 control_image = load_image(canny_image_path)
-#                 control_image = processor(
-#                     control_image,
-#                     low_threshold=50,
-#                     high_threshold=200,
-#                     detect_resolution=1024,
-#                     image_resolution=1024,
-#                 )
-#                 control_images.append(control_image)
-#             _forward_kwargs["control_image"] = control_images
-#         elif task == "depth":
-#             control_images = []
-#             for depth_image_path in row["depth_image_path"]:
-#                 control_image = load_image(depth_image_path)
-#                 control_image = processor(control_image)[0].convert("RGB")
-#                 control_images.append(control_image)
-#             _forward_kwargs["control_image"] = control_images
-#         elif task == "fill":
-#             images, mask_images = [], []
-#             for image_path, mask_image_path in zip(row["image_path"], row["mask_image_path"]):
-#                 image = load_image(image_path)
-#                 mask_image = load_image(mask_image_path)
-#                 images.append(image)
-#                 mask_images.append(mask_image)
-#             _forward_kwargs["image"] = images
-#             _forward_kwargs["mask_image"] = mask_images
-#         elif task == "redux":
-#             images = []
-#             for image_path in row["image_path"]:
-#                 image = load_image(image_path)
-#                 images.append(image)
-#             _forward_kwargs.update(processor(images))
-
-#         seeds = [hash_str_to_int(filename) for filename in filenames]
-#         generators = [torch.Generator().manual_seed(seed) for seed in seeds]
-#         if task == "redux":
-#             images = pipeline(generator=generators, **_forward_kwargs).images
-#         else:
-#             images = pipeline(prompts, generator=generators, **_forward_kwargs).images
-#         for i, image in enumerate(images):
-#             filename = filenames[i]
-#             image.save(os.path.join(save_dir, f"{filename}.png"))
-#         torch.cuda.empty_cache()
+        filenames = [_["filename"] for _ in batch]
+        generators = [torch.Generator().manual_seed(hash_str_to_int(filename)) for filename in filenames]
+        _forward_kwargs = {k: v for k, v in forward_kwargs.items()}
+        _forward_kwargs["generator"] = generators
+        for k in batch[0].keys():
+            if k == "filename":
+                continue
+            _forward_kwargs[k] = [_[k] for _ in batch]
+        images = pipeline(**_forward_kwargs).images
+        for i, image in enumerate(images):
+            filename = filenames[i]
+            image.save(os.path.join(save_dir, f"{filename}.png"))
+    gc.collect()
+    torch.cuda.empty_cache()
