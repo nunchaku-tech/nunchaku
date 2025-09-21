@@ -5,4 +5,3 @@ facexlib
 onnxruntime
 # ip-adapter
 timm
-opencv-python

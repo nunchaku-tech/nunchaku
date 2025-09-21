@@ -34,6 +34,54 @@ requires = [
 ]
 build-backend = "setuptools.build_meta"
 
+[project.optional-dependencies]
+dev = [
+    "insightface",
+    "opencv-python",
+    "facexlib",
+    "onnxruntime",
+    "timm",
+    "pytest",
+    "datasets<4",
+    "torchmetrics",
+    "mediapipe",
+    "pytest-rerunfailures",
+    "git+https://github.com/asomoza/image_gen_aux.git",
+    "controlnet_aux",
+]
+full = [
+    "insightface",
+    "opencv-python",
+    "facexlib",
+    "onnxruntime",
+    "timm",
+    "git+https://github.com/asomoza/image_gen_aux.git",
+    "controlnet_aux",
+]
+demo = [
+    "gradio==5.39",
+    "spaces",
+    "git+https://github.com/asomoza/image_gen_aux.git",
+    "controlnet_aux",
+]
+docs = [
+    "sphinx",
+    "sphinx-tabs",
+    "myst-parser",
+    "sphinx-copybutton",
+    "breathe",
+    "sphinxcontrib-mermaid",
+    "nbsphinx",
+    "jupyter",
+    "ipykernel",
+    "graphviz",
+    "sphinxext-rediraffe",
+    "furo",
+    "sphinxawesome-theme",
+    "sphinx-book-theme",
+    "sphinx-rtd-theme",
+]
+
 [tool.setuptools.packages.find]
 include = ["nunchaku"]
 
