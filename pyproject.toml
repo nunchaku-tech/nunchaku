@@ -1,95 +1,102 @@
-[tool.isort]
-profile = "black"
-known_first_party = ["nunchaku"]
-line_length = 120
+[build-system]
+build-backend = "setuptools.build_meta"
+
+requires = [
+  "ninja",
+  "setuptools",
+  "torch>=2.5",
+  "wheel",
+]
+
+[project]
+name = "nunchaku"
+requires-python = ">=3.10"
+
+classifiers = [
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+]
+dynamic = [ "version" ]
+dependencies = [
+  "accelerate>=1.9",
+  "diffusers>=0.35.1",
+  "einops",
+  "huggingface-hub>=0.34",
+  "peft>=0.17",
+  "protobuf",
+  "sentencepiece",
+  "transformers>=4.53.3",
+]
+optional-dependencies.demo = [
+  "controlnet-aux",
+  "gradio==5.39",
+  "image-gen-aux @ git+https://github.com/asomoza/image_gen_aux.git",
+  "spaces",
+]
+optional-dependencies.dev = [
+  "controlnet-aux",
+  "datasets<4",
+  "facexlib",
+  "image-gen-aux @ git+https://github.com/asomoza/image_gen_aux.git",
+  "insightface",
+  "mediapipe",
+  "onnxruntime",
+  "opencv-python",
+  "pytest",
+  "pytest-rerunfailures",
+  "timm",
+  "torchmetrics",
+]
+optional-dependencies.docs = [
+  "breathe",
+  "furo",
+  "graphviz",
+  "ipykernel",
+  "jupyter",
+  "myst-parser",
+  "nbsphinx",
+  "sphinx",
+  "sphinx-book-theme",
+  "sphinx-copybutton",
+  "sphinx-rtd-theme",
+  "sphinx-tabs",
+  "sphinxawesome-theme",
+  "sphinxcontrib-mermaid",
+  "sphinxext-rediraffe",
+]
+optional-dependencies.full = [
+  "controlnet-aux",
+  "facexlib",
+  "image-gen-aux @ git+https://github.com/asomoza/image_gen_aux.git",
+  "insightface",
+  "onnxruntime",
+  "opencv-python",
+  "timm",
+]
+
+[tool.setuptools.packages.find]
+include = [ "nunchaku" ]
 
 [tool.black]
 line-length = 120
-target-version = ['py311']
+target-version = [ 'py311' ]
 
 [tool.ruff]
 line-length = 120
 
-[project]
-dynamic = ["version"]
-name = "nunchaku"
-dependencies = [
-    "diffusers>=0.35.1",
-    "transformers>=4.53.3",
-    "accelerate>=1.9.0",
-    "sentencepiece",
-    "protobuf",
-    "huggingface_hub>=0.34",
-    "peft>=0.17",
-    "einops",
-]
-requires-python = ">=3.10"
-
-[build-system]
-requires = [
-    "setuptools",
-    "torch>=2.5",
-    "wheel",
-    "ninja",
-]
-build-backend = "setuptools.build_meta"
-
-[project.optional-dependencies]
-dev = [
-    "insightface",
-    "opencv-python",
-    "facexlib",
-    "onnxruntime",
-    "timm",
-    "pytest",
-    "datasets<4",
-    "torchmetrics",
-    "mediapipe",
-    "pytest-rerunfailures",
-    "image-gen-aux @ git+https://github.com/asomoza/image_gen_aux.git",
-    "controlnet_aux",
-]
-full = [
-    "insightface",
-    "opencv-python",
-    "facexlib",
-    "onnxruntime",
-    "timm",
-    "image-gen-aux @ git+https://github.com/asomoza/image_gen_aux.git",
-    "controlnet_aux",
-]
-demo = [
-    "gradio==5.39",
-    "spaces",
-    "image-gen-aux @ git+https://github.com/asomoza/image_gen_aux.git",
-    "controlnet_aux",
-]
-docs = [
-    "sphinx",
-    "sphinx-tabs",
-    "myst-parser",
-    "sphinx-copybutton",
-    "breathe",
-    "sphinxcontrib-mermaid",
-    "nbsphinx",
-    "jupyter",
-    "ipykernel",
-    "graphviz",
-    "sphinxext-rediraffe",
-    "furo",
-    "sphinxawesome-theme",
-    "sphinx-book-theme",
-    "sphinx-rtd-theme",
-]
-
-[tool.setuptools.packages.find]
-include = ["nunchaku"]
+[tool.isort]
+profile = "black"
+known_first_party = [ "nunchaku" ]
+line_length = 120
 
 [tool.doc8]
 max-line-length = 120
-ignore-path = ["docs/_build"]
-ignore = ["D000", "D001"]
+ignore-path = [ "docs/_build" ]
+ignore = [ "D000", "D001" ]
 
 [tool.rstcheck]
-ignore_directives = ["tabs"]
-ignore_messages = ["ERROR/3", "INFO/1"]
+ignore_directives = [ "tabs" ]
+ignore_messages = [ "ERROR/3", "INFO/1" ]
