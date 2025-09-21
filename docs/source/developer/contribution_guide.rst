@@ -24,7 +24,12 @@ follow these steps for a smooth and efficient contribution process.
 
 2. Install Dependencies & Build
 
-   To install dependencies and build the project, follow the instructions in :doc:`Installation <../installation/installation>`.
+   To install dependencies and build the project, follow the instructions in :ref:`Installation <build-from-source>`.
+   Please make sure to install all the development dependencies with:
+
+   .. code-block:: shell
+
+      pip install -e ".[dev]"
 
 🧹 Code Formatting with Pre-Commit
 ----------------------------------
@@ -34,7 +39,7 @@ Please install and run it before submitting your changes:
 
 .. code-block:: shell
 
-   pip install pre-commit
+   pip install pre-commit # this should have been installed when you installed the development dependencies
    pre-commit install
    pre-commit run --all-files
 

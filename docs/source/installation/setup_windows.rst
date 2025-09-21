@@ -142,10 +142,8 @@ Step 2: Clone the Repository
 
 .. code-block:: bat
 
-   git clone https://github.com/nunchaku-tech/nunchaku.git
+   git clone --recurse-submodules https://github.com/nunchaku-tech/nunchaku.git
    cd nunchaku
-   git submodule init
-   git submodule update
 
 Step 3: Set Up Visual Studio Environment
 
