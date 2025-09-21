@@ -5,4 +5,4 @@ facexlib
 onnxruntime
 # ip-adapter
 timm
-diffusers==0.35
+opencv-python

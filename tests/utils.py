@@ -20,7 +20,7 @@ def hash_str_to_int(s: str) -> int:
     return hash_int
 
 
-def already_generate(save_dir: str | PathLike[str], num_images) -> bool:
+def already_generate(save_dir: str | PathLike[str], num_images: int) -> bool:
     if isinstance(save_dir, str):
         save_dir = Path(save_dir)
     assert isinstance(save_dir, Path)

@@ -1,0 +1,5 @@
+gradio
+spaces
+git+https://github.com/asomoza/image_gen_aux.git
+controlnet_aux
+mediapipe
