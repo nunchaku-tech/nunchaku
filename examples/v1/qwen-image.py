@@ -4,7 +4,6 @@ from diffusers import QwenImagePipeline
 from nunchaku.models.transformers.transformer_qwenimage import NunchakuQwenImageTransformer2DModel
 from nunchaku.utils import get_gpu_memory, get_precision
 
-model_name = "Qwen/Qwen-Image"
 rank = 32  # you can also use rank=128 model to improve the quality
 
 # Load the model

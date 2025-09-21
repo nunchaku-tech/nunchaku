@@ -4,7 +4,7 @@ from pathlib import Path
 
 import torch
 from diffusers import DiffusionPipeline
-from tqdm import tqdm
+from tqdm import trange
 
 from ..utils import hash_str_to_int
 
@@ -22,7 +22,7 @@ def run_pipeline(
     save_dir.mkdir(parents=True, exist_ok=True)
 
     pipeline.set_progress_bar_config(desc="Sampling", leave=False, dynamic_ncols=True, position=1)
-    for batch_idx in tqdm(len(dataset) // batch_size):
+    for batch_idx in trange(len(dataset) // batch_size, desc="Batch", position=0, leave=False):
         start_idx = batch_idx * batch_size
         end_idx = start_idx + batch_size
         batch = dataset[start_idx:end_idx]

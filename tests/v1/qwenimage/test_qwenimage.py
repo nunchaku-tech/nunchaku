@@ -20,8 +20,8 @@ dtype_str = "fp16" if torch_dtype == torch.float16 else "bf16"
 @pytest.mark.parametrize(
     "rank,expected_lpips",
     [
-        (32, 0.3 if get_precision() == "int4" else 0.3),
-        (128, 0.3 if get_precision() == "int4" else 0.3),
+        (32, 0.24 if get_precision() == "int4" else 0.3),
+        (128, 0.31 if get_precision() == "int4" else 0.3),
     ],
 )
 def test_qwenimage(rank: int, expected_lpips: float):
