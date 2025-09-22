@@ -159,8 +159,10 @@ def test_qwenimage_edit_lightning(case: TestCase):
         / f"{folder_name}-bs{batch_size}"
     )
 
-    model_path = f"nunchaku-tech/nunchaku-qwen-image-edit/svdq-{get_precision()}_r{rank}-qwen-image-edit.safetensors"
-    transformer = NunchakuQwenImageTransformer2DModel.from_pretrained(model_path, torch_dtype=torch_dtype)
+    model_path = model_paths[model_name].format(precision=precision, rank=rank)
+    transformer = NunchakuQwenImageTransformer2DModel.from_pretrained(
+        model_path, scheduler=scheduler, torch_dtype=torch_dtype
+    )
 
     pipe = QwenImageEditPipeline.from_pretrained(
         repo_id, transformer=transformer, scheduler=scheduler, torch_dtype=torch_dtype
