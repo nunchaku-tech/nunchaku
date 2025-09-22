@@ -48,7 +48,7 @@ class TestCase:
             TestCase(
                 num_inference_steps=20,
                 rank=32,
-                expected_lpips={"int4-bf16": 0.4, "fp4-bf16": 0.4},
+                expected_lpips={"int4-bf16": 0.13, "fp4-bf16": 0.4},
             ),
             id="qwen-image-controlnet-union-r32",
         ),
@@ -56,13 +56,13 @@ class TestCase:
             TestCase(
                 num_inference_steps=20,
                 rank=128,
-                expected_lpips={"int4-bf16": 0.4, "fp4-bf16": 0.4},
+                expected_lpips={"int4-bf16": 0.1, "fp4-bf16": 0.4},
             ),
             id="qwen-image-controlnet-union-r128",
         ),
     ],
 )
-def test_qwenimage_edit_lightning(case: TestCase):
+def test_qwenimage_controlnet(case: TestCase):
     batch_size = 1
     true_cfg_scale = 4.0
     rank = case.rank
@@ -84,6 +84,7 @@ def test_qwenimage_edit_lightning(case: TestCase):
     dataset = [
         {
             "prompt": "Aesthetics art, traditional asian pagoda, elaborate golden accents, sky blue and white color palette, swirling cloud pattern, digital illustration, east asian architecture, ornamental rooftop, intricate detailing on building, cultural representation.",
+            "negative_prompt": " ",
             "filename": "canny",
             "control_image": load_image(
                 "https://huggingface.co/InstantX/Qwen-Image-ControlNet-Union/resolve/main/conds/canny.png"
@@ -91,6 +92,7 @@ def test_qwenimage_edit_lightning(case: TestCase):
         },
         {
             "prompt": "A swanky, minimalist living room with a huge floor-to-ceiling window letting in loads of natural light. A beige couch with white cushions sits on a wooden floor, with a matching coffee table in front. The walls are a soft, warm beige, decorated with two framed botanical prints. A potted plant chills in the corner near the window. Sunlight pours through the leaves outside, casting cool shadows on the floor.",
+            "negative_prompt": " ",
             "filename": "depth",
             "control_image": load_image(
                 "https://huggingface.co/InstantX/Qwen-Image-ControlNet-Union/resolve/main/conds/depth.png"
@@ -98,6 +100,7 @@ def test_qwenimage_edit_lightning(case: TestCase):
         },
         {
             "prompt": "Photograph of a young man with light brown hair and a beard, wearing a beige flat cap, black leather jacket, gray shirt, brown pants, and white sneakers. He's sitting on a concrete ledge in front of a large circular window, with a cityscape reflected in the glass. The wall is cream-colored, and the sky is clear blue. His shadow is cast on the wall.",
+            "negative_prompt": " ",
             "filename": "pose",
             "control_image": load_image(
                 "https://huggingface.co/InstantX/Qwen-Image-ControlNet-Union/resolve/main/conds/pose.png"
@@ -131,6 +134,9 @@ def test_qwenimage_edit_lightning(case: TestCase):
 
     model_path = f"nunchaku-tech/nunchaku-qwen-image/svdq-{precision}_r{rank}-qwen-image.safetensors"
     transformer = NunchakuQwenImageTransformer2DModel.from_pretrained(model_path, torch_dtype=torch_dtype)
+    controlnet = QwenImageControlNetModel.from_pretrained(
+        "InstantX/Qwen-Image-ControlNet-Union", torch_dtype=torch_dtype
+    )
     pipe = QwenImageControlNetPipeline.from_pretrained(
         repo_id, transformer=transformer, controlnet=controlnet, torch_dtype=torch_dtype
     )
