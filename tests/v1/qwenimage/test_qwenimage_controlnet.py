@@ -48,7 +48,7 @@ class Case:
             Case(
                 num_inference_steps=20,
                 rank=32,
-                expected_lpips={"int4-bf16": 0.13, "fp4-bf16": 0.4},
+                expected_lpips={"int4-bf16": 0.13, "fp4-bf16": 0.11},
             ),
             id="qwen-image-controlnet-union-r32",
         ),
@@ -56,7 +56,7 @@ class Case:
             Case(
                 num_inference_steps=20,
                 rank=128,
-                expected_lpips={"int4-bf16": 0.1, "fp4-bf16": 0.4},
+                expected_lpips={"int4-bf16": 0.1, "fp4-bf16": 0.1},
             ),
             id="qwen-image-controlnet-union-r128",
         ),
