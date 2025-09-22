@@ -14,5 +14,6 @@ transformer = NunchakuFluxTransformer2DModelV2.from_pretrained(
 pipeline = FluxPipeline.from_pretrained(
     "black-forest-labs/FLUX.1-dev", transformer=transformer, torch_dtype=torch_dtype
 ).to("cuda")
-image = pipeline("A cat holding a sign that says hello world", num_inference_steps=50, guidance_scale=3.5).images[0]
+image = pipeline("A cat holding a sign that says hello world", num_inference_steps=50, guidance_scale=3.5,generator=torch.Generator(device="cuda").manual_seed(0)
+).images[0]
 image.save(f"flux.1-dev-{precision}.png")
