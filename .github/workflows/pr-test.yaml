@@ -9,8 +9,7 @@ on:
       - "examples/**"
       - "scripts/**"
       - ".github/workflows/pr-test.yaml"
-    paths-ignore:
-      - "nunchaku/__version__.py"
+      - "!nunchaku/__version__.py"
   workflow_dispatch:
     inputs:
       ref:
