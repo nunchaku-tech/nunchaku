@@ -20,11 +20,11 @@ dtype_str = "fp16" if torch_dtype == torch.float16 else "bf16"
 @pytest.mark.parametrize(
     "rank,expected_lpips",
     [
-        (32, 0.24 if get_precision() == "int4" else 0.24),
-        (128, 0.31 if get_precision() == "int4" else 0.18),
+        (32, {"int4-bf16": 0.24, "fp4-bf16": 0.24}),
+        (128, {"int4-bf16": 0.31, "fp4-bf16": 0.18}),
     ],
 )
-def test_qwenimage(rank: int, expected_lpips: float):
+def test_qwenimage(rank: int, expected_lpips: dict[str, float]):
     model_name = "qwen-image"
     batch_size = 1
     width = 1664
@@ -115,4 +115,4 @@ def test_qwenimage(rank: int, expected_lpips: float):
 
     lpips = compute_lpips(save_dir_16bit, save_dir_nunchaku)
     print(f"lpips: {lpips}")
-    assert lpips < expected_lpips * 1.10
+    assert lpips < expected_lpips[f"{precision}-{dtype_str}"] * 1.10

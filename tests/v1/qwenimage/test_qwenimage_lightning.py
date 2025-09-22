@@ -51,7 +51,7 @@ class TestCase:
                 model_name="qwen-image-lightningv1.0-4steps",
                 num_inference_steps=4,
                 rank=32,
-                expected_lpips={"int4": 0.35, "fp4": 0.4},
+                expected_lpips={"int4-bf16": 0.35, "fp4-bf16": 0.4},
             ),
             id="qwen-image-lightningv1.0-4steps-r32",
         ),
@@ -60,7 +60,7 @@ class TestCase:
                 model_name="qwen-image-lightningv1.0-4steps",
                 num_inference_steps=4,
                 rank=128,
-                expected_lpips={"int4": 0.32, "fp4": 0.4},
+                expected_lpips={"int4-bf16": 0.32, "fp4-bf16": 0.4},
             ),
             id="qwen-image-lightningv1.0-4steps-r128",
         ),
@@ -69,7 +69,7 @@ class TestCase:
                 model_name="qwen-image-lightningv1.1-8steps",
                 num_inference_steps=8,
                 rank=32,
-                expected_lpips={"int4": 0.33, "fp4": 0.4},
+                expected_lpips={"int4-bf16": 0.33, "fp4-bf16": 0.4},
             ),
             id="qwen-image-lightningv1.1-8steps-r32",
         ),
@@ -78,7 +78,7 @@ class TestCase:
                 model_name="qwen-image-lightningv1.1-8steps",
                 num_inference_steps=8,
                 rank=128,
-                expected_lpips={"int4": 0.31, "fp4": 0.4},
+                expected_lpips={"int4-bf16": 0.31, "fp4-bf16": 0.4},
             ),
             id="qwen-image-lightningv1.1-8steps-r128",
         ),
@@ -90,7 +90,7 @@ def test_qwenimage_lightning(case: TestCase):
     height = 1024
     true_cfg_scale = 1.0
     rank = case.rank
-    expected_lpips = case.expected_lpips[precision]
+    expected_lpips = case.expected_lpips[f"{precision}-{dtype_str}"]
     model_name = case.model_name
     num_inference_steps = case.num_inference_steps
 

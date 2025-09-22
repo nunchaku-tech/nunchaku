@@ -51,9 +51,8 @@ else:
     pipeline._exclude_from_cpu_offload.append("transformer")
     pipeline.enable_sequential_cpu_offload()
 
-image = load_image("https://huggingface.co/datasets/nunchaku-tech/test-data/resolve/main/inputs/neon_sign.png").convert(
-    "RGB"
-)
+image = load_image("https://huggingface.co/datasets/nunchaku-tech/test-data/resolve/main/inputs/neon_sign.png")
+image = image.convert("RGB")
 prompt = "change the text to read '双截棍 Qwen Image Edit is here'"
 inputs = {
     "image": image,
