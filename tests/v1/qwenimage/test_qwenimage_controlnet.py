@@ -32,7 +32,7 @@ torch_dtype = torch.float16 if is_turing() else torch.bfloat16
 dtype_str = "fp16" if torch_dtype == torch.float16 else "bf16"
 
 
-class TestCase:
+class Case:
 
     def __init__(self, num_inference_steps: int, rank: int, expected_lpips: dict[str, float]):
         self.model_name = "qwen-image-controlnet-union"
@@ -45,7 +45,7 @@ class TestCase:
     "case",
     [
         pytest.param(
-            TestCase(
+            Case(
                 num_inference_steps=20,
                 rank=32,
                 expected_lpips={"int4-bf16": 0.13, "fp4-bf16": 0.4},
@@ -53,7 +53,7 @@ class TestCase:
             id="qwen-image-controlnet-union-r32",
         ),
         pytest.param(
-            TestCase(
+            Case(
                 num_inference_steps=20,
                 rank=128,
                 expected_lpips={"int4-bf16": 0.1, "fp4-bf16": 0.4},
@@ -62,7 +62,7 @@ class TestCase:
         ),
     ],
 )
-def test_qwenimage_controlnet(case: TestCase):
+def test_qwenimage_controlnet(case: Case):
     batch_size = 1
     true_cfg_scale = 4.0
     rank = case.rank

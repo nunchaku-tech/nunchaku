@@ -34,7 +34,7 @@ lora_paths = {
 }
 
 
-class TestCase:
+class Case:
 
     def __init__(self, model_name: str, num_inference_steps: int, rank: int, expected_lpips: dict[str, float]):
         self.model_name = model_name
@@ -47,7 +47,7 @@ class TestCase:
     "case",
     [
         pytest.param(
-            TestCase(
+            Case(
                 model_name="qwen-image-edit-lightningv1.0-4steps",
                 num_inference_steps=4,
                 rank=32,
@@ -56,7 +56,7 @@ class TestCase:
             id="qwen-image-edit-lightningv1.0-4steps-r32",
         ),
         pytest.param(
-            TestCase(
+            Case(
                 model_name="qwen-image-edit-lightningv1.0-4steps",
                 num_inference_steps=4,
                 rank=128,
@@ -65,7 +65,7 @@ class TestCase:
             id="qwen-image-edit-lightningv1.0-4steps-r128",
         ),
         pytest.param(
-            TestCase(
+            Case(
                 model_name="qwen-image-edit-lightningv1.0-8steps",
                 num_inference_steps=8,
                 rank=32,
@@ -74,7 +74,7 @@ class TestCase:
             id="qwen-image-edit-lightningv1.0-8steps-r32",
         ),
         pytest.param(
-            TestCase(
+            Case(
                 model_name="qwen-image-edit-lightningv1.0-8steps",
                 num_inference_steps=8,
                 rank=128,
@@ -84,7 +84,7 @@ class TestCase:
         ),
     ],
 )
-def test_qwenimage_edit_lightning(case: TestCase):
+def test_qwenimage_edit_lightning(case: Case):
     batch_size = 1
     true_cfg_scale = 1.0
     rank = case.rank
