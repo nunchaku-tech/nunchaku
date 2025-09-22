@@ -53,7 +53,7 @@ class TestCase:
                 rank=32,
                 expected_lpips={"int4": 0.35, "fp4": 0.4},
             ),
-            id="qwen-image-lightning-4steps-r32",
+            id="qwen-image-lightningv1.0-4steps-r32",
         ),
         pytest.param(
             TestCase(
@@ -62,7 +62,25 @@ class TestCase:
                 rank=128,
                 expected_lpips={"int4": 0.32, "fp4": 0.4},
             ),
-            id="qwen-image-lightning-4steps-r128",
+            id="qwen-image-lightningv1.0-4steps-r128",
+        ),
+        pytest.param(
+            TestCase(
+                model_name="qwen-image-lightningv1.1-8steps",
+                num_inference_steps=8,
+                rank=32,
+                expected_lpips={"int4": 0.35, "fp4": 0.4},
+            ),
+            id="qwen-image-lightningv1.1-8steps-r32",
+        ),
+        pytest.param(
+            TestCase(
+                model_name="qwen-image-lightningv1.1-8steps",
+                num_inference_steps=8,
+                rank=128,
+                expected_lpips={"int4": 0.32, "fp4": 0.4},
+            ),
+            id="qwen-image-lightningv1.1-8steps-r128",
         ),
     ],
 )
