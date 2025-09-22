@@ -58,7 +58,6 @@ inputs = {
     "image": image,
     "prompt": prompt,
     "true_cfg_scale": 1,
-    "negative_prompt": " ",
     "num_inference_steps": num_inference_steps,
 }
 

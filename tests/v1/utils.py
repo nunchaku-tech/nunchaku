@@ -30,11 +30,11 @@ def run_pipeline(
         filenames = [_["filename"] for _ in batch]
         generators = [torch.Generator().manual_seed(hash_str_to_int(filename)) for filename in filenames]
         _forward_kwargs = {k: v for k, v in forward_kwargs.items()}
-        _forward_kwargs["generator"] = generators
+        _forward_kwargs["generator"] = generators if batch_size > 1 else generators[0]
         for k in batch[0].keys():
             if k == "filename":
                 continue
-            _forward_kwargs[k] = [_[k] for _ in batch]
+            _forward_kwargs[k] = [_[k] for _ in batch] if batch_size > 1 else batch[0][k]
         images = pipeline(**_forward_kwargs).images
         for i, image in enumerate(images):
             filename = filenames[i]

@@ -120,7 +120,6 @@ def test_qwenimage_edit_lightning(case: TestCase):
     dataset = [
         {
             "prompt": "change the text to read '双截棍 Qwen Image Edit is here'",
-            "negative_prompt": " ",
             "filename": "neon_sign",
             "image": load_image(
                 "https://huggingface.co/datasets/nunchaku-tech/test-data/resolve/main/inputs/neon_sign.png"
@@ -128,7 +127,6 @@ def test_qwenimage_edit_lightning(case: TestCase):
         },
         {
             "prompt": "Remove all UI text elements from the image. Keep the feeling that the characters and scene are in water. Also, remove the green UI elements at the bottom.",
-            "negative_prompt": " ",
             "filename": "comfy_poster",
             "image": load_image(
                 "https://huggingface.co/datasets/nunchaku-tech/test-data/resolve/main/inputs/comfy_poster.png"
