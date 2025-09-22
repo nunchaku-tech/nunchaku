@@ -2,6 +2,8 @@ import gc
 import os
 from pathlib import Path
 
+import diffusers
+import packaging.version
 import pytest
 import torch
 from diffusers.utils import load_image
@@ -11,9 +13,12 @@ from nunchaku.utils import get_gpu_memory, get_precision, is_turing
 
 from ...utils import already_generate, compute_lpips
 from ..utils import run_pipeline
-import packaging.version
-import diffusers
 
+try:
+    from diffusers import QwenImageControlNetModel, QwenImageControlNetPipeline
+except ImportError:
+    QwenImageControlNetModel = None
+    QwenImageControlNetPipeline = None
 
 # Skip the test if diffusers<0.36
 pytestmark = pytest.mark.skipif(
@@ -21,7 +26,6 @@ pytestmark = pytest.mark.skipif(
     reason="QwenImageControlNetPipeline requires diffusers>=0.36",
 )
 
-from diffusers import QwenImageControlNetPipeline, QwenImageControlNetModel
 
 precision = get_precision()
 torch_dtype = torch.float16 if is_turing() else torch.bfloat16
