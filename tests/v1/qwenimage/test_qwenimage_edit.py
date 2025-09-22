@@ -34,7 +34,7 @@ class TestCase:
             TestCase(
                 num_inference_steps=20,
                 rank=32,
-                expected_lpips={"int4-bf16": 0.1, "fp4-bf16": 0.3},
+                expected_lpips={"int4-bf16": 0.1, "fp4-bf16": 0.1},
             ),
             id="qwen-image-edit-r32",
         ),
@@ -42,7 +42,7 @@ class TestCase:
             TestCase(
                 num_inference_steps=20,
                 rank=128,
-                expected_lpips={"int4-bf16": 0.1, "fp4-bf16": 0.3},
+                expected_lpips={"int4-bf16": 0.1, "fp4-bf16": 0.1},
             ),
             id="qwen-image-edit-r128",
         ),
