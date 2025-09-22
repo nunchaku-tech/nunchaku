@@ -50,7 +50,7 @@ class TestCase:
 )
 def test_qwenimage_edit(case: TestCase):
     batch_size = 1
-    true_cfg_scale = 1.0
+    true_cfg_scale = 4.0
     rank = case.rank
     expected_lpips = case.expected_lpips[precision]
     model_name = case.model_name
