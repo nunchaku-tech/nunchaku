@@ -160,9 +160,7 @@ def test_qwenimage_edit_lightning(case: TestCase):
     )
 
     model_path = model_paths[model_name].format(precision=precision, rank=rank)
-    transformer = NunchakuQwenImageTransformer2DModel.from_pretrained(
-        model_path, scheduler=scheduler, torch_dtype=torch_dtype
-    )
+    transformer = NunchakuQwenImageTransformer2DModel.from_pretrained(model_path, torch_dtype=torch_dtype)
 
     pipe = QwenImageEditPipeline.from_pretrained(
         repo_id, transformer=transformer, scheduler=scheduler, torch_dtype=torch_dtype
