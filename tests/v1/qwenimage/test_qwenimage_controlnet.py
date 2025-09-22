@@ -22,7 +22,7 @@ except ImportError:
 
 # Skip the test if diffusers<0.36
 pytestmark = pytest.mark.skipif(
-    packaging.version.parse(diffusers.__version__) < packaging.version.parse("0.36"),
+    packaging.version.parse(diffusers.__version__) <= packaging.version.parse("0.35.1"),
     reason="QwenImageControlNetPipeline requires diffusers>=0.36",
 )
 
