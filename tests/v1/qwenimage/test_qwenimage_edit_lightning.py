@@ -1,4 +1,5 @@
 import gc
+import math
 import os
 from pathlib import Path
 
@@ -12,7 +13,6 @@ from nunchaku.utils import get_gpu_memory, get_precision, is_turing
 
 from ...utils import already_generate, compute_lpips
 from ..utils import run_pipeline
-import math
 
 precision = get_precision()
 torch_dtype = torch.float16 if is_turing() else torch.bfloat16
