@@ -174,7 +174,7 @@ def fused_qkv_norm_rottary(
             norm_k=norm_k.weight if norm_k is not None else None,
             rotary_emb=rotary_emb,
         )
-        if seq_len < output.shape[0]:
+        if seq_len * batch_size < output.shape[0]:
             output = output[: seq_len * batch_size, :]
         output = output.view(batch_size, seq_len, -1)
         return output
