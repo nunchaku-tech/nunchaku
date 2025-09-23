@@ -28,7 +28,7 @@ config = lora_configs[selected_style]
 lora_path = hf_hub_download(repo_id=config["path"], filename=config.get("weight_name", "lora.safetensors"))
 print(f"   Downloaded to: {lora_path}")
 
-# update_lora_params_v2(transformer, lora_path, strength=config["strength"])
+update_lora_params_v2(transformer, lora_path, strength=config["strength"])
 
 # currently, you need to use this pipeline to offload the model to CPU
 pipe = QwenImagePipeline.from_pretrained("Qwen/Qwen-Image", transformer=transformer, torch_dtype=torch.bfloat16)

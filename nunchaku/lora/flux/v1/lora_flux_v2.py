@@ -480,8 +480,8 @@ def update_lora_params_v2(
 
         # --- single proj_out special split ---
         if base_key.endswith(".proj_out") and ("single_transformer_blocks." in base_key):
-            lora_alpha = lw.get("alpha")
-            split_map, consumed = _handle_proj_out_split(lora_dict, base_key, model, lora_alpha=lora_alpha)
+            alpha = lw.get("alpha")
+            split_map, consumed = _handle_proj_out_split(lora_dict, base_key, model)
             for mname, (A_part, B_part) in split_map.items():
                 rname, module = _resolve_module_name(model, mname)
                 if module is None:
