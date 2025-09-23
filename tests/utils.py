@@ -20,14 +20,16 @@ def hash_str_to_int(s: str) -> int:
     return hash_int
 
 
-def already_generate(save_dir: str | PathLike[str], num_images) -> bool:
+def already_generate(save_dir: str | PathLike[str], num_images: int | None = None) -> bool:
     if isinstance(save_dir, str):
         save_dir = Path(save_dir)
     assert isinstance(save_dir, Path)
     if save_dir.exists():
+        if num_images is None:
+            return True
         images = list(save_dir.iterdir())
         images = [_ for _ in images if _.name.endswith(".png")]
-        if len(images) == num_images:
+        if len(images) >= num_images:
             return True
     return False
 

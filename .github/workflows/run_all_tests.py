@@ -11,7 +11,9 @@ def run_all_tests():
             rel_path = file_path.relative_to(test_dir)
         except ValueError:
             continue
-        if str(rel_path) == "flux/test_flux_examples.py":
+        if "test_flux_examples.py" in str(rel_path):
+            continue
+        if "test_examples.py" in str(rel_path):
             continue
         test_files.append(str(file_path))
     print("Running tests:")

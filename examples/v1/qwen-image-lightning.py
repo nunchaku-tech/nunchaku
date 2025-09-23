@@ -42,15 +42,15 @@ if get_gpu_memory() > 18:
     pipe.enable_model_cpu_offload()
 else:
     # use per-layer offloading for low VRAM. This only requires 3-4GB of VRAM.
-    transformer.set_offload(True)
+    transformer.set_offload(
+        True, use_pin_memory=False, num_blocks_on_gpu=1
+    )  # increase num_blocks_on_gpu if you have more VRAM
     pipe._exclude_from_cpu_offload.append("transformer")
     pipe.enable_sequential_cpu_offload()
 
 prompt = """Bookstore window display. A sign displays “New Arrivals This Week”. Below, a shelf tag with the text “Best-Selling Novels Here”. To the side, a colorful poster advertises “Author Meet And Greet on Saturday” with a central portrait of the author. There are four books on the bookshelf, namely “The light between worlds” “When stars are scattered” “The slient patient” “The night circus”"""
-negative_prompt = " "
 image = pipe(
     prompt=prompt,
-    negative_prompt=negative_prompt,
     width=1024,
     height=1024,
     num_inference_steps=num_inference_steps,

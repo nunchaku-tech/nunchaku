@@ -8,7 +8,8 @@ on:
       - "tests/**"
       - "examples/**"
       - "scripts/**"
-      - ".github/workflows/**"
+      - ".github/workflows/pr-test.yaml"
+      - "!nunchaku/__version__.py"
   workflow_dispatch:
     inputs:
       ref:
@@ -44,23 +45,15 @@ jobs:
         run: |
           which python
           echo "Setting up Python with Conda"
-          conda create -n test_env python=3.12 -y
-      - name: Install dependencies
+          conda create -n test_env python=3.13 -y
+      - name: Install dependencies and build
         run: |
           source $(conda info --base)/etc/profile.d/conda.sh
           conda activate test_env || { echo "Failed to activate conda env"; exit 1; }
           which python
           echo "Installing dependencies"
-          pip install torch==2.7 torchvision==0.22 torchaudio==2.7 --index-url https://download.pytorch.org/whl/cu128
-          pip install diffusers==0.35.1
-          pip install ninja wheel transformers==4.55 accelerate==1.10 sentencepiece==0.2 protobuf==6.31 huggingface_hub==0.34
-      - name: Build
-        run: |
-          source $(conda info --base)/etc/profile.d/conda.sh
-          conda activate test_env || { echo "Failed to activate conda env"; exit 1; }
-          which python
-          NUNCHAKU_INSTALL_MODE=ALL python setup.py develop
-          pip install -r tests/requirements.txt
+          pip install torch==2.8 torchvision==0.23 --index-url https://download.pytorch.org/whl/cu128
+          pip install -e ".[ci]"
       - name: Setup ComfyUI
         run: |
           source $(conda info --base)/etc/profile.d/conda.sh
@@ -99,6 +92,7 @@ jobs:
           conda activate test_env || { echo "Failed to activate conda env"; exit 1; }
           which python
           pytest -s -x tests/flux/test_flux_examples.py
+          pytest -s -x tests/v1/test_examples.py
           python .github/workflows/run_all_tests.py
       - name: clean up
         if: always()
