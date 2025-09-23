@@ -91,8 +91,8 @@ jobs:
           source $(conda info --base)/etc/profile.d/conda.sh
           conda activate test_env || { echo "Failed to activate conda env"; exit 1; }
           which python
-          pytest -s -x tests/flux/test_flux_examples.py
-          pytest -s -x tests/v1/test_examples.py
+          pytest -vv -x tests/flux/test_flux_examples.py
+          pytest -vv -x tests/v1/test_examples.py
           python .github/workflows/run_all_tests.py
       - name: clean up
         if: always()
