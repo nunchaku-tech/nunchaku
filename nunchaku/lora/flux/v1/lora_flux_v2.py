@@ -37,6 +37,10 @@ _RE_FF_DBL_FC2 = re.compile(r"^(transformer_blocks\.\d+)\.ff\.net\.2(?=\.|$)")
 _RE_FFCTX_DBL_FC1 = re.compile(r"^(transformer_blocks\.\d+)\.ff_context\.net\.0(?:\.proj)?(?=\.|$)")
 _RE_FFCTX_DBL_FC2 = re.compile(r"^(transformer_blocks\.\d+)\.ff_context\.net\.2(?=\.|$)")
 
+_RE_MLP_IMG_FC1 = re.compile(r"^(transformer_blocks\.\d+\.img_mlp\.net\.0(?:\.proj)?)(?=\.|$)")
+_RE_MLP_IMG_FC2 = re.compile(r"^(transformer_blocks\.\d+\.img_mlp\.net\.2)(?=\.|$)")
+_RE_MLP_TXT_FC1 = re.compile(r"^(transformer_blocks\.\d+\.txt_mlp\.net\.0(?:\.proj)?)(?=\.|$)")
+_RE_MLP_TXT_FC2 = re.compile(r"^(transformer_blocks\.\d+\.txt_mlp\.net\.2)(?=\.|$)")
 
 def _classify_and_map_key(key: str) -> Optional[Tuple[str, str, Optional[str], str]]:
     """
@@ -52,6 +56,15 @@ def _classify_and_map_key(key: str) -> Optional[Tuple[str, str, Optional[str], s
     elif ".lora_B" in k:
         ab = "B"
         base = k.replace(".lora_B.weight", "").replace(".lora_B", "")
+    elif ".lora_down" in k:
+        ab = "A"
+        base = k.replace(".lora_down.weight", "").replace(".lora_A", "")
+    elif ".lora_up" in k:
+        ab = "B"
+        base = k.replace(".lora_down.weight", "").replace(".lora_B", "")
+    elif ".alpha" in k:
+        ab = "alpha"
+        base = k.replace(".alpha", "")
     else:
         return None
 
@@ -140,6 +153,14 @@ def _classify_and_map_key(key: str) -> Optional[Tuple[str, str, Optional[str], s
     m = _RE_NORM1CTX_DBL.match(base)
     if m:
         return ("regular", f"{m.group(1)}.norm1_context.linear", None, ab)
+
+    m = _RE_MLP_IMG_FC1.match(base) or _RE_MLP_TXT_FC1.match(base)
+    if m:
+        return ("regular", m.group(1), None, ab)
+
+    m = _RE_MLP_IMG_FC2.match(base) or _RE_MLP_TXT_FC2.match(base)
+    if m:
+        return ("regular", m.group(1), None, ab)
 
     return None
 
@@ -259,12 +280,10 @@ def _load_lora_state_dict(lora_state_dict_or_path: Union[str, Dict[str, torch.Te
 def _fuse_qkv_lora(qkv_weights: Dict[str, torch.Tensor]) -> Tuple[Optional[torch.Tensor], Optional[torch.Tensor]]:
     """
     Fuse Q/K/V LoRA weights into a single QKV tensor.
-
     Parameters
     ----------
     qkv_weights : Dict[str, torch.Tensor]
         Dictionary with keys like "Q_A", "Q_B", "K_A", "K_B", "V_A", "V_B"
-
     Returns
     -------
     Tuple[Optional[torch.Tensor], Optional[torch.Tensor]]
@@ -285,6 +304,16 @@ def _fuse_qkv_lora(qkv_weights: Dict[str, torch.Tensor]) -> Tuple[Optional[torch
 
     if any(x is None for x in [A_q, A_k, A_v, B_q, B_k, B_v]):
         return None, None
+
+    alpha_q = qkv_weights.get("Q_alpha")
+    alpha_k = qkv_weights.get("K_alpha")
+    alpha_v = qkv_weights.get("V_alpha")
+
+    alpha_fused: Optional[float] = None
+    if all(alpha is not None for alpha in [alpha_q, alpha_k, alpha_v]):
+        q_val, k_val, v_val = alpha_q.item(), alpha_k.item(), alpha_v.item()
+        if q_val == k_val == v_val:
+            alpha_fused = q_val
 
     # Validate dimensions
     if not (A_q.shape == A_k.shape == A_v.shape):
@@ -311,7 +340,7 @@ def _fuse_qkv_lora(qkv_weights: Dict[str, torch.Tensor]) -> Tuple[Optional[torch
     B_fused[out_q : out_q + out_k, r : 2 * r] = B_k
     B_fused[out_q + out_k :, 2 * r :] = B_v
 
-    return A_fused, B_fused  # Return without transpose - already in correct shape
+    return A_fused, B_fused, alpha_fused  # Return without transpose - already in correct shape
 
 
 def _handle_proj_out_split(
@@ -373,7 +402,6 @@ def update_lora_params_v2(
     - No module replacement or new wrappers.
     - Maps LoRA keys to V2 names; handles fused QKV, add_qkv, and single-block proj_out split.
     - Applies 'strength' by scaling appended B; records base/appended ranks in model._lora_slots.
-
     Parameters
     ----------
     model : torch.nn.Module
@@ -428,12 +456,14 @@ def update_lora_params_v2(
         if base_key in special_handled:
             continue
 
+        alpha = None
         # --- QKV / ADD_QKV ---
         if (".to_qkv" in base_key) or (".add_qkv_proj" in base_key):
             if ("A" in lw) and ("B" in lw):
                 A_fused, B_fused = lw["A"], lw["B"]
+                alpha = lw.get("alpha")
             else:
-                A_fused, B_fused = _fuse_qkv_lora(lw)
+                A_fused, B_fused, alpha = _fuse_qkv_lora(lw)
             if A_fused is None or B_fused is None:
                 logger.warning(f"Incomplete QKV LoRA at {base_key} (skip)")
                 continue
@@ -443,12 +473,13 @@ def update_lora_params_v2(
                 logger.warning(f"Module not found: {base_key} (resolved={resolved_name})")
                 continue
 
-            _apply_lora_to_module(module, A_fused, B_fused, strength, resolved_name, model)
+            _apply_lora_to_module(module, A_fused, B_fused, strength, resolved_name, model, alpha=alpha)
             applied_modules.append(resolved_name)
             continue
 
         # --- single proj_out special split ---
         if base_key.endswith(".proj_out") and ("single_transformer_blocks." in base_key):
+            lora_alpha = lw.get("alpha")
             split_map, consumed = _handle_proj_out_split(lora_dict, base_key, model)
             for mname, (A_part, B_part) in split_map.items():
                 rname, module = _resolve_module_name(model, mname)
@@ -458,12 +489,12 @@ def update_lora_params_v2(
                 if not (hasattr(module, "proj_down") and hasattr(module, "proj_up")):
                     logger.warning(f"proj_out split: target has no proj_down/up: {rname}")
                     continue
-                _apply_lora_to_module(module, A_part, B_part, strength, rname, model)
+                _apply_lora_to_module(module, A_part, B_part, strength, rname, model, alpha=alpha)
                 applied_modules.append(rname)
             special_handled.extend(consumed)
             continue
 
-        A, B = lw.get("A"), lw.get("B")
+        A, B, alpha = lw.get("A"), lw.get("B"), lw.get("alpha")
         if A is None or B is None:
             logger.warning(f"Missing A or B for {base_key}")
             continue
@@ -473,7 +504,7 @@ def update_lora_params_v2(
             unused_keys.append(base_key)
             continue
         if hasattr(module, "proj_down") and hasattr(module, "proj_up"):
-            _apply_lora_to_module(module, A, B, strength, rname, model)
+            _apply_lora_to_module(module, A, B, strength, rname, model, alpha)
             applied_modules.append(rname)
 
     logger.info(f"Applied LoRA to {len(applied_modules)} modules")
