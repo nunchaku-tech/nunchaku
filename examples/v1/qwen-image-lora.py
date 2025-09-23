@@ -1,10 +1,11 @@
 import torch
 from diffusers import QwenImagePipeline
+from huggingface_hub import hf_hub_download
 
+from nunchaku.lora.flux.v1.lora_flux_v2 import update_lora_params_v2
 from nunchaku.models.transformers.transformer_qwenimage import NunchakuQwenImageTransformer2DModel
 from nunchaku.utils import get_gpu_memory, get_precision
-from nunchaku.lora.flux.v1.lora_flux_v2 import update_lora_params_v2
-from huggingface_hub import hf_hub_download
+
 model_name = "Qwen/Qwen-Image"
 rank = 32  # you can also use rank=128 model to improve the quality
 
@@ -27,7 +28,7 @@ config = lora_configs[selected_style]
 lora_path = hf_hub_download(repo_id=config["path"], filename=config.get("weight_name", "lora.safetensors"))
 print(f"   Downloaded to: {lora_path}")
 
-#update_lora_params_v2(transformer, lora_path, strength=config["strength"])
+# update_lora_params_v2(transformer, lora_path, strength=config["strength"])
 
 # currently, you need to use this pipeline to offload the model to CPU
 pipe = QwenImagePipeline.from_pretrained("Qwen/Qwen-Image", transformer=transformer, torch_dtype=torch.bfloat16)
