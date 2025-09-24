@@ -45,4 +45,7 @@ Below is a minimal example for running the 4-bit quantized `Qwen-Image-Edit-2509
     :caption: Running Qwen-Image-Edit-2509 (`examples/v1/qwen-image-edit-2509.py <https://github.com/nunchaku-tech/nunchaku/blob/main/examples/v1/qwen-image-edit-2509.py>`__)
     :linenos:
 
+.. note::
+   This example requires ``diffusers`` version 0.36.0 or higher.
+
 Custom LoRA support is under development.
