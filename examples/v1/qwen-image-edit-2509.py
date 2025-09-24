@@ -39,7 +39,7 @@ inputs = {
     "prompt": prompt,
     "true_cfg_scale": 4.0,
     "negative_prompt": " ",
-    "num_inference_steps": 20,
+    "num_inference_steps": 40,
 }
 
 output = pipeline(**inputs)
