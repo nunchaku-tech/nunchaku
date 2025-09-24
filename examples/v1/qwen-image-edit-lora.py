@@ -1,11 +1,11 @@
 import torch
 from diffusers import QwenImageEditPipeline
 from diffusers.utils import load_image
+from huggingface_hub import hf_hub_download
 
 from nunchaku import NunchakuQwenImageTransformer2DModel
-from nunchaku.utils import get_gpu_memory, get_precision
 from nunchaku.lora.flux.v1.lora_flux_v2 import update_lora_params_v2
-from huggingface_hub import hf_hub_download
+from nunchaku.utils import get_gpu_memory, get_precision
 
 rank = 128  # you can also use rank=128 model to improve the quality
 
