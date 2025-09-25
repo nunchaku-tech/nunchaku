@@ -348,13 +348,14 @@ class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuM
         """
         # Extract torch_dtype from kwargs if provided
         torch_dtype = kwargs.get('torch_dtype', None)
+        precision = kwargs.get('precision', None)
 
         for i, block in enumerate(self.transformer_blocks):
             self.transformer_blocks[i] = NunchakuQwenImageTransformerBlock(block, scale_shift=0, **kwargs)
 
         # Convert all quantization buffers to the correct dtype if torch_dtype is provided
         if torch_dtype is not None:
-            convert_awq_buffers_to_dtype(self, torch_dtype)
+            convert_awq_buffers_to_dtype(self, torch_dtype, precision)
 
         self._is_initialized = True
         return self

@@ -56,54 +56,6 @@ def ensure_arch_compatible(dtype: torch.dtype, device: Optional[int] = None) -> 
             return torch.float16
     return dtype
 
-'''
-def convert_awq_buffers_to_dtype(module: torch.nn.Module, dtype: torch.dtype) -> None:
-    """
-    Convert all floating-point buffers in quantized modules to target dtype.
-
-    Parameters
-    ----------
-    module : torch.nn.Module
-        Module containing quantized layers.
-    dtype : torch.dtype
-        Target dtype for floating-point buffers.
-
-    Notes
-    -----
-    Preserves bitpacked weights (uint32) unchanged.
-    Converts: wscales, wzeros, scales, zeros, smooth_factor, smooth_factor_orig, proj_down, proj_up.
-    """
-
-    def _to_if_attr(obj, name: str):
-        if hasattr(obj, name):
-            buf = getattr(obj, name)
-            if isinstance(buf, torch.Tensor) and buf.is_floating_point():
-                # Preserve Parameter status and gradient requirements
-                if isinstance(buf, torch.nn.Parameter):
-                    setattr(obj, name, torch.nn.Parameter(buf.data.to(dtype), requires_grad=buf.requires_grad))
-                else:
-                    setattr(obj, name, buf.to(dtype))
-
-    # Convert AWQ quantization buffers
-    _to_if_attr(module, "wscales")
-    _to_if_attr(module, "wzeros")
-    _to_if_attr(module, "scales")
-    _to_if_attr(module, "zeros")
-
-    # Convert SVDQ projection matrices
-    _to_if_attr(module, "smooth_factor")
-    _to_if_attr(module, "smooth_factor_orig")
-    _to_if_attr(module, "proj_down")
-    _to_if_attr(module, "proj_up")
-
-    # Update module dtype attribute for consistency
-    if hasattr(module, "torch_dtype"):
-        module.torch_dtype = dtype
-
-    for child in module.children():
-        convert_awq_buffers_to_dtype(child, dtype)
-'''
-
 def convert_awq_buffers_to_dtype(module: torch.nn.Module, dtype: torch.dtype, precision: str) -> None:
     """
     Convert all floating-point buffers and parameters in quantized modules to target dtype.
