@@ -365,8 +365,8 @@ class NunchakuFluxTransformer2DModelV2(FluxTransformer2DModel, NunchakuModelLoad
             The patched model.
         """
         # Extract torch_dtype from kwargs if provided
-        torch_dtype = kwargs.get('torch_dtype', None)
-        precision = kwargs.get('precision', None)
+        torch_dtype = kwargs.get("torch_dtype", None)
+        precision = kwargs.get("precision", None)
 
         self.pos_embed = NunchakuFluxPosEmbed(dim=self.inner_dim, theta=10000, axes_dim=self.pos_embed.axes_dim)
         for i, block in enumerate(self.transformer_blocks):
@@ -449,9 +449,9 @@ class NunchakuFluxTransformer2DModelV2(FluxTransformer2DModel, NunchakuModelLoad
                 elif v.is_floating_point():
                     try:
                         converted_state_dict[k] = v.to(transformer._dtype)
-                    except:
+                    except Exception:
                         assert state_dict[k].dtype == converted_state_dict[k].dtype
-        
+
         # Extract wtscale values for SVDQ layers
         for n, m in transformer.named_modules():
             if isinstance(m, SVDQW4A4Linear):

@@ -36,8 +36,8 @@ model_paths = {
 }
 
 # Load the model
-transformer = NunchakuQwenImageTransformer2DModel.from_pretrained(model_paths[num_inference_steps],
-torch_dtype=torch_dtype
+transformer = NunchakuQwenImageTransformer2DModel.from_pretrained(
+    model_paths[num_inference_steps], torch_dtype=torch_dtype
 )
 
 pipe = QwenImagePipeline.from_pretrained(

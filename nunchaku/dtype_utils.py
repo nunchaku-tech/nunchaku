@@ -56,6 +56,7 @@ def ensure_arch_compatible(dtype: torch.dtype, device: Optional[int] = None) -> 
             return torch.float16
     return dtype
 
+
 def convert_awq_buffers_to_dtype(module: torch.nn.Module, dtype: torch.dtype, precision: str) -> None:
     """
     Convert all floating-point buffers and parameters in quantized modules to target dtype.
