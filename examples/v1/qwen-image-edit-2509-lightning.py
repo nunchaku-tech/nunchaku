@@ -27,7 +27,7 @@ scheduler_config = {
 scheduler = FlowMatchEulerDiscreteScheduler.from_config(scheduler_config)
 
 num_inference_steps = 4  # you can also use the 8-step model to improve the quality
-rank = 128  # you can also use the rank=128 model to improve the quality
+rank = 32  # you can also use the rank=128 model to improve the quality
 model_path = f"nunchaku-tech/nunchaku-qwen-image-edit-2509-lightning/svdq-{get_precision()}_r{rank}-qwen-image-edit-2509-lightningv2.0-{num_inference_steps}steps.safetensors"
 
 # Load the model
