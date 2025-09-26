@@ -7,8 +7,8 @@ Original Qwen-Image
 .. image:: https://huggingface.co/datasets/nunchaku-tech/cdn/resolve/main/nunchaku/assets/qwen-image.jpg
    :alt: Qwen-Image with Nunchaku
 
-`Qwen-Image <hf_qwen-image>`_ is an image generation foundation model in the Qwen series that achieves significant advances in complex text rendering.
-Below is a minimal example for running the 4-bit quantized `Qwen-Image <hf_qwen-image>`_ model with Nunchaku.
+`Qwen-Image <hf_qwen-image_>`_ is an image generation foundation model in the Qwen series that achieves significant advances in complex text rendering.
+Below is a minimal example for running the 4-bit quantized `Qwen-Image <hf_qwen-image_>`_ model with Nunchaku.
 Nunchaku offers an API compatible with `Diffusers <github_diffusers_>`_, allowing for a familiar user experience.
 
 .. literalinclude:: ../../../examples/v1/qwen-image.py
@@ -29,7 +29,7 @@ The :meth:`~nunchaku.models.transformers.transformer_qwenimage.NunchakuQwenImage
 Distilled Qwen-Image (Qwen-Image-Lightning)
 -------------------------------------------
 
-For faster inference, we provide pre-quantized 4-step and 8-step Qwen-Image models by integrating `Qwen-Image-Lightning LoRAs <hf_qwen-image-lightning>`_.
+For faster inference, we provide pre-quantized 4-step and 8-step Qwen-Image models by integrating `Qwen-Image-Lightning LoRAs <hf_qwen-image-lightning_>`_.
 See the example script below:
 
 .. literalinclude:: ../../../examples/v1/qwen-image-lightning.py
