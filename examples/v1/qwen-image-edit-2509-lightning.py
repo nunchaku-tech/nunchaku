@@ -34,7 +34,7 @@ model_path = f"nunchaku-tech/nunchaku-qwen-image-edit-2509-lightning/svdq-{get_p
 transformer = NunchakuQwenImageTransformer2DModel.from_pretrained(model_path)
 
 pipeline = QwenImageEditPlusPipeline.from_pretrained(
-    "Qwen/Qwen-Image-Edit-2509", transformer=transformer, torch_dtype=torch.bfloat16
+    "Qwen/Qwen-Image-Edit-2509", transformer=transformer, scheduler=scheduler, torch_dtype=torch.bfloat16
 )
 
 if get_gpu_memory() > 18:
