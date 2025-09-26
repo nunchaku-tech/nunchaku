@@ -18,6 +18,8 @@ from diffusers.models.transformers.transformer_flux import (
 from huggingface_hub import utils
 from torch.nn import GELU
 
+from nunchaku.dtype_utils import convert_awq_buffers_to_dtype, ensure_arch_compatible, pick_model_dtype
+
 from ...ops.fused import fused_gelu_mlp
 from ...utils import get_precision, pad_tensor
 from ..attention import NunchakuBaseAttention, NunchakuFeedForward
@@ -355,18 +357,27 @@ class NunchakuFluxTransformer2DModelV2(FluxTransformer2DModel, NunchakuModelLoad
         Parameters
         ----------
         **kwargs
-            Additional arguments for quantization.
+            Additional arguments for quantization, including torch_dtype.
 
         Returns
         -------
         self : NunchakuFluxTransformer2DModelV2
             The patched model.
         """
+        # Extract torch_dtype from kwargs if provided
+        torch_dtype = kwargs.get("torch_dtype", None)
+        precision = kwargs.get("precision", None)
+
         self.pos_embed = NunchakuFluxPosEmbed(dim=self.inner_dim, theta=10000, axes_dim=self.pos_embed.axes_dim)
         for i, block in enumerate(self.transformer_blocks):
             self.transformer_blocks[i] = NunchakuFluxTransformerBlock(block, scale_shift=0, **kwargs)
         for i, block in enumerate(self.single_transformer_blocks):
             self.single_transformer_blocks[i] = NunchakuFluxSingleTransformerBlock(block, scale_shift=0, **kwargs)
+
+        # Convert all quantization buffers to the correct dtype if torch_dtype is provided
+        if torch_dtype is not None:
+            convert_awq_buffers_to_dtype(self, torch_dtype, precision)
+
         return self
 
     @classmethod
@@ -400,7 +411,9 @@ class NunchakuFluxTransformer2DModelV2(FluxTransformer2DModel, NunchakuModelLoad
         if offload:
             raise NotImplementedError("Offload is not supported for FluxTransformer2DModelV2")
 
-        torch_dtype = kwargs.get("torch_dtype", torch.bfloat16)
+        torch_dtype = kwargs.get("torch_dtype", None)
+        torch_dtype = pick_model_dtype(torch_dtype, device if isinstance(device, int) else 0)
+        torch_dtype = ensure_arch_compatible(torch_dtype, device if isinstance(device, int) else 0)
 
         if isinstance(pretrained_model_name_or_path, str):
             pretrained_model_name_or_path = Path(pretrained_model_name_or_path)
@@ -412,11 +425,12 @@ class NunchakuFluxTransformer2DModelV2(FluxTransformer2DModel, NunchakuModelLoad
         quantization_config = json.loads(metadata.get("quantization_config", "{}"))
         rank = quantization_config.get("rank", 32)
         transformer = transformer.to(torch_dtype)
+        transformer._dtype = torch_dtype
 
         precision = get_precision()
         if precision == "fp4":
             precision = "nvfp4"
-        transformer._patch_model(precision=precision, rank=rank)
+        transformer._patch_model(precision=precision, rank=rank, torch_dtype=torch_dtype)
 
         transformer = transformer.to_empty(device=device)
         converted_state_dict = convert_flux_state_dict(model_state_dict)
@@ -428,9 +442,17 @@ class NunchakuFluxTransformer2DModelV2(FluxTransformer2DModel, NunchakuModelLoad
                 assert ".wcscales" in k
                 converted_state_dict[k] = torch.ones_like(state_dict[k])
             else:
-                assert state_dict[k].dtype == converted_state_dict[k].dtype
+                v = converted_state_dict[k]
+                if v.dtype in [torch.float8_e4m3fn, torch.float8_e5m2]:
+                    # Keep FP8 tensors as-is
+                    converted_state_dict[k] = v
+                elif v.is_floating_point():
+                    try:
+                        converted_state_dict[k] = v.to(transformer._dtype)
+                    except Exception:
+                        assert state_dict[k].dtype == converted_state_dict[k].dtype
 
-        # Load the wtscale from the converted state dict.
+        # Extract wtscale values for SVDQ layers
         for n, m in transformer.named_modules():
             if isinstance(m, SVDQW4A4Linear):
                 if m.wtscale is not None:
@@ -495,6 +517,7 @@ class NunchakuFluxTransformer2DModelV2(FluxTransformer2DModel, NunchakuModelLoad
         NotImplementedError
             If controlnet is requested.
         """
+
         hidden_states = self.x_embedder(hidden_states)
 
         timestep = timestep.to(hidden_states.dtype) * 1000

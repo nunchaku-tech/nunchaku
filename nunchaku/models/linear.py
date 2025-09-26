@@ -149,11 +149,12 @@ class SVDQW4A4Linear(nn.Module):
         SVDQW4A4Linear
         """
         in_features = kwargs.pop("in_features", linear.in_features)
+        torch_dtype = kwargs.pop("torch_dtype", linear.weight.dtype)
         return cls(
             in_features=in_features,
             out_features=linear.out_features,
             bias=linear.bias is not None,
-            torch_dtype=linear.weight.dtype,
+            torch_dtype=torch_dtype,
             device=linear.weight.device,
             **kwargs,
         )
@@ -178,6 +179,9 @@ class SVDQW4A4Linear(nn.Module):
         -----
         B: batch size, S: sequence length
         """
+        if not x.is_contiguous():
+            x = x.contiguous()
+
         batch_size, seq_len, channels = x.shape
         x = x.reshape(batch_size * seq_len, channels)
         if output is None:
@@ -323,6 +327,7 @@ class AWQW4A16Linear(nn.Module):
         self.in_features = in_features
         self.out_features = out_features
         self.group_size = group_size
+        self.torch_dtype = torch_dtype
 
         self.qweight = nn.Parameter(
             torch.empty(out_features // 4, in_features // 2, dtype=torch.int32, device=device), requires_grad=False
@@ -359,6 +364,9 @@ class AWQW4A16Linear(nn.Module):
         -----
         N: batch size
         """
+        if not x.is_contiguous():
+            x = x.contiguous()
+
         output = awq_gemv_w4a16_cuda(
             in_feats=x,
             kernel=self.qweight,
