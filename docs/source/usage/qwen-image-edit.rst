@@ -52,3 +52,14 @@ Below is a minimal example for running the 4-bit quantized `Qwen-Image-Edit-2509
    This example requires ``diffusers`` version 0.36.0 or higher.
 
 Custom LoRA support is under development.
+
+Distilled Qwen-Image-Edit-2509 (Qwen-Image-Edit-2509-Lightning)
+-----------------------------------------------------------
+
+For faster inference of the 2509 branch, we provide pre-quantized Lightning variants by integrating `Qwen-Image-Lightning LoRAs <hf_qwen-image-lightning>`_.
+See the example script below:
+
+.. literalinclude:: ../../../examples/v1/qwen-image-edit-2509-lightning.py
+    :language: python
+    :caption: Running Qwen-Image-Edit-2509-Lightning (`examples/v1/qwen-image-edit-2509-lightning.py <https://github.com/nunchaku-tech/nunchaku/blob/main/examples/v1/qwen-image-edit-2509-lightning.py>`__)
+    :linenos:
