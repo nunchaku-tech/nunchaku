@@ -1,13 +1,32 @@
 <div align="center" id="nunchaku_logo">
   <img src="https://huggingface.co/datasets/nunchaku-tech/cdn/resolve/main/nunchaku/assets/nunchaku.svg" alt="logo" width="220"></img>
 </div>
-<h3 align="center">
-<a href="http://arxiv.org/abs/2411.05007"><b>Paper</b></a> | <a href="https://nunchaku.tech/docs/nunchaku/"><b>Docs</b></a> | <a href="https://hanlab.mit.edu/projects/svdquant"><b>Website</b></a> | <a href="https://hanlab.mit.edu/blog/svdquant"><b>Blog</b></a> | <a href="https://svdquant.mit.edu"><b>Demo</b></a> | <a href="https://huggingface.co/nunchaku-tech"><b>Hugging Face</b></a> | <a href="https://modelscope.cn/organization/nunchaku-tech"><b>ModelScope</b></a> | <a href="https://github.com/nunchaku-tech/ComfyUI-nunchaku"><b>ComfyUI</b></a>
-</h3>
-
-<h3 align="center">
-<a href="README.md"><b>English</b></a> | <a href="README_ZH.md"><b>中文</b></a>
-</h3>
+<p align="center">
+  <a href="http://arxiv.org/abs/2411.05007">
+    <img alt="Paper" src="https://img.shields.io/badge/Paper-arXiv%3A2411.05007-b31b1b?logo=arxiv&logoColor=white">
+  </a>
+  <a href="https://nunchaku.tech/docs/nunchaku/">
+    <img alt="Docs" src="https://img.shields.io/badge/Docs-nunchaku.tech-4b8bbe?logo=readthedocs&logoColor=white">
+  </a>
+  <a href="https://hanlab.mit.edu/projects/svdquant">
+    <img alt="Website" src="https://img.shields.io/badge/Website-hanlab.mit.edu-0e83cd?logo=google-chrome&logoColor=white">
+  </a>
+  <a href="https://hanlab.mit.edu/blog/svdquant">
+    <img alt="Blog" src="https://img.shields.io/badge/Blog-hanlab.mit.edu%2Fblog-ff9800?logo=blogger&logoColor=white">
+  </a>
+  <a href="https://svdquant.mit.edu">
+    <img alt="Demo" src="https://img.shields.io/badge/Demo-svdquant.mit.edu-43b581?logo=vercel&logoColor=white">
+  </a>
+  <a href="https://huggingface.co/nunchaku-tech">
+    <img alt="Hugging Face" src="https://img.shields.io/badge/HuggingFace-nunchaku--tech-fcc624?logo=huggingface&logoColor=black">
+  </a>
+  <a href="https://modelscope.cn/organization/nunchaku-tech">
+    <img alt="ModelScope" src="https://img.shields.io/badge/ModelScope-nunchaku--tech-00bcd4?logo=data:image/svg+xml;base64,PHN2ZyBmaWxsPSIjMDBiY2Q0IiB2aWV3Qm94PSIwIDAgMjQgMjQiIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiI+PHBhdGggZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDJ6bTAgMThjLTQuNDIgMC04LTMuNTgtOC04czMuNTgtOCA4LTggOCAzLjU4IDggOC0zLjU4IDgtOCA4eiIvPjwvc3ZnPg==">
+  </a>
+  <a href="https://github.com/nunchaku-tech/ComfyUI-nunchaku">
+    <img alt="ComfyUI" src="https://img.shields.io/badge/ComfyUI-nunchaku--tech-22272e?logo=github&logoColor=white">
+  </a>
+</p>
 
 **Nunchaku** is a high-performance inference engine optimized for 4-bit neural networks, as introduced in our paper [SVDQuant](http://arxiv.org/abs/2411.05007). For the underlying quantization library, check out [DeepCompressor](https://github.com/nunchaku-tech/deepcompressor).
 

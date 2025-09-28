@@ -27,6 +27,7 @@ jobs:
     runs-on:
       - self-hosted
       - ${{ matrix.gpu }}
+      - test
     # Only run for non-draft PRs, or for workflow_dispatch events
     if: |
       (github.event_name == 'pull_request' && !github.event.pull_request.draft) ||
