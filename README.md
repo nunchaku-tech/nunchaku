@@ -27,10 +27,13 @@
     <img alt="ComfyUI" src="https://img.shields.io/badge/ComfyUI-nunchaku--tech-22272e?logo=github&logoColor=white">
   </a>
   <a href="https://discord.gg/Wk6PnwX9Sm">
-    <img alt="Discord" src="https://img.shields.io/badge/Discord-5865F2?logo=discord&logoColor=white">
+    <img alt="Discord" src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fdiscord.com%2Fapi%2Finvites%2FWk6PnwX9Sm%3Fwith_counts%3Dtrue&query=%24.approximate_member_count&logo=discord&logoColor=white&label=Discord&color=green&suffix=%20total">
   </a>
   <a href="https://huggingface.co/datasets/nunchaku-tech/cdn/resolve/main/nunchaku/assets/wechat.jpg">
     <img alt="WeChat" src="https://img.shields.io/badge/WeChat-QR-07C160?logo=wechat&logoColor=white">
+  </a>
+  <a href="https://deepwiki.com/nunchaku-tech/nunchaku">
+    <img alt="Ask DeepWiki" src="https://deepwiki.com/badge.svg">
   </a>
 </p>
 
