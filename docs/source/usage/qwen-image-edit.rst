@@ -54,7 +54,7 @@ Below is a minimal example for running the 4-bit quantized `Qwen-Image-Edit-2509
 Custom LoRA support is under development.
 
 Distilled Qwen-Image-Edit-2509 (Qwen-Image-Edit-2509-Lightning)
------------------------------------------------------------
+---------------------------------------------------------------
 
 For faster inference of the 2509 branch, we provide pre-quantized Lightning variants by integrating `Qwen-Image-Lightning LoRAs <hf_qwen-image-lightning_>`_.
 See the example script below:
