@@ -26,11 +26,21 @@
   <a href="https://github.com/nunchaku-tech/ComfyUI-nunchaku">
     <img alt="ComfyUI" src="https://img.shields.io/badge/ComfyUI-nunchaku--tech-22272e?logo=github&logoColor=white">
   </a>
+  <a href="https://discord.gg/Wk6PnwX9Sm">
+    <img alt="Discord" src="https://img.shields.io/badge/Discord-Join%20Chat-5865F2?logo=discord&logoColor=white">
+  </a>
+  <a href="https://huggingface.co/datasets/nunchaku-tech/cdn/resolve/main/nunchaku/assets/wechat.jpg">
+    <img alt="WeChat" src="https://img.shields.io/badge/WeChat-Scan%20QR-07C160?logo=wechat&logoColor=white">
+  </a>
 </p>
 
 **Nunchaku** is a high-performance inference engine optimized for 4-bit neural networks, as introduced in our paper [SVDQuant](http://arxiv.org/abs/2411.05007). For the underlying quantization library, check out [DeepCompressor](https://github.com/nunchaku-tech/deepcompressor).
 
-Join our user groups on [**Discord**](https://discord.gg/Wk6PnwX9Sm) and [**WeChat**](https://huggingface.co/datasets/nunchaku-tech/cdn/resolve/main/nunchaku/assets/wechat.jpg) to engage in discussions with the community! More details can be found [here](https://github.com/nunchaku-tech/nunchaku/issues/149). If you have any questions, run into issues, or are interested in contributing, don’t hesitate to reach out!
+<p align="center">
+  Join our user groups on <b>Discord</b> and <b>WeChat</b> to engage in discussions with the community!
+  More details can be found <a href="https://github.com/nunchaku-tech/nunchaku/issues/149">here</a>.
+  If you have any questions, run into issues, or are interested in contributing, don’t hesitate to reach out!
+</p>
 
 ## News
 
