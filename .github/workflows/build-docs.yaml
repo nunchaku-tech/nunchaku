@@ -11,7 +11,7 @@ on:
 jobs:
   build-and-deploy-docs:
     name: Build and deploy docs
-    runs-on: [self-hosted, "4090"]
+    runs-on: [self-hosted, build-docs]
     if: github.repository == 'nunchaku-tech/nunchaku' && (github.event_name != 'workflow_dispatch' || github.actor == 'lmxyy')
     env:
       DOC_VERSION: ${{ github.event.inputs.version || 'nightly' }}

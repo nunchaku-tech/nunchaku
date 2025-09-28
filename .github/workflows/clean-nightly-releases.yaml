@@ -20,10 +20,10 @@ jobs:
           echo "Found $(wc -l < nightly_tags.txt) nightly releases."
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Trim to old tags beyond latest 30
+      - name: Trim to old tags beyond latest 15
         id: filter
         run: |
-          tail -n +31 nightly_tags.txt > to_delete.txt || true
+          tail -n +16 nightly_tags.txt > to_delete.txt || true
           echo "Tags to delete:"
           cat to_delete.txt || echo "(none)"
       - name: Delete releases and tags

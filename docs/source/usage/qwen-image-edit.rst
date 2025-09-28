@@ -34,4 +34,21 @@ See the example script below:
     :caption: Running Qwen-Image-Edit-Lightning (`examples/v1/qwen-image-edit-lightning.py <https://github.com/nunchaku-tech/nunchaku/blob/main/examples/v1/qwen-image-edit-lightning.py>`__)
     :linenos:
 
+Qwen-Image-Edit-2509
+--------------------
+
+.. image:: https://huggingface.co/datasets/nunchaku-tech/cdn/resolve/main/ComfyUI-nunchaku/workflows/nunchaku-qwen-image-edit-2509.png
+   :alt: Nunchaku-Qwen-Image-Edit-2509
+
+Qwen-Image-Edit-2509 is an monthly iteration of Qwen-Image-Edit.
+Below is a minimal example for running the 4-bit quantized `Qwen-Image-Edit-2509 <hf_qwen-image-edit-2509>`_ model with Nunchaku.
+
+.. literalinclude:: ../../../examples/v1/qwen-image-edit-2509.py
+    :language: python
+    :caption: Running Qwen-Image-Edit-2509 (`examples/v1/qwen-image-edit-2509.py <https://github.com/nunchaku-tech/nunchaku/blob/main/examples/v1/qwen-image-edit-2509.py>`__)
+    :linenos:
+
+.. note::
+   This example requires ``diffusers`` version 0.36.0 or higher.
+
 Custom LoRA support is under development.
