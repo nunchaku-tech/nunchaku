@@ -7,13 +7,13 @@
 
 <div align="center">
   <a href="https://huggingface.co/nunchaku-tech" target="_blank">
-    <img src="https://img.shields.io/badge/Hugging%20Face-nunchaku--tech-yellow?logo=huggingface&logoColor=white" alt="Hugging Face" height="22px">
+    <img src="https://img.shields.io/badge/Hugging%20Face-yellow?logo=huggingface&logoColor=white" alt="Hugging Face" height="22px">
   </a>
   <a href="https://modelscope.cn/organization/nunchaku-tech" target="_blank">
-    <img src="https://img.shields.io/badge/ModelScope-nunchaku--tech-blue?logo=data:image/svg+xml;base64,PHN2ZyBmaWxsPSIjZmZmIiB2aWV3Qm94PSIwIDAgMjQgMjQiIHdpZHRoPSIxNnB4IiBoZWlnaHQ9IjE2cHgiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHBhdGggZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDJ6bTAgMThjLTQuNDIgMC04LTMuNTgtOC04czMuNTgtOCA4LTggOCAzLjU4IDggOC0zLjU4IDgtOCA4eiIvPjwvc3ZnPg==" alt="ModelScope" height="22px">
+    <img src="https://img.shields.io/badge/ModelScope-blue?logo=data:image/svg+xml;base64,PHN2ZyBmaWxsPSIjZmZmIiB2aWV3Qm94PSIwIDAgMjQgMjQiIHdpZHRoPSIxNnB4IiBoZWlnaHQ9IjE2cHgiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHBhdGggZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDJ6bTAgMThjLTQuNDIgMC04LTMuNTgtOC04czMuNTgtOCA4LTggOCAzLjU4IDggOC0zLjU4IDgtOCA4eiIvPjwvc3ZnPg==" alt="ModelScope" height="22px">
   </a>
   <a href="https://github.com/nunchaku-tech/ComfyUI-nunchaku" target="_blank">
-    <img src="https://img.shields.io/badge/ComfyUI-nunchaku--tech-ff69b4?logo=github&logoColor=white" alt="ComfyUI" height="22px">
+    <img src="https://img.shields.io/github/stars/nunchaku-tech/ComfyUI-nunchaku?style=social&label=ComfyUI" alt="ComfyUI Stars" height="22px">
   </a>
 </div>
 
