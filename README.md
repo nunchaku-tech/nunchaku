@@ -3,34 +3,34 @@
 </div>
 <p align="center">
   <a href="http://arxiv.org/abs/2411.05007">
-    <img alt="Paper" src="https://img.shields.io/badge/Paper-arXiv%3A2411.05007-b31b1b?logo=arxiv&logoColor=white">
+    <img alt="Paper" src="https://img.shields.io/badge/Paper-arXiv-b31b1b?logo=arxiv&logoColor=white">
   </a>
   <a href="https://nunchaku.tech/docs/nunchaku/">
-    <img alt="Docs" src="https://img.shields.io/badge/Docs-nunchaku.tech-4b8bbe?logo=readthedocs&logoColor=white">
+    <img alt="Docs" src="https://img.shields.io/badge/Docs-docs-4b8bbe?logo=readthedocs&logoColor=white">
   </a>
   <a href="https://hanlab.mit.edu/projects/svdquant">
-    <img alt="Website" src="https://img.shields.io/badge/Website-hanlab.mit.edu-0e83cd?logo=google-chrome&logoColor=white">
+    <img alt="Website" src="https://img.shields.io/badge/Web-hanlab-0e83cd?logo=google-chrome&logoColor=white">
   </a>
   <a href="https://hanlab.mit.edu/blog/svdquant">
-    <img alt="Blog" src="https://img.shields.io/badge/Blog-hanlab.mit.edu%2Fblog-ff9800?logo=blogger&logoColor=white">
+    <img alt="Blog" src="https://img.shields.io/badge/Blog-blog-ff9800?logo=blogger&logoColor=white">
   </a>
   <a href="https://svdquant.mit.edu">
-    <img alt="Demo" src="https://img.shields.io/badge/Demo-svdquant.mit.edu-43b581?logo=vercel&logoColor=white">
+    <img alt="Demo" src="https://img.shields.io/badge/Demo-svdquant-43b581?logo=vercel&logoColor=white">
   </a>
   <a href="https://huggingface.co/nunchaku-tech">
-    <img alt="Hugging Face" src="https://img.shields.io/badge/HuggingFace-nunchaku--tech-fcc624?logo=huggingface&logoColor=black">
+    <img alt="HF" src="https://img.shields.io/badge/HF-nunchaku--tech-fcc624?logo=huggingface&logoColor=black">
   </a>
   <a href="https://modelscope.cn/organization/nunchaku-tech">
-    <img alt="ModelScope" src="https://img.shields.io/badge/ModelScope-nunchaku--tech-00bcd4?logo=data:image/svg+xml;base64,PHN2ZyBmaWxsPSIjMDBiY2Q0IiB2aWV3Qm94PSIwIDAgMjQgMjQiIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiI+PHBhdGggZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDJ6bTAgMThjLTQuNDIgMC04LTMuNTgtOC04czMuNTgtOCA4LTggOCAzLjU4IDggOC0zLjU4IDgtOCA4eiIvPjwvc3ZnPg==">
+    <img alt="MS" src="https://img.shields.io/badge/MS-nunchaku--tech-00bcd4?logo=data:image/svg+xml;base64,PHN2ZyBmaWxsPSIjMDBiY2Q0IiB2aWV3Qm94PSIwIDAgMjQgMjQiIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiI+PHBhdGggZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDJ6bTAgMThjLTQuNDIgMC04LTMuNTgtOC04czMuNTgtOCA4LTggOCAzLjU4IDggOC0zLjU4IDgtOCA4eiIvPjwvc3ZnPg==">
   </a>
   <a href="https://github.com/nunchaku-tech/ComfyUI-nunchaku">
     <img alt="ComfyUI" src="https://img.shields.io/badge/ComfyUI-nunchaku--tech-22272e?logo=github&logoColor=white">
   </a>
   <a href="https://discord.gg/Wk6PnwX9Sm">
-    <img alt="Discord" src="https://img.shields.io/badge/Discord-Join%20Chat-5865F2?logo=discord&logoColor=white">
+    <img alt="Discord" src="https://img.shields.io/badge/Discord-5865F2?logo=discord&logoColor=white">
   </a>
   <a href="https://huggingface.co/datasets/nunchaku-tech/cdn/resolve/main/nunchaku/assets/wechat.jpg">
-    <img alt="WeChat" src="https://img.shields.io/badge/WeChat-Scan%20QR-07C160?logo=wechat&logoColor=white">
+    <img alt="WeChat" src="https://img.shields.io/badge/WeChat-QR-07C160?logo=wechat&logoColor=white">
   </a>
 </p>
 
