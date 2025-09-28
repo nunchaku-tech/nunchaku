@@ -2,8 +2,20 @@
   <img src="https://huggingface.co/datasets/nunchaku-tech/cdn/resolve/main/nunchaku/assets/nunchaku.svg" alt="logo" width="220"></img>
 </div>
 <h3 align="center">
-<a href="http://arxiv.org/abs/2411.05007"><b>Paper</b></a> | <a href="https://nunchaku.tech/docs/nunchaku/"><b>Docs</b></a> | <a href="https://hanlab.mit.edu/projects/svdquant"><b>Website</b></a> | <a href="https://hanlab.mit.edu/blog/svdquant"><b>Blog</b></a> | <a href="https://svdquant.mit.edu"><b>Demo</b></a> | <a href="https://huggingface.co/nunchaku-tech"><b>Hugging Face</b></a> | <a href="https://modelscope.cn/organization/nunchaku-tech"><b>ModelScope</b></a> | <a href="https://github.com/nunchaku-tech/ComfyUI-nunchaku"><b>ComfyUI</b></a>
+<a href="http://arxiv.org/abs/2411.05007"><b>Paper</b></a> | <a href="https://nunchaku.tech/docs/nunchaku/"><b>Docs</b></a> | <a href="https://hanlab.mit.edu/projects/svdquant"><b>Website</b></a> | <a href="https://hanlab.mit.edu/blog/svdquant"><b>Blog</b></a> | <a href="https://svdquant.mit.edu"><b>Demo</b></a>
 </h3>
+
+<div align="center">
+  <a href="https://huggingface.co/nunchaku-tech" target="_blank">
+    <img src="https://img.shields.io/badge/Hugging%20Face-nunchaku--tech-yellow?logo=huggingface&logoColor=white" alt="Hugging Face" height="22px">
+  </a>
+  <a href="https://modelscope.cn/organization/nunchaku-tech" target="_blank">
+    <img src="https://img.shields.io/badge/ModelScope-nunchaku--tech-blue?logo=data:image/svg+xml;base64,PHN2ZyBmaWxsPSIjZmZmIiB2aWV3Qm94PSIwIDAgMjQgMjQiIHdpZHRoPSIxNnB4IiBoZWlnaHQ9IjE2cHgiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHBhdGggZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDJ6bTAgMThjLTQuNDIgMC04LTMuNTgtOC04czMuNTgtOCA4LTggOCAzLjU4IDggOC0zLjU4IDgtOCA4eiIvPjwvc3ZnPg==" alt="ModelScope" height="22px">
+  </a>
+  <a href="https://github.com/nunchaku-tech/ComfyUI-nunchaku" target="_blank">
+    <img src="https://img.shields.io/badge/ComfyUI-nunchaku--tech-ff69b4?logo=github&logoColor=white" alt="ComfyUI" height="22px">
+  </a>
+</div>
 
 <div align="center">
   <a href=https://discord.gg/Wk6PnwX9Sm target="_blank"><img src=https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fdiscord.com%2Fapi%2Finvites%2FWk6PnwX9Sm%3Fwith_counts%3Dtrue&query=%24.approximate_member_count&logo=discord&logoColor=white&label=Discord&color=green&suffix=%20total height=22px></a>
