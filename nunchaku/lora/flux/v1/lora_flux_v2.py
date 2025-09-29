@@ -42,6 +42,12 @@ _RE_MLP_IMG_FC2 = re.compile(r"^(transformer_blocks\.\d+\.img_mlp\.net\.2)(?=\.|
 _RE_MLP_TXT_FC1 = re.compile(r"^(transformer_blocks\.\d+\.txt_mlp\.net\.0(?:\.proj)?)(?=\.|$)")
 _RE_MLP_TXT_FC2 = re.compile(r"^(transformer_blocks\.\d+\.txt_mlp\.net\.2)(?=\.|$)")
 
+_RE_LORA_SUFFIX = re.compile(r"\.(?P<tag>lora(?:[._](?:A|B|down|up)))(?:\.[^.]+)*\.weight$")
+_RE_ALPHA_SUFFIX = re.compile(r"\.(?:alpha|lora_alpha)(?:\.[^.]+)*$")
+
+_RE_QKV_DBL_DECOMP_ALT = re.compile(r"^(transformer_blocks\.\d+)\.attn\.(q|k|v)_proj(?=\.|$)")
+_RE_IMGMOD_LINEAR = re.compile(r"^(transformer_blocks\.\d+)\.img_mod\.1(?=\.|$)")
+_RE_TXTMOD_LINEAR = re.compile(r"^(transformer_blocks\.\d+)\.txt_mod\.1(?=\.|$)")
 
 def _classify_and_map_key(key: str) -> Optional[Tuple[str, str, Optional[str], str]]:
     """
@@ -51,23 +57,49 @@ def _classify_and_map_key(key: str) -> Optional[Tuple[str, str, Optional[str], s
     if k.startswith("transformer."):
         k = k[len("transformer.") :]
 
-    if ".lora_A" in k:
-        ab = "A"
-        base = k.replace(".lora_A.weight", "").replace(".lora_A", "")
-    elif ".lora_B" in k:
-        ab = "B"
-        base = k.replace(".lora_B.weight", "").replace(".lora_B", "")
-    elif ".lora_down" in k:
-        ab = "A"
-        base = k.replace(".lora_down.weight", "").replace(".lora_A", "")
-    elif ".lora_up" in k:
-        ab = "B"
-        base = k.replace(".lora_down.weight", "").replace(".lora_B", "")
-    elif ".alpha" in k:
-        ab = "alpha"
-        base = k.replace(".alpha", "")
+    if k.startswith("diffusion_model."):
+        k = k[len("diffusion_model."):]
+    
+    base = None
+    ab = None
+
+    m = _RE_LORA_SUFFIX.search(k)
+    if m:
+        tag = m.group("tag")  # lora_A / lora_B / lora.down / lora.up
+        base = k[: m.start()]
+        if "lora_A" in tag or tag.endswith(".A"):
+            ab = "A"
+        elif "lora_B" in tag or tag.endswith(".B"):
+            ab = "B"
+        elif "down" in tag:
+            ab = "A"
+        elif "up" in tag:
+            ab = "B"
+        else:
+            return None
     else:
-        return None
+        m = _RE_ALPHA_SUFFIX.search(k)
+        if m:
+            ab = "alpha"
+            base = k[: m.start()]
+        else:
+            if ".lora_A" in k:
+                ab = "A"
+                base = k.replace(".lora_A.weight", "").replace(".lora_A", "")
+            elif ".lora_B" in k:
+                ab = "B"
+                base = k.replace(".lora_B.weight", "").replace(".lora_B", "")
+            elif ".lora_down" in k:
+                ab = "A"
+                base = k.replace(".lora_down.weight", "").replace(".lora_A", "")
+            elif ".lora_up" in k:
+                ab = "B"
+                base = k.replace(".lora_up.weight", "").replace(".lora_B", "")
+            elif ".alpha" in k:
+                ab = "alpha"
+                base = k.replace(".alpha", "")
+            else:
+                return None
 
     # QKV (double)
     m = _RE_QKV_DBL_FUSED.match(base)
@@ -86,6 +118,10 @@ def _classify_and_map_key(key: str) -> Optional[Tuple[str, str, Optional[str], s
     m = _RE_ADDQKV_DBL_DECOMP.match(base)
     if m:
         return ("add_qkv", f"{m.group(1)}.attn.add_qkv_proj", m.group(2).upper(), ab)
+    
+    m = _RE_QKV_DBL_DECOMP_ALT.match(base)
+    if m:
+        return ("qkv", f"{m.group(1)}.attn.to_qkv", m.group(2).upper(), ab)
 
     # QKV (single)
     m = _RE_QKV_SGL_FUSED.match(base)
@@ -162,6 +198,14 @@ def _classify_and_map_key(key: str) -> Optional[Tuple[str, str, Optional[str], s
     m = _RE_MLP_IMG_FC2.match(base) or _RE_MLP_TXT_FC2.match(base)
     if m:
         return ("regular", m.group(1), None, ab)
+    
+    m = _RE_IMGMOD_LINEAR.match(base)
+    if m:
+        return ("regular", f"{m.group(1)}.img_mod.1", None, ab)
+
+    m = _RE_TXTMOD_LINEAR.match(base)
+    if m:
+        return ("regular", f"{m.group(1)}.txt_mod.1", None, ab)
 
     return None
 
@@ -538,7 +582,7 @@ def _apply_lora_to_module(
 
     # dtype/device
     A = A.to(dtype=module.proj_down.dtype, device=module.proj_down.device)
-    B = (B * strength).to(dtype=module.proj_up.dtype, device=module.proj_up.device)
+    B = B.to(dtype=module.proj_up.dtype, device=module.proj_up.device)
 
     # shape checks
     if A.ndim != 2 or B.ndim != 2:

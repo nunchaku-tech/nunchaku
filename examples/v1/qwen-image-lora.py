@@ -20,9 +20,18 @@ lora_configs = {
         "weight_name": "Qwen-Image-Lightning-4steps-V2.0-bf16.safetensors",
         "prompt": "GHIBSKY style painting, sign saying 'Flux Ghibsky'",
         "strength": 1.0,
+        "inference_step" : 4
+    },
+    "slider": {
+        "path": "ostris/qwen_image_detail_slider",
+        "weight_name": "qwen_image_detail_slider.safetensors",
+        "prompt": "a horse is a DJ at a night club, fish eye lens, smoke machine, lazer lights, holding a martini",
+        "strength": 1.0,
+        "inference_step" : 50
     },
 }
-selected_style = "lightning"  # Change this to test different styles
+
+selected_style = "slider"  # Change this to test different styles
 config = lora_configs[selected_style]
 
 lora_path = hf_hub_download(repo_id=config["path"], filename=config.get("weight_name", "lora.safetensors"))
@@ -47,16 +56,19 @@ positive_magic = {
 }
 
 # Generate image
-prompt = """Bookstore window display. A sign displays “New Arrivals This Week”. Below, a shelf tag with the text “Best-Selling Novels Here”. To the side, a colorful poster advertises “Author Meet And Greet on Saturday” with a central portrait of the author. There are four books on the bookshelf, namely “The light between worlds” “When stars are scattered” “The slient patient” “The night circus”"""
+prompt = config['prompt']
+inference_step = config['inference_step']
+
 negative_prompt = " "  # using an empty string if you do not have specific concept to remove
 
 image = pipe(
     prompt=prompt + positive_magic["en"],
     negative_prompt=negative_prompt,
-    width=1664,
-    height=928,
-    num_inference_steps=4,
+    width=1024,
+    height=1024,
+    num_inference_steps=inference_step,
     true_cfg_scale=4.0,
 ).images[0]
 
 image.save(f"qwen-image-r{rank}.png")
+

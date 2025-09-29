@@ -24,8 +24,17 @@ lora_configs = {
         "weight_name": "Qwen-Image-Lightning-4steps-V2.0-bf16.safetensors",
         "prompt": "GHIBSKY style painting, sign saying 'Flux Ghibsky'",
         "strength": 1.0,
+        "inference_step" : 4
+    },
+    "slider": {
+        "path": "ostris/qwen_image_detail_slider",
+        "weight_name": "qwen_image_detail_slider.safetensors",
+        "prompt": "a horse is a DJ at a night club, fish eye lens, smoke machine, lazer lights, holding a martini",
+        "strength": 1.0,
+        "inference_step" : 50
     },
 }
+
 selected_style = "lightning"  # Change this to test different styles
 config = lora_configs[selected_style]
 
@@ -47,13 +56,16 @@ else:
 
 image = load_image("https://huggingface.co/datasets/nunchaku-tech/test-data/resolve/main/inputs/neon_sign.png")
 image = image.convert("RGB")
-prompt = "change the text to read '双截棍 Qwen Image Edit is here'"
+
+prompt = config['prompt']
+inference_step = config['inference_step']
+
 inputs = {
     "image": image,
     "prompt": prompt,
     "true_cfg_scale": 4.0,
     "negative_prompt": " ",
-    "num_inference_steps": 4,
+    "num_inference_steps": inference_step,
 }
 
 output = pipeline(**inputs)
