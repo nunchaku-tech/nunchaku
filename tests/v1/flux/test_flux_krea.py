@@ -27,8 +27,8 @@ class Case:
         num_inference_steps: int = 20,
         attention_impl: str = "flashattn2",
         expected_lpips: dict[str, float] = {},
-        model_name: str = "flux.1-krea",
-        repo_id: str = "black-forest-labs/FLUX.1-krea",
+        model_name: str = "flux.1-dev-krea",
+        repo_id: str = "black-forest-labs/FLUX.1-dev-krea",
     ):
         self.rank = rank
         self.batch_size = batch_size
@@ -40,7 +40,7 @@ class Case:
         self.model_name = model_name
         self.repo_id = repo_id
 
-        self.model_path = f"nunchaku-tech/nunchaku-flux.1-krea/svdq-{precision}_r{rank}-flux.1-krea.safetensors"
+        self.model_path = f"nunchaku-tech/nunchaku-flux.1-dev-krea/svdq-{precision}_r{rank}-flux.1-dev-krea.safetensors"
 
         ref_root = os.environ.get("NUNCHAKU_TEST_CACHE_ROOT", os.path.join("test_results", "ref"))
         folder_name = f"w{width}h{height}t{num_inference_steps}"
@@ -63,12 +63,11 @@ class Case:
 
 
 @pytest.mark.parametrize(
-    "case", [pytest.param(Case(expected_lpips={"int4-bf16": 0.2, "fp4-bf16": 0.2}), id="flux.1-krea-r32")]
+    "case", [pytest.param(Case(expected_lpips={"int4-bf16": 0.2, "fp4-bf16": 0.2}), id="flux.1-dev-krea-r32")]
 )
-def test_flux_krea(case: Case):
+def test_flux_dev_krea(case: Case):
     batch_size = case.batch_size
     expected_lpips = case.expected_lpips
-    rank = case.rank
     repo_id = case.repo_id
 
     dataset = [
@@ -104,10 +103,7 @@ def test_flux_krea(case: Case):
             forward_kwargs=case.forward_kwargs,
         )
 
-    transformer = NunchakuFluxTransformer2DModelV2.from_pretrained(
-        f"nunchaku-tech/nunchaku-flux.1-krea/svdq-{precision}_r{rank}-flux.1-krea.safetensors",
-        torch_dtype=torch_dtype,
-    )
+    transformer = NunchakuFluxTransformer2DModelV2.from_pretrained(case.model_path, torch_dtype=torch_dtype)
 
     pipe = FluxPipeline.from_pretrained(repo_id, transformer=transformer, torch_dtype=torch_dtype)
 

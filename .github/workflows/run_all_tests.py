@@ -1,6 +1,8 @@
 import subprocess
 from pathlib import Path
 
+from tqdm import tqdm
+
 
 def run_all_tests():
     test_dir = Path("tests")
@@ -21,7 +23,7 @@ def run_all_tests():
         print(f"  {test_file}")
 
     failed_tests = []
-    for test_file in test_files:
+    for test_file in tqdm(test_files):
         print(f"Running {test_file} ...")
         result = subprocess.run(["pytest", "--reruns", "2", "--reruns-delay", "0", "-vv", "-x", test_file])
         if result.returncode != 0:
