@@ -49,10 +49,8 @@ else:
     pipe.enable_sequential_cpu_offload()
 
 prompt = """Bookstore window display. A sign displays “New Arrivals This Week”. Below, a shelf tag with the text “Best-Selling Novels Here”. To the side, a colorful poster advertises “Author Meet And Greet on Saturday” with a central portrait of the author. There are four books on the bookshelf, namely “The light between worlds” “When stars are scattered” “The slient patient” “The night circus”"""
-negative_prompt = " "
 image = pipe(
     prompt=prompt,
-    negative_prompt=negative_prompt,
     width=1024,
     height=1024,
     num_inference_steps=num_inference_steps,

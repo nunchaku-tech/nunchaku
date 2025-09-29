@@ -1,7 +1,7 @@
 import math
 
 import torch
-from diffusers import FlowMatchEulerDiscreteScheduler, QwenImageEditPipeline
+from diffusers import FlowMatchEulerDiscreteScheduler, QwenImageEditPlusPipeline
 from diffusers.utils import load_image
 
 from nunchaku import NunchakuQwenImageTransformer2DModel
@@ -28,17 +28,13 @@ scheduler = FlowMatchEulerDiscreteScheduler.from_config(scheduler_config)
 
 num_inference_steps = 4  # you can also use the 8-step model to improve the quality
 rank = 32  # you can also use the rank=128 model to improve the quality
-model_paths = {
-    4: f"nunchaku-tech/nunchaku-qwen-image-edit/svdq-{get_precision()}_r{rank}-qwen-image-edit-lightningv1.0-4steps.safetensors",
-    8: f"nunchaku-tech/nunchaku-qwen-image-edit/svdq-{get_precision()}_r{rank}-qwen-image-edit-lightningv1.0-8steps.safetensors",
-}
-
+model_path = f"nunchaku-tech/nunchaku-qwen-image-edit-2509/svdq-{get_precision()}_r{rank}-qwen-image-edit-2509-lightningv2.0-{num_inference_steps}steps.safetensors"
 
 # Load the model
-transformer = NunchakuQwenImageTransformer2DModel.from_pretrained(model_paths[num_inference_steps])
+transformer = NunchakuQwenImageTransformer2DModel.from_pretrained(model_path)
 
-pipeline = QwenImageEditPipeline.from_pretrained(
-    "Qwen/Qwen-Image-Edit", transformer=transformer, scheduler=scheduler, torch_dtype=torch.bfloat16
+pipeline = QwenImageEditPlusPipeline.from_pretrained(
+    "Qwen/Qwen-Image-Edit-2509", transformer=transformer, scheduler=scheduler, torch_dtype=torch.bfloat16
 )
 
 if get_gpu_memory() > 18:
@@ -51,16 +47,21 @@ else:
     pipeline._exclude_from_cpu_offload.append("transformer")
     pipeline.enable_sequential_cpu_offload()
 
-image = load_image("https://huggingface.co/datasets/nunchaku-tech/test-data/resolve/main/inputs/neon_sign.png")
-image = image.convert("RGB")
-prompt = "change the text to read '双截棍 Qwen Image Edit is here'"
+image1 = load_image("https://huggingface.co/datasets/nunchaku-tech/test-data/resolve/main/inputs/man.png")
+image1 = image1.convert("RGB")
+image2 = load_image("https://huggingface.co/datasets/nunchaku-tech/test-data/resolve/main/inputs/puppy.png")
+image2 = image2.convert("RGB")
+image3 = load_image("https://huggingface.co/datasets/nunchaku-tech/test-data/resolve/main/inputs/sofa.png")
+image3 = image3.convert("RGB")
+
+prompt = "Let the man in image 1 lie on the sofa in image 3, and let the puppy in image 2 lie on the floor to sleep."
 inputs = {
-    "image": image,
+    "image": [image1, image2, image3],
     "prompt": prompt,
-    "true_cfg_scale": 1,
+    "true_cfg_scale": 1.0,
     "num_inference_steps": num_inference_steps,
 }
 
 output = pipeline(**inputs)
 output_image = output.images[0]
-output_image.save(f"qwen-image-edit-lightning-r{rank}-{num_inference_steps}steps.png")
+output_image.save(f"qwen-image-edit-2509-lightning-r{rank}-{num_inference_steps}steps.png")

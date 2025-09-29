@@ -89,6 +89,8 @@ If you're using a **Blackwell (RTX 50-series)** GPU:
 - Use **PyTorch ≥ 2.7** with **CUDA ≥ 12.8**.
 - Use **FP4 models** instead of **INT4 models** for best compatibility and performance.
 
+.. _build-from-source:
+
 Option 2: Build from Source
 ---------------------------
 
@@ -127,17 +129,7 @@ Step 1: Set Up Environment
     # Install PyTorch
     pip install torch torchvision torchaudio
 
-    # Install dependencies
-    pip install ninja wheel diffusers transformers accelerate sentencepiece protobuf huggingface_hub
-
-    # Optional: For gradio demos
-    pip install peft opencv-python gradio spaces
-
 For Blackwell users (50-series), install PyTorch ≥ 2.7 with CUDA ≥ 12.8:
-
-.. code-block:: shell
-
-    pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
 
 Step 2: Build and Install Nunchaku
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -148,19 +140,33 @@ Step 2: Build and Install Nunchaku
 
     conda install -c conda-forge gxx=11 gcc=11
 
-For Windows users, download and install the latest `Visual Studio <visual_studio_>`_ and use its development environment. See :doc:`Window Setup Guide <setup_windows>` for more details.
+For Windows users, download and install the latest `Visual Studio <visual_studio_>`_ and use its development environment.
+See :doc:`Window Setup Guide <setup_windows>` for more details.
 
-**Clone and build:**
+**Clone the Repository:**
 
 .. code-block:: shell
 
-    git clone https://github.com/nunchaku-tech/nunchaku.git
+    git clone --recurse-submodules https://github.com/nunchaku-tech/nunchaku.git
     cd nunchaku
-    git submodule init
-    git submodule update
-    python setup.py develop
 
-**To build a wheel for distribution:**
+**Build and Install:**
+
+.. code-block:: shell
+
+    pip install -e ".[dev,docs]"
+
+This command installs Nunchaku in editable mode along with all development dependencies, making it ideal for contributing or running tests.
+
+.. tip::
+   If you only need to use Nunchaku (and not develop, test, or build the documentation),
+   you can skip the development dependencies by running either ``pip install -e "."`` or ``python setup.py develop`` after cloning the repository.
+
+.. tip::
+   For a faster development workflow and efficient incremental builds, use ``python setup.py develop`` for the future builds.
+   The first run will take longer as it compiles the entire project, but subsequent builds will be much faster.
+
+**(Optional) Build a wheel for distribution:**
 
 .. code-block:: shell
 

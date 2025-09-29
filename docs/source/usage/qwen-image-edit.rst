@@ -4,8 +4,8 @@ Qwen-Image-Edit
 Original Qwen-Image-Edit
 ------------------------
 
-`Qwen-Image-Edit <hf_qwen-image-edit>`_ is the image editing version of Qwen-Image.
-Below is a minimal example for running the 4-bit quantized `Qwen-Image-Edit <hf_qwen-image-edit>`_ model with Nunchaku.
+`Qwen-Image-Edit <hf_qwen-image-edit_>`_ is the image editing version of Qwen-Image.
+Below is a minimal example for running the 4-bit quantized `Qwen-Image-Edit <hf_qwen-image-edit_>`_ model with Nunchaku.
 Nunchaku offers an API compatible with `Diffusers <github_diffusers_>`_, allowing for a familiar user experience.
 
 .. literalinclude:: ../../../examples/v1/qwen-image-edit.py
@@ -26,7 +26,7 @@ The :meth:`~nunchaku.models.transformers.transformer_qwenimage.NunchakuQwenImage
 Distilled Qwen-Image-Edit (Qwen-Image-Lightning)
 ------------------------------------------------
 
-For faster inference, we provide pre-quantized 4-step and 8-step Qwen-Image-Edit models by integrating `Qwen-Image-Lightning LoRAs <hf_qwen-image-lightning>`_.
+For faster inference, we provide pre-quantized 4-step and 8-step Qwen-Image-Edit models by integrating `Qwen-Image-Lightning LoRAs <hf_qwen-image-lightning_>`_.
 See the example script below:
 
 .. literalinclude:: ../../../examples/v1/qwen-image-edit-lightning.py
@@ -34,4 +34,32 @@ See the example script below:
     :caption: Running Qwen-Image-Edit-Lightning (`examples/v1/qwen-image-edit-lightning.py <https://github.com/nunchaku-tech/nunchaku/blob/main/examples/v1/qwen-image-edit-lightning.py>`__)
     :linenos:
 
+Qwen-Image-Edit-2509
+--------------------
+
+.. image:: https://huggingface.co/datasets/nunchaku-tech/cdn/resolve/main/ComfyUI-nunchaku/workflows/nunchaku-qwen-image-edit-2509.png
+   :alt: Nunchaku-Qwen-Image-Edit-2509
+
+Qwen-Image-Edit-2509 is an monthly iteration of Qwen-Image-Edit.
+Below is a minimal example for running the 4-bit quantized `Qwen-Image-Edit-2509 <hf_qwen-image-edit-2509_>`_ model with Nunchaku.
+
+.. literalinclude:: ../../../examples/v1/qwen-image-edit-2509.py
+    :language: python
+    :caption: Running Qwen-Image-Edit-2509 (`examples/v1/qwen-image-edit-2509.py <https://github.com/nunchaku-tech/nunchaku/blob/main/examples/v1/qwen-image-edit-2509.py>`__)
+    :linenos:
+
+.. note::
+   This example requires ``diffusers`` version 0.36.0 or higher.
+
 Custom LoRA support is under development.
+
+Distilled Qwen-Image-Edit-2509 (Qwen-Image-Edit-2509-Lightning)
+---------------------------------------------------------------
+
+For faster inference of the 2509 branch, we provide pre-quantized Lightning variants by integrating `Qwen-Image-Lightning LoRAs <hf_qwen-image-lightning_>`_.
+See the example script below:
+
+.. literalinclude:: ../../../examples/v1/qwen-image-edit-2509-lightning.py
+    :language: python
+    :caption: Running Qwen-Image-Edit-2509-Lightning (`examples/v1/qwen-image-edit-2509-lightning.py <https://github.com/nunchaku-tech/nunchaku/blob/main/examples/v1/qwen-image-edit-2509-lightning.py>`__)
+    :linenos:
