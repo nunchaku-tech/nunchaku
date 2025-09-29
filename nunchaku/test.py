@@ -24,7 +24,9 @@ if __name__ == "__main__":
     torch_dtype = torch.float16 if is_turing() else torch.bfloat16
 
     transformer = NunchakuFluxTransformer2dModel.from_pretrained(
-        f"mit-han-lab/svdq-{precision}-flux.1-schnell", torch_dtype=torch_dtype, offload=True
+        f"nunchaku-tech/nunchaku-flux.1-schnell/svdq-{precision}_r32-flux.1-schnell.safetensors",
+        torch_dtype=torch_dtype,
+        offload=True,
     )
     pipeline = FluxPipeline.from_pretrained(
         "black-forest-labs/FLUX.1-schnell", transformer=transformer, torch_dtype=torch_dtype
