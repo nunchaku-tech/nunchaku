@@ -20,14 +20,14 @@ lora_configs = {
         "weight_name": "Qwen-Image-Lightning-4steps-V2.0-bf16.safetensors",
         "prompt": "GHIBSKY style painting, sign saying 'Flux Ghibsky'",
         "strength": 1.0,
-        "inference_step" : 4
+        "inference_step": 4,
     },
     "slider": {
         "path": "ostris/qwen_image_detail_slider",
         "weight_name": "qwen_image_detail_slider.safetensors",
         "prompt": "a horse is a DJ at a night club, fish eye lens, smoke machine, lazer lights, holding a martini",
         "strength": 1.0,
-        "inference_step" : 50
+        "inference_step": 50,
     },
 }
 
@@ -56,8 +56,8 @@ positive_magic = {
 }
 
 # Generate image
-prompt = config['prompt']
-inference_step = config['inference_step']
+prompt = config["prompt"]
+inference_step = config["inference_step"]
 
 negative_prompt = " "  # using an empty string if you do not have specific concept to remove
 
@@ -71,4 +71,3 @@ image = pipe(
 ).images[0]
 
 image.save(f"qwen-image-r{rank}.png")
-

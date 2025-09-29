@@ -49,6 +49,7 @@ _RE_QKV_DBL_DECOMP_ALT = re.compile(r"^(transformer_blocks\.\d+)\.attn\.(q|k|v)_
 _RE_IMGMOD_LINEAR = re.compile(r"^(transformer_blocks\.\d+)\.img_mod\.1(?=\.|$)")
 _RE_TXTMOD_LINEAR = re.compile(r"^(transformer_blocks\.\d+)\.txt_mod\.1(?=\.|$)")
 
+
 def _classify_and_map_key(key: str) -> Optional[Tuple[str, str, Optional[str], str]]:
     """
     key -> (group, base_key, comp, ab)
@@ -58,8 +59,8 @@ def _classify_and_map_key(key: str) -> Optional[Tuple[str, str, Optional[str], s
         k = k[len("transformer.") :]
 
     if k.startswith("diffusion_model."):
-        k = k[len("diffusion_model."):]
-    
+        k = k[len("diffusion_model.") :]
+
     base = None
     ab = None
 
@@ -118,7 +119,7 @@ def _classify_and_map_key(key: str) -> Optional[Tuple[str, str, Optional[str], s
     m = _RE_ADDQKV_DBL_DECOMP.match(base)
     if m:
         return ("add_qkv", f"{m.group(1)}.attn.add_qkv_proj", m.group(2).upper(), ab)
-    
+
     m = _RE_QKV_DBL_DECOMP_ALT.match(base)
     if m:
         return ("qkv", f"{m.group(1)}.attn.to_qkv", m.group(2).upper(), ab)
@@ -198,7 +199,7 @@ def _classify_and_map_key(key: str) -> Optional[Tuple[str, str, Optional[str], s
     m = _RE_MLP_IMG_FC2.match(base) or _RE_MLP_TXT_FC2.match(base)
     if m:
         return ("regular", m.group(1), None, ab)
-    
+
     m = _RE_IMGMOD_LINEAR.match(base)
     if m:
         return ("regular", f"{m.group(1)}.img_mod.1", None, ab)
