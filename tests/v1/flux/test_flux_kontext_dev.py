@@ -5,13 +5,13 @@ from pathlib import Path
 import pytest
 import torch
 from diffusers import FluxKontextPipeline
+from diffusers.utils import load_image
 
 from nunchaku import NunchakuFluxTransformer2DModelV2
 from nunchaku.utils import get_gpu_memory, get_precision, is_turing
 
 from ...utils import already_generate, compute_lpips
 from ..utils import run_pipeline
-from diffusers.utils import load_image
 
 precision = get_precision()
 torch_dtype = torch.float16 if is_turing() else torch.bfloat16
