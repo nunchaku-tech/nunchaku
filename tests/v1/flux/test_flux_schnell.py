@@ -62,7 +62,7 @@ class Case:
 
 
 @pytest.mark.parametrize(
-    "case", [pytest.param(Case(expected_lpips={"int4-bf16": 0.14, "fp4-bf16": 0.3}), id="flux.1-schnell-r32")]
+    "case", [pytest.param(Case(expected_lpips={"int4-bf16": 0.14, "fp4-bf16": 0.12}), id="flux.1-schnell-r32")]
 )
 def test_flux_schnell(case: Case):
     batch_size = case.batch_size
@@ -92,7 +92,7 @@ def test_flux_schnell(case: Case):
     if not already_generate(case.save_dir_16bit, len(dataset)):
         pipeline = FluxPipeline.from_pretrained(case.repo_id, torch_dtype=torch_dtype)
         if get_gpu_memory() > 25:
-            pipeline = pipeline.enable_model_cpu_offload()
+            pipeline.enable_model_cpu_offload()
         else:
             pipeline.enable_sequential_cpu_offload()
         run_pipeline(
