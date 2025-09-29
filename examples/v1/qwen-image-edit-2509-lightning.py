@@ -28,13 +28,13 @@ scheduler = FlowMatchEulerDiscreteScheduler.from_config(scheduler_config)
 
 num_inference_steps = 4  # you can also use the 8-step model to improve the quality
 rank = 32  # you can also use the rank=128 model to improve the quality
-model_path = f"nunchaku-tech/nunchaku-qwen-image-edit-2509-lightning/svdq-{get_precision()}_r{rank}-qwen-image-edit-2509-lightningv2.0-{num_inference_steps}steps.safetensors"
+model_path = f"nunchaku-tech/nunchaku-qwen-image-edit-2509/svdq-{get_precision()}_r{rank}-qwen-image-edit-2509-lightningv2.0-{num_inference_steps}steps.safetensors"
 
 # Load the model
 transformer = NunchakuQwenImageTransformer2DModel.from_pretrained(model_path)
 
 pipeline = QwenImageEditPlusPipeline.from_pretrained(
-    "Qwen/Qwen-Image-Edit-2509", transformer=transformer, torch_dtype=torch.bfloat16
+    "Qwen/Qwen-Image-Edit-2509", transformer=transformer, scheduler=scheduler, torch_dtype=torch.bfloat16
 )
 
 if get_gpu_memory() > 18:
