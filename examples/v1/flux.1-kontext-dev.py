@@ -18,5 +18,5 @@ image = load_image(
 ).convert("RGB")
 
 prompt = "Make Pikachu hold a sign that says 'Nunchaku is awesome', yarn art style, detailed, vibrant colors"
-image = pipeline(image=image, prompt=prompt, guidance_scale=2.5).images[0]
+image = pipeline(image=image, prompt=prompt, num_inference_steps=20, guidance_scale=2.5).images[0]
 image.save("flux-kontext-dev.png")
