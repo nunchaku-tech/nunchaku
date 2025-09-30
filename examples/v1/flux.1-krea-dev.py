@@ -15,5 +15,5 @@ prompt = (
     "Tiny paper origami kingdom, a river flowing through a lush valley, bright saturated image,"
     "a fox to the left, deer to the right, birds in the sky, bushes and tress all around"
 )
-image = pipeline(prompt, height=1024, width=1024, guidance_scale=4.5).images[0]
+image = pipeline(prompt, height=1024, width=1024, guidance_scale=4.5, num_inference_steps=20).images[0]
 image.save("flux-krea-dev.png")

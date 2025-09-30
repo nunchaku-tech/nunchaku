@@ -5,8 +5,8 @@ from diffusers.utils import load_image
 from nunchaku import NunchakuFluxTransformer2dModel
 from nunchaku.utils import get_precision
 
-image = load_image("https://huggingface.co/mit-han-lab/svdq-int4-flux.1-fill-dev/resolve/main/example.png")
-mask = load_image("https://huggingface.co/mit-han-lab/svdq-int4-flux.1-fill-dev/resolve/main/mask.png")
+image = load_image("https://huggingface.co/datasets/diffusers/diffusers-images-docs/resolve/main/cup.png")
+mask = load_image("https://huggingface.co/datasets/diffusers/diffusers-images-docs/resolve/main/cup_mask.png")
 
 precision = get_precision()  # auto-detect your precision is 'int4' or 'fp4' based on your GPU
 transformer = NunchakuFluxTransformer2dModel.from_pretrained(
@@ -16,7 +16,7 @@ pipe = FluxFillPipeline.from_pretrained(
     "black-forest-labs/FLUX.1-Fill-dev", transformer=transformer, torch_dtype=torch.bfloat16
 ).to("cuda")
 image = pipe(
-    prompt="A wooden basket of a cat.",
+    prompt="a white paper cup",
     image=image,
     mask_image=mask,
     height=1024,
