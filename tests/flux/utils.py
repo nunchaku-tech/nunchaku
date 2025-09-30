@@ -75,7 +75,6 @@ def run_pipeline(dataset, batch_size: int, task: str, pipeline: FluxPipeline, sa
     ):
         filenames = row["filename"]
         prompts = row["prompt"]
-        print(filenames, prompts)
 
         _forward_kwargs = {k: v for k, v in forward_kwargs.items()}
 
