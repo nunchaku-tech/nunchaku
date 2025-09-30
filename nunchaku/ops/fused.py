@@ -132,7 +132,7 @@ def fused_qkv_norm_rottary(
     quantized_x, ascales, lora_act = proj.quantize(x)
 
     if output is None:
-        output = torch.empty(quantized_x.shape[0], proj.out_features, dtype=x.dtype, device=x.device)
+        output = torch.empty(batch_size * seq_len, proj.out_features, dtype=x.dtype, device=x.device)
 
     if isinstance(output, tuple):
         assert len(output) == 3
@@ -174,7 +174,5 @@ def fused_qkv_norm_rottary(
             norm_k=norm_k.weight if norm_k is not None else None,
             rotary_emb=rotary_emb,
         )
-        if seq_len * batch_size < output.shape[0]:
-            output = output[: seq_len * batch_size, :]
         output = output.view(batch_size, seq_len, -1)
         return output
