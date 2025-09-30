@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 import torch
-from diffusers import FluxControlPipeline
+from diffusers import FluxFillPipeline
 from diffusers.utils import load_image
 
 from nunchaku import NunchakuFluxTransformer2DModelV2
@@ -28,8 +28,8 @@ class Case:
         num_inference_steps: int = 20,
         attention_impl: str = "flashattn2",
         expected_lpips: dict[str, float] = {},
-        model_name: str = "flux.1-canny-dev",
-        repo_id: str = "black-forest-labs/FLUX.1-Canny-dev",
+        model_name: str = "flux.1-fill-dev",
+        repo_id: str = "black-forest-labs/FLUX.1-Fill-dev",
     ):
         self.rank = rank
         self.batch_size = batch_size
@@ -41,9 +41,7 @@ class Case:
         self.model_name = model_name
         self.repo_id = repo_id
 
-        self.model_path = (
-            f"nunchaku-tech/nunchaku-flux.1-canny-dev/svdq-{precision}_r{rank}-flux.1-canny-dev.safetensors"
-        )
+        self.model_path = f"nunchaku-tech/nunchaku-flux.1-fill-dev/svdq-{precision}_r{rank}-flux.1-fill-dev.safetensors"
 
         ref_root = os.environ.get("NUNCHAKU_TEST_CACHE_ROOT", os.path.join("test_results", "ref"))
         folder_name = f"w{width}h{height}t{num_inference_steps}"
@@ -57,7 +55,7 @@ class Case:
             / f"{folder_name}-bs{batch_size}"
         )
 
-        self.pipeline_cls = FluxControlPipeline
+        self.pipeline_cls = FluxFillPipeline
         self.forward_kwargs = {
             "width": width,
             "height": height,
@@ -67,40 +65,52 @@ class Case:
 
 
 @pytest.mark.parametrize(
-    "case", [pytest.param(Case(expected_lpips={"int4-bf16": 0.13, "fp4-bf16": 0.2}), id="flux.1-canny-dev-r32")]
+    "case", [pytest.param(Case(expected_lpips={"int4-bf16": 0.1, "fp4-bf16": 0.1}), id="flux.1-fill-dev-r32")]
 )
-def test_flux_canny_dev(case: Case):
+def test_flux_fill_dev(case: Case):
     batch_size = case.batch_size
     expected_lpips = case.expected_lpips
     repo_id = case.repo_id
 
     dataset = [
+        # {
+        #     "prompt": "the insanely extreme muscle car, Big foot wheels, dragster style, flames, 6 wheels ",
+        #     "filename": "1ce4f3b8627ab16e8f09e6e169d8744d32274880",
+        #     "image": load_image(
+        #         "https://huggingface.co/datasets/nunchaku-tech/test-data/resolve/main/inputs/1ce4f3b8627ab16e8f09e6e169d8744d32274880-image.png"
+        #     ).convert("RGB"),
+        #     "mask_image": load_image(
+        #         "https://huggingface.co/datasets/nunchaku-tech/test-data/resolve/main/inputs/1ce4f3b8627ab16e8f09e6e169d8744d32274880-mask.png"
+        #     ).convert("RGB"),
+        # },
         {
-            "prompt": "the insanely extreme muscle car, Big foot wheels, dragster style, flames, 6 wheels ",
-            "filename": "1ce4f3b8627ab16e8f09e6e169d8744d32274880",
-            "control_image": load_image(
-                "https://huggingface.co/datasets/nunchaku-tech/test-data/resolve/main/inputs/1ce4f3b8627ab16e8f09e6e169d8744d32274880-canny.png"
+            "prompt": "sunlower, Folk Art ",
+            "filename": "8c2fef24a984d4c76bebcfa406b7240fd25d7c36",
+            "image": load_image(
+                "https://huggingface.co/datasets/nunchaku-tech/test-data/resolve/main/inputs/8c2fef24a984d4c76bebcfa406b7240fd25d7c36-image.png"
+            ).convert("RGB"),
+            "mask_image": load_image(
+                "https://huggingface.co/datasets/nunchaku-tech/test-data/resolve/main/inputs/8c2fef24a984d4c76bebcfa406b7240fd25d7c36-mask.png"
             ).convert("RGB"),
         },
         # {
-        #     "prompt": "sunlower, Folk Art ",
-        #     "filename": "8c2fef24a984d4c76bebcfa406b7240fd25d7c36",
-        #     "control_image": load_image(
-        #         "https://huggingface.co/datasets/nunchaku-tech/test-data/resolve/main/inputs/8c2fef24a984d4c76bebcfa406b7240fd25d7c36-canny.png"
-        #     ).convert("RGB"),
-        # },
-        # {
         #     "prompt": "modern realistic allium flowers, clean straight lines, black and white, a lot of white space to color, coloring book style ",
         #     "filename": "94f2b6fc3ab734ccdf6e57f72287f0a6df522dc0",
-        #     "control_image": load_image(
-        #         "https://huggingface.co/datasets/nunchaku-tech/test-data/resolve/main/inputs/94f2b6fc3ab734ccdf6e57f72287f0a6df522dc0-canny.png"
+        #     "image": load_image(
+        #         "https://huggingface.co/datasets/nunchaku-tech/test-data/resolve/main/inputs/94f2b6fc3ab734ccdf6e57f72287f0a6df522dc0-image.png"
+        #     ).convert("RGB"),
+        #     "mask_image": load_image(
+        #         "https://huggingface.co/datasets/nunchaku-tech/test-data/resolve/main/inputs/94f2b6fc3ab734ccdf6e57f72287f0a6df522dc0-mask.png"
         #     ).convert("RGB"),
         # },
         {
             "prompt": " Content Spirit Wraith Coin Medium engraved metallic coin Style symmetrical, detailed design Lighting Reflective natural light Colors purples and grays Composition the beast centered, surrounded by elemental symbols, stats, and abilities Create a Spirit Wraith Elemental Guardian Coin featuring a symmetrical, detailed design of the Spirit Wraith guardian at the center, signifying its affinity for the spirit element. The coin should have reflective natural light with mystical purples and ethereal grays. Encircle the guardian with elemental symbols, stats, and abilities relevant to its spiritbased prowess. ",
             "filename": "d38575d92bfd143930c4e57daa69aad5a4be48a6",
-            "control_image": load_image(
-                "https://huggingface.co/datasets/nunchaku-tech/test-data/resolve/main/inputs/d38575d92bfd143930c4e57daa69aad5a4be48a6-canny.png"
+            "image": load_image(
+                "https://huggingface.co/datasets/nunchaku-tech/test-data/resolve/main/inputs/d38575d92bfd143930c4e57daa69aad5a4be48a6-image.png"
+            ).convert("RGB"),
+            "mask_image": load_image(
+                "https://huggingface.co/datasets/nunchaku-tech/test-data/resolve/main/inputs/d38575d92bfd143930c4e57daa69aad5a4be48a6-mask.png"
             ).convert("RGB"),
         },
     ]
