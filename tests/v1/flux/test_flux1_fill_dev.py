@@ -73,36 +73,36 @@ def test_flux_fill_dev(case: Case):
     repo_id = case.repo_id
 
     dataset = [
-        # {
-        #     "prompt": "the insanely extreme muscle car, Big foot wheels, dragster style, flames, 6 wheels ",
-        #     "filename": "1ce4f3b8627ab16e8f09e6e169d8744d32274880",
-        #     "image": load_image(
-        #         "https://huggingface.co/datasets/nunchaku-tech/test-data/resolve/main/inputs/1ce4f3b8627ab16e8f09e6e169d8744d32274880-image.png"
-        #     ).convert("RGB"),
-        #     "mask_image": load_image(
-        #         "https://huggingface.co/datasets/nunchaku-tech/test-data/resolve/main/inputs/1ce4f3b8627ab16e8f09e6e169d8744d32274880-mask.png"
-        #     ).convert("RGB"),
-        # },
         {
-            "prompt": "sunlower, Folk Art ",
-            "filename": "8c2fef24a984d4c76bebcfa406b7240fd25d7c36",
+            "prompt": "the insanely extreme muscle car, Big foot wheels, dragster style, flames, 6 wheels ",
+            "filename": "1ce4f3b8627ab16e8f09e6e169d8744d32274880",
             "image": load_image(
-                "https://huggingface.co/datasets/nunchaku-tech/test-data/resolve/main/inputs/8c2fef24a984d4c76bebcfa406b7240fd25d7c36-image.png"
+                "https://huggingface.co/datasets/nunchaku-tech/test-data/resolve/main/inputs/1ce4f3b8627ab16e8f09e6e169d8744d32274880-image.png"
             ).convert("RGB"),
             "mask_image": load_image(
-                "https://huggingface.co/datasets/nunchaku-tech/test-data/resolve/main/inputs/8c2fef24a984d4c76bebcfa406b7240fd25d7c36-mask.png"
+                "https://huggingface.co/datasets/nunchaku-tech/test-data/resolve/main/inputs/1ce4f3b8627ab16e8f09e6e169d8744d32274880-mask.png"
             ).convert("RGB"),
         },
         # {
-        #     "prompt": "modern realistic allium flowers, clean straight lines, black and white, a lot of white space to color, coloring book style ",
-        #     "filename": "94f2b6fc3ab734ccdf6e57f72287f0a6df522dc0",
+        #     "prompt": "sunlower, Folk Art ",
+        #     "filename": "8c2fef24a984d4c76bebcfa406b7240fd25d7c36",
         #     "image": load_image(
-        #         "https://huggingface.co/datasets/nunchaku-tech/test-data/resolve/main/inputs/94f2b6fc3ab734ccdf6e57f72287f0a6df522dc0-image.png"
+        #         "https://huggingface.co/datasets/nunchaku-tech/test-data/resolve/main/inputs/8c2fef24a984d4c76bebcfa406b7240fd25d7c36-image.png"
         #     ).convert("RGB"),
         #     "mask_image": load_image(
-        #         "https://huggingface.co/datasets/nunchaku-tech/test-data/resolve/main/inputs/94f2b6fc3ab734ccdf6e57f72287f0a6df522dc0-mask.png"
+        #         "https://huggingface.co/datasets/nunchaku-tech/test-data/resolve/main/inputs/8c2fef24a984d4c76bebcfa406b7240fd25d7c36-mask.png"
         #     ).convert("RGB"),
         # },
+        {
+            "prompt": "modern realistic allium flowers, clean straight lines, black and white, a lot of white space to color, coloring book style ",
+            "filename": "94f2b6fc3ab734ccdf6e57f72287f0a6df522dc0",
+            "image": load_image(
+                "https://huggingface.co/datasets/nunchaku-tech/test-data/resolve/main/inputs/94f2b6fc3ab734ccdf6e57f72287f0a6df522dc0-image.png"
+            ).convert("RGB"),
+            "mask_image": load_image(
+                "https://huggingface.co/datasets/nunchaku-tech/test-data/resolve/main/inputs/94f2b6fc3ab734ccdf6e57f72287f0a6df522dc0-mask.png"
+            ).convert("RGB"),
+        },
         {
             "prompt": " Content Spirit Wraith Coin Medium engraved metallic coin Style symmetrical, detailed design Lighting Reflective natural light Colors purples and grays Composition the beast centered, surrounded by elemental symbols, stats, and abilities Create a Spirit Wraith Elemental Guardian Coin featuring a symmetrical, detailed design of the Spirit Wraith guardian at the center, signifying its affinity for the spirit element. The coin should have reflective natural light with mystical purples and ethereal grays. Encircle the guardian with elemental symbols, stats, and abilities relevant to its spiritbased prowess. ",
             "filename": "d38575d92bfd143930c4e57daa69aad5a4be48a6",

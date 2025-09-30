@@ -67,7 +67,7 @@ class Case:
 
 
 @pytest.mark.parametrize(
-    "case", [pytest.param(Case(expected_lpips={"int4-bf16": 0.13, "fp4-bf16": 0.2}), id="flux.1-depth-dev-r32")]
+    "case", [pytest.param(Case(expected_lpips={"int4-bf16": 0.13, "fp4-bf16": 0.11}), id="flux.1-depth-dev-r32")]
 )
 def test_flux_depth_dev(case: Case):
     batch_size = case.batch_size
