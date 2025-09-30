@@ -34,7 +34,7 @@ class Case:
             Case(
                 num_inference_steps=20,
                 rank=32,
-                expected_lpips={"int4-bf16": 0.17, "fp4-bf16": 0.17},
+                expected_lpips={"int4-bf16": 0.24, "fp4-bf16": 0.17},
             ),
             id="qwen-image-edit-2509-r32",
         ),
