@@ -62,12 +62,12 @@ class Case:
             "width": width,
             "height": height,
             "num_inference_steps": num_inference_steps,
-            "guidance_scale": 30,
+            "guidance_scale": 10,
         }
 
 
 @pytest.mark.parametrize(
-    "case", [pytest.param(Case(expected_lpips={"int4-bf16": 0.17, "fp4-bf16": 0.2}), id="flux.1-depth-dev-r32")]
+    "case", [pytest.param(Case(expected_lpips={"int4-bf16": 0.13, "fp4-bf16": 0.2}), id="flux.1-depth-dev-r32")]
 )
 def test_flux_depth_dev(case: Case):
     batch_size = case.batch_size
@@ -77,28 +77,28 @@ def test_flux_depth_dev(case: Case):
     dataset = [
         {
             "prompt": "the insanely extreme muscle car, Big foot wheels, dragster style, flames, 6 wheels ",
-            "filename": "1ce4f3b8627ab16e8f09e6e169d8744d32274880.png",
+            "filename": "1ce4f3b8627ab16e8f09e6e169d8744d32274880",
             "control_image": load_image(
                 "https://huggingface.co/datasets/nunchaku-tech/test-data/resolve/main/inputs/1ce4f3b8627ab16e8f09e6e169d8744d32274880-depth.png"
             ).convert("RGB"),
         },
         {
             "prompt": "sunlower, Folk Art ",
-            "filename": "8c2fef24a984d4c76bebcfa406b7240fd25d7c36.png",
+            "filename": "8c2fef24a984d4c76bebcfa406b7240fd25d7c36",
             "control_image": load_image(
                 "https://huggingface.co/datasets/nunchaku-tech/test-data/resolve/main/inputs/8c2fef24a984d4c76bebcfa406b7240fd25d7c36-depth.png"
             ).convert("RGB"),
         },
         # {
         #     "prompt": "modern realistic allium flowers, clean straight lines, black and white, a lot of white space to color, coloring book style ",
-        #     "filename": "94f2b6fc3ab734ccdf6e57f72287f0a6df522dc0.png",
+        #     "filename": "94f2b6fc3ab734ccdf6e57f72287f0a6df522dc0",
         #     "control_image": load_image(
         #         "https://huggingface.co/datasets/nunchaku-tech/test-data/resolve/main/inputs/94f2b6fc3ab734ccdf6e57f72287f0a6df522dc0-depth.png"
         #     ).convert("RGB"),
         # },
         {
             "prompt": " Content Spirit Wraith Coin Medium engraved metallic coin Style symmetrical, detailed design Lighting Reflective natural light Colors purples and grays Composition the beast centered, surrounded by elemental symbols, stats, and abilities Create a Spirit Wraith Elemental Guardian Coin featuring a symmetrical, detailed design of the Spirit Wraith guardian at the center, signifying its affinity for the spirit element. The coin should have reflective natural light with mystical purples and ethereal grays. Encircle the guardian with elemental symbols, stats, and abilities relevant to its spiritbased prowess. ",
-            "filename": "d38575d92bfd143930c4e57daa69aad5a4be48a6.png",
+            "filename": "d38575d92bfd143930c4e57daa69aad5a4be48a6",
             "control_image": load_image(
                 "https://huggingface.co/datasets/nunchaku-tech/test-data/resolve/main/inputs/d38575d92bfd143930c4e57daa69aad5a4be48a6-depth.png"
             ).convert("RGB"),
