@@ -82,8 +82,8 @@ jobs:
           cd ..
           pwd
           ls
-          ls
-          custom_nodes/ComfyUI-nunchaku/tests
+          echo "custom_nodes/ComfyUI-nunchaku/tests"
+          ls custom_nodes/ComfyUI-nunchaku/tests
           ln -s custom_nodes/ComfyUI-nunchaku/tests tests
           pip install -r tests/requirements.txt
           python custom_nodes/ComfyUI-nunchaku/scripts/download_models.py
