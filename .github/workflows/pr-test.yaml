@@ -68,6 +68,7 @@ jobs:
           mkdir -p "${COMFYUI_MODELS_ROOT}"
           ln -s "${COMFYUI_MODELS_ROOT}" models
           mkdir -p custom_nodes
+          cd custom_nodes
           git clone -b dev https://github.com/mit-han-lab/ComfyUI-nunchaku.git
           pip install -r ComfyUI-nunchaku/requirements.txt
           git clone https://github.com/Fannovel16/comfyui_controlnet_aux.git
@@ -78,12 +79,6 @@ jobs:
           cd ComfyUI-InpaintEasy
           pip install -r requirements.txt
           git checkout d631a03
-          cd ..
-          cd ..
-          pwd
-          ls
-          echo "custom_nodes/ComfyUI-nunchaku/tests"
-          ls custom_nodes/ComfyUI-nunchaku/tests
           ln -s custom_nodes/ComfyUI-nunchaku/tests tests
           pip install -r tests/requirements.txt
           python custom_nodes/ComfyUI-nunchaku/scripts/download_models.py
