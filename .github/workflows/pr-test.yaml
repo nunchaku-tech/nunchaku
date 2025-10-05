@@ -40,6 +40,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: true
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || '' }}
       - name: Show current commit
         run: git log -1 --oneline
       - name: Set up Python
@@ -60,33 +61,37 @@ jobs:
           source $(conda info --base)/etc/profile.d/conda.sh
           conda activate test_env || { echo "Failed to activate conda env"; exit 1; }
           which python
-          pwd
           cd ..
-          pip install comfy-cli
           rm -rf ComfyUI
-          yes | comfy --here install --nvidia --skip-torch-or-directml --version 0.3.44
+          mkdir -p ComfyUI
           cd ComfyUI
-          rm -r models
-          mkdir -p $COMFYUI_MODELS_ROOT
-          ln -s $COMFYUI_MODELS_ROOT models
-          cd custom_nodes
+          mkdir -p "${COMFYUI_MODELS_ROOT}"
+          ln -s "${COMFYUI_MODELS_ROOT}" models
+          mkdir -p custom_nodes
           git clone -b dev https://github.com/mit-han-lab/ComfyUI-nunchaku.git
+          pip install -r ComfyUI-nunchaku/requirements.txt
+          git clone https://github.com/Fannovel16/comfyui_controlnet_aux.git
+          cd comfyui_controlnet_aux
+          git checkout cc6b232
           cd ..
-          pip install -r custom_nodes/ComfyUI-nunchaku/requirements.txt
-          comfy node install comfyui_controlnet_aux
-          comfy node install comfyui-inpainteasy
-          cp -r custom_nodes/ComfyUI-nunchaku/tests nunchaku_tests
-          pip install -r nunchaku_tests/requirements.txt
+          git clone https://github.com/CY-CHENYUE/ComfyUI-InpaintEasy.git
+          cd ComfyUI-InpaintEasy
+          pip install -r requirements.txt
+          git checkout d631a03
+          cd ..
+          cd ..
+          ln -s custom_nodes/ComfyUI-nunchaku/tests tests
+          pip install -r tests/requirements.txt
           python custom_nodes/ComfyUI-nunchaku/scripts/download_models.py
-          python custom_nodes/ComfyUI-nunchaku/scripts/download_test_data.py
+          mkdir -p input
+          python custom_nodes/ComfyUI-nunchaku/scripts/download_inputs.py
       - name: Run ComfyUI tests
         run: |
           source $(conda info --base)/etc/profile.d/conda.sh
           conda activate test_env || { echo "Failed to activate conda env"; exit 1; }
           pwd
           cd ../ComfyUI
-          python nunchaku_tests/scripts/nunchaku-flux1-dev.py
-          pytest -s -x nunchaku_tests/
+          pytest tests/test_workflows.py -x -vv --reruns 2 --reruns-delay 0
       - name: Run nunchaku tests
         run: |
           source $(conda info --base)/etc/profile.d/conda.sh
