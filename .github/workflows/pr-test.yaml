@@ -54,6 +54,7 @@ jobs:
           conda activate test_env || { echo "Failed to activate conda env"; exit 1; }
           which python
           echo "Installing dependencies"
+          conda install -c conda-forge gxx=11 gcc=11 -y
           pip install torch==2.8 torchvision==0.23 --index-url https://download.pytorch.org/whl/cu128
           pip install -e ".[ci]"
       - name: Setup ComfyUI
