@@ -130,6 +130,14 @@ def handle_qwen_to_diffusers_format(state_dict: dict[str, torch.Tensor]) -> dict
     for k, v in state_dict.items():
         new_k = k
 
+        # Remove .default. from PEFT-style naming (e.g., lora_A.default.weight -> lora_A.weight)
+        # This handles LoRAs trained with PEFT/Kohya without base_model.model. prefix
+        new_k = new_k.replace(".lora_A.default.", ".lora_A.")
+        new_k = new_k.replace(".lora_B.default.", ".lora_B.")
+        # Also handle if it's at the end before weight
+        if ".default.weight" in new_k:
+            new_k = new_k.replace(".default.weight", ".weight")
+
         # Ensure transformer_blocks prefix exists
         if not new_k.startswith("transformer_blocks.") and not new_k.startswith("transformer."):
             # If it starts with blocks., add transformer. prefix
