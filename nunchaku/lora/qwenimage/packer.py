@@ -7,7 +7,6 @@ for efficient GPU computation using Nunchaku's quantization infrastructure.
 
 import torch
 
-from ...utils import ceil_divide
 from .utils import pad
 
 
@@ -82,4 +81,3 @@ def unpack_lowrank_weight(weight: torch.Tensor, down: bool) -> torch.Tensor:
     else:
         weight = weight.permute(0, 2, 1, 3).contiguous().view(c, r)
     return weight
-

@@ -15,12 +15,11 @@ import os
 
 import torch
 from safetensors.torch import save_file
-from tqdm import tqdm
 
 from ...utils import filter_state_dict, load_state_dict_in_safetensors
 from .diffusers_converter import to_diffusers
 from .packer import pack_lowrank_weight, unpack_lowrank_weight
-from .utils import is_nunchaku_format, is_diffusers_format, pad
+from .utils import is_diffusers_format, is_nunchaku_format, pad
 
 # Get log level from environment variable (default to INFO)
 log_level = os.getenv("LOG_LEVEL", "INFO").upper()
@@ -125,7 +124,7 @@ def convert_to_nunchaku_transformer_block_lowrank_dict(
         Converted LoRA weights in Nunchaku format.
     """
     converted_dict = {}
-    
+
     # Define module mapping for Qwen Image dual-stream architecture
     # Each entry maps (output_name, [input_candidates], conversion_type)
     modules_to_convert = {
@@ -178,14 +177,16 @@ def convert_to_nunchaku_transformer_block_lowrank_dict(
                 lora_down = extra_lora_down
                 lora_up = extra_lora_up
                 if local_name == "attn.to_qkv":  # Only log first layer to reduce noise
-                    logger.info(f"  [SKIP_MERGE] {converted_block_name}.{local_name}: lora_down={lora_down.shape}, lora_up={lora_up.shape}")
+                    logger.info(
+                        f"  [SKIP_MERGE] {converted_block_name}.{local_name}: lora_down={lora_down.shape}, lora_up={lora_up.shape}"
+                    )
             else:
                 continue  # No LoRA for this module
         elif orig_proj_down is not None and extra_lora_down is not None:
             # Unpack original proj_down/proj_up (these are the model's original low-rank branches)
             orig_proj_down_unpacked = unpack_lowrank_weight(orig_proj_down, down=True)
             orig_proj_up_unpacked = unpack_lowrank_weight(orig_proj_up, down=False)
-            
+
             # Check if original is empty (like Flux's numel() == 0 check)
             if orig_proj_down_unpacked.numel() == 0 or orig_proj_up_unpacked.numel() == 0:
                 # Empty base, use LoRA directly
@@ -260,11 +261,11 @@ def fuse_vectors(
     - Handles normalization layers (norm_q, norm_k, norm_added_q, norm_added_k)
     """
     tensors: dict[str, torch.Tensor] = {}
-    
+
     for k, v in base_sd.items():
         if v.ndim != 1 or "smooth" in k:
             continue
-            
+
         # Handle normalization layers (don't apply LoRA to these)
         if "norm_q" in k or "norm_k" in k or "norm_added_q" in k or "norm_added_k" in k:
             tensors[k] = v
@@ -298,7 +299,7 @@ def fuse_vectors(
                     ".txt_mlp.net.0.proj.": ".txt_mlp.net.0.proj.",
                     ".txt_mlp.net.2.": ".txt_mlp.net.2.",
                 }
-                
+
                 for original_pattern, new_pattern in name_map.items():
                     if original_pattern in k:
                         new_k = k.replace(original_pattern, new_pattern)
@@ -378,7 +379,7 @@ def convert_to_nunchaku_qwenimage_lowrank_dict(
 
     # Convert each transformer block
     converted_dict = {}
-    
+
     # Find all transformer block indices
     block_indices = set()
     for key in extra_lora_dict.keys():
@@ -393,13 +394,13 @@ def convert_to_nunchaku_qwenimage_lowrank_dict(
                         block_indices.add(block_idx)
                     except ValueError:
                         pass
-    
+
     logger.debug(f"Converting {len(block_indices)} transformer blocks")
-    
+
     for block_idx in sorted(block_indices):
         converted_block_name = f"transformer_blocks.{block_idx}"
         candidate_block_name = f"transformer.blocks.{block_idx}"
-        
+
         block_dict = convert_to_nunchaku_transformer_block_lowrank_dict(
             orig_state_dict=orig_state_dict,
             extra_lora_dict=extra_lora_dict,
@@ -408,7 +409,7 @@ def convert_to_nunchaku_qwenimage_lowrank_dict(
             default_dtype=default_dtype,
             skip_base_merge=skip_base_merge,
         )
-        
+
         converted_dict.update(block_dict)
 
     return converted_dict
@@ -510,33 +511,21 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="Convert Qwen Image LoRA to Nunchaku format")
+    parser.add_argument("--lora-path", type=str, required=True, help="Path to the input LoRA safetensors file")
     parser.add_argument(
-        "--lora-path",
-        type=str,
-        required=True,
-        help="Path to the input LoRA safetensors file"
+        "--quant-path", type=str, default=None, help="Path to the quantized base model safetensors file (optional)"
     )
     parser.add_argument(
-        "--quant-path",
-        type=str,
-        default=None,
-        help="Path to the quantized base model safetensors file (optional)"
-    )
-    parser.add_argument(
-        "--output-path",
-        type=str,
-        required=True,
-        help="Path to save the converted LoRA in Nunchaku format"
+        "--output-path", type=str, required=True, help="Path to save the converted LoRA in Nunchaku format"
     )
     parser.add_argument(
         "--dtype",
         type=str,
         default="bfloat16",
         choices=["bfloat16", "float16"],
-        help="Data type for the converted weights"
+        help="Data type for the converted weights",
     )
     args = parser.parse_args()
-    
+
     dtype = torch.bfloat16 if args.dtype == "bfloat16" else torch.float16
     to_nunchaku(args.lora_path, quant_path=args.quant_path, output_path=args.output_path, default_dtype=dtype)
-

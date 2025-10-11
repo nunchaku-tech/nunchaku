@@ -36,29 +36,29 @@ def is_nunchaku_format(lora: str | dict[str, torch.Tensor]) -> bool:
 
     # Nunchaku format must have lora_down/lora_up keys (packed format)
     # Diffusers format has lora_A/lora_B keys
-    has_lora_down = any('lora_down' in k for k in tensors.keys())
-    has_lora_up = any('lora_up' in k for k in tensors.keys())
-    
+    has_lora_down = any("lora_down" in k for k in tensors.keys())
+    has_lora_up = any("lora_up" in k for k in tensors.keys())
+
     if has_lora_down and has_lora_up:
         return True
-    
+
     return False
 
 
 def is_diffusers_format(lora: str | dict[str, torch.Tensor]) -> bool:
     """
     Check if LoRA weights are in Diffusers format (lora_A/lora_B keys).
-    
+
     Parameters
     ----------
     lora : str or dict[str, torch.Tensor]
         Path to a safetensors file or a dictionary of LoRA weights.
-    
+
     Returns
     -------
     bool
         True if the weights are in Diffusers format, False otherwise.
-    
+
     Examples
     --------
     >>> is_diffusers_format({"layer.lora_A.weight": ...})
@@ -71,11 +71,11 @@ def is_diffusers_format(lora: str | dict[str, torch.Tensor]) -> bool:
         assert isinstance(tensors, dict), "Expected dict when return_metadata=False"
     else:
         tensors = lora
-    
+
     # Diffusers format has lora_A.weight/lora_B.weight keys
-    has_lora_a = any('lora_A.weight' in k or 'lora_A.' in k for k in tensors.keys())
-    has_lora_b = any('lora_B.weight' in k or 'lora_B.' in k for k in tensors.keys())
-    
+    has_lora_a = any("lora_A.weight" in k or "lora_A." in k for k in tensors.keys())
+    has_lora_b = any("lora_B.weight" in k or "lora_B." in k for k in tensors.keys())
+
     return has_lora_a and has_lora_b
 
 
@@ -131,4 +131,3 @@ def pad(
     result = torch.full(shape, fill_value, dtype=tensor.dtype, device=tensor.device)
     result[[slice(0, extent) for extent in tensor.shape]] = tensor
     return result
-

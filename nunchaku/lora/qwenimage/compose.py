@@ -33,32 +33,32 @@ import torch.nn.functional as F
 from safetensors.torch import save_file
 
 from .diffusers_converter import to_diffusers
-from .utils import is_nunchaku_format, load_state_dict_in_safetensors
+from .utils import is_nunchaku_format
 
 
 def normalize_lora_keys(lora: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
     """
     Normalize LoRA keys to standard format: transformer.blocks.X...
-    
+
     This ensures all LoRAs use the same naming convention for proper composition,
     regardless of their original source format.
-    
+
     Handles various formats:
     - diffusion_model.transformer_blocks.X → transformer.blocks.X
     - transformer_blocks.X → transformer.blocks.X
     - blocks.X → transformer.blocks.X
     - transformer.blocks.X → transformer.blocks.X (no change)
-    
+
     Parameters
     ----------
     lora : dict[str, torch.Tensor]
         LoRA weights dictionary with potentially mixed key formats.
-    
+
     Returns
     -------
     dict[str, torch.Tensor]
         LoRA weights with standardized key names.
-    
+
     Examples
     --------
     >>> lora = {"diffusion_model.transformer_blocks.0.attn.to_q.lora_A.weight": tensor}
@@ -68,11 +68,11 @@ def normalize_lora_keys(lora: dict[str, torch.Tensor]) -> dict[str, torch.Tensor
     normalized = {}
     for k, v in lora.items():
         new_k = k
-        
+
         # Remove diffusion_model prefix (common in ComfyUI LoRAs)
         if new_k.startswith("diffusion_model."):
             new_k = new_k.replace("diffusion_model.", "")
-        
+
         # Normalize transformer_blocks → transformer.blocks
         if new_k.startswith("transformer_blocks."):
             new_k = new_k.replace("transformer_blocks.", "transformer.blocks.")
@@ -88,9 +88,9 @@ def normalize_lora_keys(lora: dict[str, torch.Tensor]) -> dict[str, torch.Tensor
                 # Handle cases like: xxx.blocks.0...
                 parts = new_k.split(".blocks.")
                 new_k = parts[0] + ".transformer.blocks." + parts[1] if len(parts) > 1 else new_k
-        
+
         normalized[new_k] = v
-    
+
     return normalized
 
 
@@ -136,8 +136,9 @@ def compose_lora(
     >>> composed = compose_lora(lora_dicts)
     """
     import logging
+
     logger = logging.getLogger(__name__)
-    
+
     # Disable early return to force QKV fusion
     # if len(loras) == 1:
     #     logger.info(f"Single LoRA detected, strength={loras[0][1]}")
@@ -150,10 +151,11 @@ def compose_lora(
     #         else:
     #             return loras[0][0]
     #     logger.info("Proceeding to compose logic...")
-    
+
     import logging
+
     logger = logging.getLogger(__name__)
-    
+
     logger.debug(f"Composing {len(loras)} LoRAs...")
 
     # Amplification factor for W4A4 quantized models
@@ -164,36 +166,38 @@ def compose_lora(
     for idx, (lora, strength) in enumerate(loras):
         # Apply amplification factor to compensate for quantization loss
         amplified_strength = strength * AMPLIFICATION_FACTOR
-        logger.debug(f"LoRA {idx+1}: strength {strength} → {amplified_strength} (amplification: {AMPLIFICATION_FACTOR}x)")
-        
+        logger.debug(
+            f"LoRA {idx+1}: strength {strength} → {amplified_strength} (amplification: {AMPLIFICATION_FACTOR}x)"
+        )
+
         # Auto-convert Nunchaku format to Diffusers format if needed
         if is_nunchaku_format(lora):
             lora = to_diffusers(lora)
         else:
             lora = to_diffusers(lora)
-        
+
         # Normalize all keys to standard format (transformer.blocks.X...)
         # This ensures different LoRAs can be properly concatenated
         lora = normalize_lora_keys(lora)
-        
+
         # Extract and remove .alpha parameters (LoRA scaling factors)
         alpha_dict = {}
         for k in list(lora.keys()):
-            if '.alpha' in k:
+            if ".alpha" in k:
                 v = lora.pop(k)
                 # Convert to scalar if it's a 0D tensor
                 alpha_value = v.item() if isinstance(v, torch.Tensor) and v.ndim == 0 else v
                 alpha_dict[k] = alpha_value
-        
+
         if len(alpha_dict) > 0:
             logger.debug(f"Found {len(alpha_dict)} alpha scaling factors")
-        
+
         # Apply alpha scaling directly to lora dictionary
         # This ensures all lora_A weights are consistently scaled before processing
         for k in list(lora.keys()):
-            if 'lora_A' in k and lora[k].ndim == 2:
+            if "lora_A" in k and lora[k].ndim == 2:
                 # Find corresponding alpha key
-                base_key = k.replace('.lora_A.weight', '').replace('.weight', '')
+                base_key = k.replace(".lora_A.weight", "").replace(".weight", "")
                 alpha_key = f"{base_key}.alpha"
                 if alpha_key in alpha_dict:
                     alpha = alpha_dict[alpha_key]
@@ -201,9 +205,9 @@ def compose_lora(
                     alpha_scale = alpha / rank
                     lora[k] = lora[k] * alpha_scale  # Modify in-place in the dictionary
                     logger.debug(f"  Applied alpha scaling to {k}: alpha={alpha}, rank={rank}, scale={alpha_scale}")
-        
+
         for k, v in list(lora.items()):
-            
+
             # Handle 1D tensors (bias, normalization parameters)
             if v.ndim == 1:
                 previous_tensor = composed.get(k, None)
@@ -219,7 +223,7 @@ def compose_lora(
                     composed[k] = previous_tensor + v * amplified_strength
             else:
                 assert v.ndim == 2, f"Expected 2D tensor, got {v.ndim}D for key {k}"
-                
+
                 # Handle QKV fusion for attention layers
                 # Qwen Image has both to_q/to_k/to_v and add_q_proj/add_k_proj/add_v_proj
                 # Also handle already-fused to_qkv/add_qkv_proj from Nunchaku format
@@ -227,9 +231,9 @@ def compose_lora(
                     # Already fused - apply strength to lora_A and concatenate both
                     if "lora_A" in k:
                         v = v * amplified_strength
-                    
+
                     previous_lora = composed.get(k, None)
-                    
+
                     if previous_lora is None:
                         composed[k] = v
                     else:
@@ -238,11 +242,11 @@ def compose_lora(
                             composed[k] = torch.cat([previous_lora, v], dim=0)
                         else:  # lora_B
                             composed[k] = torch.cat([previous_lora, v], dim=1)
-                
+
                 elif ".to_q." in k or ".add_q_proj." in k:
                     if "lora_B" in k:
                         continue
-                    
+
                     # Get Q, K, V weights
                     q_a = v
                     k_a = lora[k.replace(".to_q.", ".to_k.").replace(".add_q_proj.", ".add_k_proj.")]
@@ -292,7 +296,9 @@ def compose_lora(
 
                     # Verify lora_a and lora_b ranks match
                     if lora_a.shape[0] != lora_b.shape[1]:
-                        logger.error(f"❌ QKV fusion rank mismatch: lora_a rank={lora_a.shape[0]}, lora_b rank={lora_b.shape[1]}")
+                        logger.error(
+                            f"❌ QKV fusion rank mismatch: lora_a rank={lora_a.shape[0]}, lora_b rank={lora_b.shape[1]}"
+                        )
                         logger.error(f"   Key: {k}")
                         logger.error(f"   q_a={q_a.shape}, k_a={k_a.shape}, v_a={v_a.shape}")
                         logger.error(f"   q_b={q_b.shape}, k_b={k_b.shape}, v_b={v_b.shape}")
@@ -305,7 +311,7 @@ def compose_lora(
                     # Concatenate with previous LoRAs
                     for kk, vv, dim in ((new_k_a, lora_a, 0), (new_k_b, lora_b, 1)):
                         previous_lora = composed.get(kk, None)
-                        
+
                         if previous_lora is not None:
                             # Verify non-concatenation dimension matches
                             non_cat_dim = 1 if dim == 0 else 0
@@ -330,7 +336,7 @@ def compose_lora(
                         v = v * amplified_strength
 
                     previous_lora = composed.get(k, None)
-                    
+
                     if previous_lora is None:
                         composed[k] = v
                     else:
@@ -374,18 +380,16 @@ def compose_lora(
     if output_path is not None:
         output_dir = os.path.dirname(os.path.abspath(output_path))
         os.makedirs(output_dir, exist_ok=True)
-        save_file(composed, output_path)    
+        save_file(composed, output_path)
     # Summary log
-    all_to_qkv_keys = [k for k in composed.keys() if 'to_qkv.lora_A' in k]
-    all_add_qkv_keys = [k for k in composed.keys() if 'add_qkv_proj.lora_A' in k]
-    sample_key = next((k for k in composed.keys() if 'to_qkv.lora_A' in k), None)
-    
+    sample_key = next((k for k in composed.keys() if "to_qkv.lora_A" in k), None)
+
     if sample_key:
         rank = composed[sample_key].shape[0]
         logger.info(f"Composed {len(loras)} LoRAs: {len(composed)} keys, rank={rank}")
     else:
         logger.info(f"Composed {len(loras)} LoRAs: {len(composed)} keys")
-    
+
     # Remove diffusion_model prefix for compatibility with to_nunchaku
     normalized = {}
     for k, v in composed.items():
@@ -393,7 +397,7 @@ def compose_lora(
         if k.startswith("diffusion_model."):
             k = k.replace("diffusion_model.", "", 1)
         normalized[k] = v
-    
+
     return normalized
 
 
@@ -407,4 +411,3 @@ if __name__ == "__main__":
     args = parser.parse_args()
     assert len(args.input_paths) == len(args.strengths), "Number of input paths must match number of strengths"
     compose_lora(list(zip(args.input_paths, args.strengths)), args.output_path)
-

@@ -25,11 +25,7 @@ Example Usage
 
 from .compose import compose_lora
 from .diffusers_converter import to_diffusers
-from .nunchaku_converter import (
-    convert_to_nunchaku_qwenimage_lowrank_dict,
-    fuse_vectors,
-    to_nunchaku,
-)
+from .nunchaku_converter import convert_to_nunchaku_qwenimage_lowrank_dict, fuse_vectors, to_nunchaku
 from .utils import is_nunchaku_format
 
 __all__ = [
@@ -40,4 +36,3 @@ __all__ = [
     "fuse_vectors",
     "is_nunchaku_format",
 ]
-
