@@ -158,9 +158,7 @@ def compose_lora(
 
     logger.debug(f"Composing {len(loras)} LoRAs...")
 
-    # Amplification factor for W4A4 quantized models
-    # This compensates for quantization precision loss
-    AMPLIFICATION_FACTOR = 2.0
+    AMPLIFICATION_FACTOR = 1.0
 
     composed = {}
     for idx, (lora, strength) in enumerate(loras):
