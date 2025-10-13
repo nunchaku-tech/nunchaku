@@ -334,6 +334,29 @@ def to_diffusers(input_lora: str | dict[str, torch.Tensor], output_path: str | N
     # Ensure proper Diffusers format for Qwen Image
     tensors = handle_qwen_to_diffusers_format(tensors)
 
+    # Handle .alpha parameters for LoRA scaling
+    # Extract and apply alpha scaling to lora_A weights
+    alpha_dict = {}
+    for k in list(tensors.keys()):
+        if ".alpha" in k:
+            v = tensors.pop(k)
+            # Convert to scalar if it's a 0D tensor
+            alpha_value = v.item() if isinstance(v, torch.Tensor) and v.ndim == 0 else v
+            alpha_dict[k] = alpha_value
+    
+    # Apply alpha scaling to lora_A weights
+    for k in list(tensors.keys()):
+        if "lora_A" in k and tensors[k].ndim == 2:
+            # Find corresponding alpha key
+            base_key = k.replace(".lora_A.weight", "").replace(".weight", "")
+            alpha_key = f"{base_key}.alpha"
+            if alpha_key in alpha_dict:
+                alpha = alpha_dict[alpha_key]
+                rank = tensors[k].shape[0]
+                alpha_scale = alpha / rank
+                tensors[k] = tensors[k] * alpha_scale
+                logger.debug(f"Applied alpha scaling to {k}: alpha={alpha}, rank={rank}, scale={alpha_scale}")
+
     # Conversion complete
 
     # Save if output path is provided

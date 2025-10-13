@@ -828,7 +828,7 @@ class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuM
 
         self.load_state_dict(new_state_dict, strict=True)
 
-    def update_lora_params(self, path_or_state_dict: str | dict[str, torch.Tensor]):
+    def update_lora_params(self, path_or_state_dict: str | dict[str, torch.Tensor], num_loras: int = 1):
         """
         Update the model with new LoRA parameters for Qwen Image.
 
@@ -840,6 +840,9 @@ class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuM
             - Local file path, e.g., ``"/path/to/your/lora.safetensors"``
             - HuggingFace repo with file, e.g., ``"user/repo/lora.safetensors"``
               (automatically downloaded and cached)
+        num_loras : int, optional
+            Number of LoRAs that were composed. If > 1, this is a composed LoRA.
+            Used to determine whether to merge with base model (default: 1).
         """
         if isinstance(path_or_state_dict, dict):
             state_dict = {
@@ -849,7 +852,12 @@ class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuM
             state_dict = load_state_dict_in_safetensors(path_or_state_dict)
 
         if not is_nunchaku_format(state_dict):
-            state_dict = to_nunchaku(state_dict, base_sd=self._quantized_part_sd)
+            # Check if this is a composed LoRA
+            is_composed = num_loras > 1
+            
+            # For composed LoRAs, skip merging with base model to avoid double-merging
+            # The compose_lora function already concatenated the LoRAs correctly
+            state_dict = to_nunchaku(state_dict, base_sd=self._quantized_part_sd, skip_base_merge=is_composed)
 
         # Separate unquantized and quantized parts
         unquantized_part_loras = {}
