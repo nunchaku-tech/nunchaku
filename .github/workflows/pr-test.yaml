@@ -82,7 +82,7 @@ jobs:
           source $(conda info --base)/etc/profile.d/conda.sh
           conda activate test_env || { echo "Failed to activate conda env"; exit 1; }
           pwd
-          cd ../ComfyUI
+          cd ../test-workspace
           pytest tests/test_workflows.py -x -vv --reruns 4 --reruns-delay 0
       - name: Run nunchaku tests
         run: |
