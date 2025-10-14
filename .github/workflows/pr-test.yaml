@@ -70,6 +70,7 @@ jobs:
           uv pip install --torch-backend=auto -e ".[ci]"
           cd ..
           rm -rf test-workspace
+          mkdir -p test-workspace
           cd test-workspace
           mkdir -p "${COMFYUI_MODELS_ROOT}"
           ln -s "${COMFYUI_MODELS_ROOT}" models
