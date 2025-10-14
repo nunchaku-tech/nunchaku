@@ -55,6 +55,7 @@ jobs:
           which python
           echo "Installing dependencies"
           conda install -c conda-forge gxx=11 gcc=11 libsndfile -y
+          pip install uv
           uv pip install torch==2.8 torchvision==0.23 --index-url https://download.pytorch.org/whl/cu128
           uv pip install -e ".[ci]"
       - name: Setup ComfyUI
