@@ -8,6 +8,7 @@ from .._C import ops
 from ..utils import ceil_divide
 
 
+@torch.compiler.disable
 def svdq_quantize_w4a4_act_fuse_lora_cuda(
     input: torch.Tensor,
     output: torch.Tensor | None = None,

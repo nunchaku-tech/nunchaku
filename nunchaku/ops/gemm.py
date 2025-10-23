@@ -9,6 +9,7 @@ import torch
 from .._C import ops
 
 
+@torch.compiler.disable
 def svdq_gemm_w4a4_cuda(
     act: torch.Tensor,
     wgt: torch.Tensor,

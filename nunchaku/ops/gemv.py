@@ -7,6 +7,7 @@ import torch
 from .._C import ops
 
 
+@torch.compiler.disable
 def awq_gemv_w4a16_cuda(
     in_feats: torch.Tensor,
     kernel: torch.Tensor,
