@@ -357,6 +357,10 @@ class NunchakuFluxSingleTransformerBlock(FluxSingleTransformerBlock):
 
 
 class NunchakuFluxTransformer2DModelV2(FluxTransformer2DModel, NunchakuModelLoaderMixin):
+    _supports_gradient_checkpointing = True
+    _no_split_modules = ["FluxTransformerBlock", "FluxSingleTransformerBlock"]
+    _skip_layerwise_casting_patterns = ["pos_embed", "norm"]
+    _repeated_blocks = ["FluxTransformerBlock", "FluxSingleTransformerBlock"]
     """
     Nunchaku-optimized FluxTransformer2DModel.
     """
