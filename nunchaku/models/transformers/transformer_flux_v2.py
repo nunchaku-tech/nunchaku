@@ -79,6 +79,19 @@ class NunchakuFluxAttention(NunchakuBaseAttention):
             self.add_qkv_proj = SVDQW4A4Linear.from_linear(add_qkv_proj, **kwargs)
             self.to_add_out = SVDQW4A4Linear.from_linear(other.to_add_out, **kwargs)
 
+        self._native_parallel_enabled = False
+
+    def set_native_parallel_flag(self, flag):
+        """
+        Check if Diffusers native parallelism is enabled.
+
+        Returns
+        -------
+        bool
+            True if native parallelism is enabled, False otherwise.
+        """
+        self._native_parallel_enabled = flag
+
     def forward(
         self,
         hidden_states: torch.Tensor,
@@ -113,6 +126,7 @@ class NunchakuFluxAttention(NunchakuBaseAttention):
             encoder_hidden_states=encoder_hidden_states,
             attention_mask=attention_mask,
             image_rotary_emb=image_rotary_emb,
+            native_parallel_enabled=self._native_parallel_enabled,
         )
 
     def set_processor(self, processor: str):
@@ -439,6 +453,14 @@ class NunchakuFluxTransformer2DModelV2(FluxTransformer2DModel, NunchakuModelLoad
         transformer.load_state_dict(converted_state_dict)
 
         return transformer
+
+    def set_native_parallel_flag(self, flag: bool):
+        for block in self.transformer_blocks:
+            assert isinstance(block.attn, NunchakuFluxAttention)
+            block.attn.set_native_parallel_flag(flag)
+        for block in self.single_transformer_blocks:
+            assert isinstance(block.attn, NunchakuFluxAttention)
+            block.attn.set_native_parallel_flag(flag)
 
     def forward(
         self,

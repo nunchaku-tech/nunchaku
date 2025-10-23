@@ -85,6 +85,19 @@ class NunchakuFluxFA2Processor:
             qkv = torch.cat([qkv_context, qkv], dim=1)
 
         query, key, value = qkv.chunk(3, dim=-1)
+        if (
+            torch.distributed.is_initialized()
+            and torch.distributed.get_world_size() > 1
+            and kwargs.get("native_parallel_enabled", False)
+        ):
+            world_size = torch.distributed.get_world_size()
+            key_list = [torch.empty_like(key) for _ in range(world_size)]
+            value_list = [torch.empty_like(value) for _ in range(world_size)]
+            torch.distributed.all_gather(key_list, key.contiguous())
+            torch.distributed.all_gather(value_list, value.contiguous())
+            key = torch.cat(key_list, dim=1)
+            value = torch.cat(value_list, dim=1)
+
         query = query.view(batch_size, -1, attn.heads, attn.head_dim).transpose(1, 2)
         key = key.view(batch_size, -1, attn.heads, attn.head_dim).transpose(1, 2)
         value = value.view(batch_size, -1, attn.heads, attn.head_dim).transpose(1, 2)
