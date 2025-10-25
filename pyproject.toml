@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 requires = [
   "ninja",
   "setuptools",
-  "torch>=2.5",
+  "torch>=2.7",
   "wheel",
 ]
 
