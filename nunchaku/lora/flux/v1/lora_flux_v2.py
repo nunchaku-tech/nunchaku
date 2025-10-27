@@ -647,9 +647,15 @@ def set_lora_strength_v2(model: nn.Module, strength: float) -> None:
         if add <= 0:
             continue
         with torch.no_grad():
-            m.proj_up.data[:, base : base + add] *= s
-    model._lora_strength = strength
+            pu = m.proj_up.data
+            pu = unpack_lowrank_weight(pu, down=False)
 
+            pu[:, base : base + add] *= s
+
+            new_proj_up = pack_lowrank_weight(pu, down=False)
+
+            m.proj_up = nn.Parameter(new_proj_up, requires_grad=False)
+    model._lora_strength = strength
 
 def reset_lora_v2(model: nn.Module) -> None:
     if not hasattr(model, "_lora_slots"):
@@ -660,11 +666,22 @@ def reset_lora_v2(model: nn.Module) -> None:
             continue
         base = info["base_rank"]
         with torch.no_grad():
+            pd, pu = m.proj_down.data, m.proj_up.data
+            pd = unpack_lowrank_weight(pd, down=True)
+            pu = unpack_lowrank_weight(pu, down=False)
+
             if info.get("axis_down", 0) == 0:  # [rank, in]
-                m.proj_down = nn.Parameter(m.proj_down[:base, :].clone(), requires_grad=False)
+                new_proj_down = pd[:base, :]
             else:  # [in, rank]
-                m.proj_down = nn.Parameter(m.proj_down[:, :base].clone(), requires_grad=False)
-            m.proj_up = nn.Parameter(m.proj_up[:, :base].clone(), requires_grad=False)
+                new_proj_down = pd[:, :base]
+
+            new_proj_up = pu[:, :base]
+
+            new_proj_down = pack_lowrank_weight(new_proj_down, down=True)
+            new_proj_up = pack_lowrank_weight(new_proj_up, down=False)
+
+            m.proj_down = nn.Parameter(new_proj_down, requires_grad=False)
+            m.proj_up = nn.Parameter(new_proj_up, requires_grad=False)
             m.rank = base
     model._lora_slots.clear()
     model._lora_strength = 1.0
