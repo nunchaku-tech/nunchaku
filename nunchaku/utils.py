@@ -219,7 +219,7 @@ def get_precision(
             device = torch.device(device)
         capability = torch.cuda.get_device_capability(0 if device.index is None else device.index)
         sm = f"{capability[0]}{capability[1]}"
-        precision = "fp4" if sm == "120" else "int4"
+        precision = "fp4" if sm in ["120", "121"] else "int4"
     if pretrained_model_name_or_path is not None:
         if precision == "int4":
             if "fp4" in str(pretrained_model_name_or_path):
@@ -305,7 +305,7 @@ def check_hardware_compatibility(quantization_config: dict, device: str | torch.
         device = torch.device(device)
     capability = torch.cuda.get_device_capability(0 if device.index is None else device.index)
     sm = f"{capability[0]}{capability[1]}"
-    if sm == "120":  # you can only use the fp4 models
+    if sm in ["120", "121"]:  # you can only use the fp4 models
         if quantization_config["weight"]["dtype"] != "fp4_e2m1_all":
             raise ValueError('Please use "fp4" quantization for Blackwell GPUs. ')
     elif sm in ["75", "80", "86", "89"]:
