@@ -8,6 +8,7 @@ from diffusers import FluxControlPipeline, FluxFillPipeline, FluxPipeline, FluxP
 from diffusers.hooks import apply_group_offloading
 from diffusers.utils import load_image
 from image_gen_aux import DepthPreprocessor
+from torch.nn.functional import scaled_dot_product_attention as sdpa
 from tqdm import tqdm
 
 import nunchaku
@@ -235,9 +236,11 @@ def run_test(
         precision_str += "-qe"
     if attention_impl == "flashattn2":
         precision_str += "-fa2"
-    else:
-        assert attention_impl == "nunchaku-fp16"
+    elif attention_impl == "nunchaku-fp16":
         precision_str += "-nfp16"
+    else:
+        assert attention_impl == "custom"
+        precision_str += "-custom_attn"
     if cpu_offload:
         precision_str += "-co"
     if cache_threshold > 0:
@@ -261,7 +264,16 @@ def run_test(
         nunchaku._C.utils.set_faster_i2f_mode(i2f_mode)
 
     transformer = NunchakuFluxTransformer2dModel.from_pretrained(model_id_4bit, offload=cpu_offload, torch_dtype=dtype)
-    transformer.set_attention_impl(attention_impl)
+    if attention_impl == "custom":
+
+        def custom_attn_sdpa(qkv: torch.Tensor) -> torch.Tensor:
+            assert qkv.ndim == 5, "qkv must be [batch, num_tokens, 3, num_heads, dim_head]"
+            q, k, v = qkv.unbind(dim=2)
+            return sdpa(q.transpose(1, 2), k.transpose(1, 2), v.transpose(1, 2)).transpose(1, 2)
+
+        transformer.set_attention_impl("custom", custom_attn_sdpa)
+    else:
+        transformer.set_attention_impl(attention_impl)
 
     if len(lora_names) > 0:
         if len(lora_names) == 1:  # directly load the lora
