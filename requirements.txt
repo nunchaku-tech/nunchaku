@@ -1,8 +1,0 @@
-# pulid related
-insightface
-opencv-python
-facexlib
-onnxruntime
-# ip-adapter
-timm
-diffusers>=0.33.1

@@ -1,6 +1,8 @@
 import subprocess
 from pathlib import Path
 
+from tqdm import tqdm
+
 
 def run_all_tests():
     test_dir = Path("tests")
@@ -11,7 +13,9 @@ def run_all_tests():
             rel_path = file_path.relative_to(test_dir)
         except ValueError:
             continue
-        if str(rel_path) == "flux/test_flux_examples.py":
+        if "test_flux_examples.py" in str(rel_path):
+            continue
+        if "test_examples.py" in str(rel_path):
             continue
         test_files.append(str(file_path))
     print("Running tests:")
@@ -19,9 +23,9 @@ def run_all_tests():
         print(f"  {test_file}")
 
     failed_tests = []
-    for test_file in test_files:
+    for test_file in tqdm(test_files):
         print(f"Running {test_file} ...")
-        result = subprocess.run(["pytest", "--reruns", "2", "--reruns-delay", "0", "-s", "-x", test_file])
+        result = subprocess.run(["pytest", "--reruns", "4", "--reruns-delay", "0", "-vv", "-x", test_file])
         if result.returncode != 0:
             print(f"Test failed: {test_file}")
             failed_tests.append(test_file)

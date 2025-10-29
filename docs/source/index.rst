@@ -16,8 +16,11 @@ Check out `DeepCompressor <github_deepcompressor_>`_ for the quantization librar
     :caption: Usage Tutorials
 
     usage/basic_usage.rst
+    usage/qwen-image.rst
+    usage/qwen-image-edit.rst
     usage/lora.rst
     usage/kontext.rst
+    usage/sdxl.rst
     usage/controlnet.rst
     usage/qencoder.rst
     usage/offload.rst
@@ -48,3 +51,5 @@ Check out `DeepCompressor <github_deepcompressor_>`_ for the quantization librar
 
     faq/faq.rst
     developer/contribution_guide.rst
+    developer/docstring.rst
+    developer/build_docs.rst

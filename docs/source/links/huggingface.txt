@@ -9,3 +9,7 @@
 .. _hf_depth_anything: https://huggingface.co/LiheYoung/depth-anything-large-hf
 .. _hf_nunchaku_wheels: https://huggingface.co/nunchaku-tech/nunchaku
 .. _hf_ip-adapterv2: https://huggingface.co/XLabs-AI/flux-ip-adapter-v2
+.. _hf_qwen-image: https://huggingface.co/Qwen/Qwen-Image
+.. _hf_qwen-image-edit: https://huggingface.co/Qwen/Qwen-Image-Edit
+.. _hf_qwen-image-lightning: https://huggingface.co/lightx2v/Qwen-Image-Lightning
+.. _hf_qwen-image-edit-2509: https://huggingface.co/Qwen/Qwen-Image-Edit-2509

@@ -23,13 +23,8 @@ when input changes are minimal. Supports SANA and Flux architectures.
 import torch
 from torch import nn
 
-from nunchaku.caching.fbcache import (
-    apply_prev_hidden_states_residual,
-    check_and_apply_cache,
-    get_can_use_cache,
-    set_buffer,
-)
-from nunchaku.models.transformers.utils import pad_tensor
+from ..utils import pad_tensor
+from .fbcache import apply_prev_hidden_states_residual, check_and_apply_cache, get_can_use_cache, set_buffer
 
 num_transformer_blocks = 19  # FIXME
 num_single_transformer_blocks = 38  # FIXME

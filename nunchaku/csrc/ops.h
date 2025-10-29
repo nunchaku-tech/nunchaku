@@ -36,6 +36,7 @@ void gemm_w4a4(std::optional<torch::Tensor> act,            // packed act [M, K 
                std::optional<torch::Tensor> out_k, // packed attention [B, H, M, D]
                std::optional<torch::Tensor> out_v, // packed attention [B, H, M, D]
                int attn_tokens) {
+    TorchOpContext ctx;
     spdlog::trace("running gemm_w4a4: ");
 
     auto getTensor = [](std::optional<torch::Tensor> &t) {
@@ -87,6 +88,7 @@ void quantize_w4a4_act_fuse_lora(std::optional<torch::Tensor> input,
                                  std::optional<torch::Tensor> smooth,
                                  bool fuse_glu,
                                  bool fp4) {
+    TorchOpContext ctx;
 
     spdlog::trace("running quantize_w4a4_act_fuse_lora: ");
 
@@ -114,6 +116,7 @@ void attention_fp16(torch::Tensor q, // packed [Batch, Head, TokensQ, HEAD_DIM]
                     torch::Tensor v, // packed [Batch, Head, TokensKV, HEAD_DIM]
                     torch::Tensor o, // linear [Batch, TokensQ, Head * HEAD_DIM]
                     float scale) {
+    TorchOpContext ctx;
     nunchaku::kernels::attention_fp16(from_torch(q), from_torch(k), from_torch(v), from_torch(o), scale);
 }
 
@@ -125,6 +128,7 @@ torch::Tensor gemv_awq(torch::Tensor _in_feats,
                        int64_t n,
                        int64_t k,
                        int64_t group_size) {
+    TorchOpContext ctx;
     Tensor result = ::gemv_awq(from_torch(_in_feats.contiguous()),
                                from_torch(_kernel.contiguous()),
                                from_torch(_scaling_factors.contiguous()),
@@ -147,6 +151,7 @@ gemm_awq(torch::Tensor _in_feats, torch::Tensor _kernel, torch::Tensor _scaling_
                                             from_torch(_scaling_factors.contiguous()),
                                             from_torch(_zeros.contiguous()));
 
+    TorchOpContext ctx;
     // TODO: allocate output in torch and use from_torch instead (to_torch needs an extra copy)
     torch::Tensor output = to_torch(result);
     // Tensor::synchronizeDevice();
