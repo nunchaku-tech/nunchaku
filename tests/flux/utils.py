@@ -236,9 +236,11 @@ def run_test(
         precision_str += "-qe"
     if attention_impl == "flashattn2":
         precision_str += "-fa2"
-    else:
-        assert attention_impl == "nunchaku-fp16"
+    elif attention_impl == "nunchaku-fp16":
         precision_str += "-nfp16"
+    else:
+        assert attention_impl == "custom"
+        precision_str += "-custom_attn"
     if cpu_offload:
         precision_str += "-co"
     if cache_threshold > 0:
