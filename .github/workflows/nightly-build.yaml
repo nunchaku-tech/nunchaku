@@ -89,13 +89,15 @@ jobs:
         run: git log -1 --oneline
       - name: Build wheels
         run: |
-          if [[ "${{ matrix.torch }}" == "2.7" || "${{ matrix.torch }}" == "2.8" || "${{ matrix.torch }}" == "2.9" ]]; then
+          if [[ "${{ matrix.torch }}" == "2.7" || "${{ matrix.torch }}" == "2.8" ]]; then
             cuda_version="12.8"
+          elif [[ "${{ matrix.torch }}" == "2.9" ]]; then
+            cuda_version="13.0"
           else
             cuda_version="12.4"
           fi
           if [[ "${{ matrix.torch }}" == "pre" ]]; then
-            bash scripts/build_linux_wheel_torch_nightly.sh ${{ matrix.python }} ${{ matrix.torch }} 12.8
+            bash scripts/build_linux_wheel_torch_nightly.sh ${{ matrix.python }} ${{ matrix.torch }} 13.0
           else
             bash scripts/build_linux_wheel.sh ${{ matrix.python }} ${{ matrix.torch }} $cuda_version
           fi
@@ -139,7 +141,9 @@ jobs:
           ) ELSE IF "%TORCH_VERSION%"=="2.8" (
             SET CUDA_VERSION=12.8
           ) ELSE IF "%TORCH_VERSION%"=="2.9" (
-            SET CUDA_VERSION=12.8
+            SET CUDA_VERSION=13.0
+          ) ELSE IF "%TORCH_VERSION%"=="pre" (
+            SET CUDA_VERSION=13.0
           ) ELSE (
             SET CUDA_VERSION=12.4
           )
