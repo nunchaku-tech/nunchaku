@@ -46,16 +46,16 @@ def get_sm_targets() -> list[str]:
         for i in range(torch.cuda.device_count()):
             capability = torch.cuda.get_device_capability(i)
             sm = f"{capability[0]}{capability[1]}"
-            if sm == "120" and support_sm120:
-                sm = "120a"
-            assert sm in ["75", "80", "86", "89", "120a"], f"Unsupported SM {sm}"
+            if sm in ["120", "121"] and support_sm120:
+                sm = sm + "a"
+            assert sm in ["75", "80", "86", "89", "120a", "121a"], f"Unsupported SM {sm}"
             if sm not in ret:
                 ret.append(sm)
     else:
         assert install_mode == "ALL"
         ret = ["75", "80", "86", "89"]
         if support_sm120:
-            ret.append("120a")
+            ret.extend(["120a", "121a"])
     return ret
 
 
