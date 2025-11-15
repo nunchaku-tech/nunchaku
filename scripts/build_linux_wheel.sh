@@ -24,8 +24,12 @@ elif [ "$TORCH_VERSION" == "2.8" ]; then
   TORCHVISION_VERSION="0.23"
   TORCHAUDIO_VERSION="2.8"
   echo "TORCH_VERSION is 2.8, setting TORCHVISION_VERSION to $TORCHVISION_VERSION and TORCHAUDIO_VERSION to $TORCHAUDIO_VERSION"
+elif [ "$TORCH_VERSION" == "2.9" ]; then
+  TORCHVISION_VERSION="0.24"
+  TORCHAUDIO_VERSION="2.9"
+  echo "TORCH_VERSION is 2.9, setting TORCHVISION_VERSION to $TORCHVISION_VERSION and TORCHAUDIO_VERSION to $TORCHAUDIO_VERSION"
 else
-  echo "TORCH_VERSION is not 2.5, 2.6, 2.7 or 2.8, no changes to versions."
+  echo "TORCH_VERSION is not 2.5, 2.6, 2.7, 2.8 or 2.9, no changes to versions."
 fi
 
 docker run --rm \

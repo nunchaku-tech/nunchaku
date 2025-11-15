@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 requires = [
   "ninja",
   "setuptools",
-  "torch>=2.5",
+  "torch>=2.7",
   "wheel",
 ]
 
@@ -29,7 +29,7 @@ dependencies = [
   "protobuf",
   "sentencepiece",
   "torchvision>=0.20",
-  "transformers>=4.54,<4.57",
+  "transformers>=4.54",
 ]
 optional-dependencies.ci = [
   "accelerate==1.9",

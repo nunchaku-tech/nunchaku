@@ -77,10 +77,7 @@ jobs:
     strategy:
       matrix:
         python: ["3.10", "3.11", "3.12", "3.13"]
-        torch: ["2.5", "2.6", "2.7", "2.8", "2.9"]
-        exclude:
-          - python: "3.13"
-            torch: "2.5"
+        torch: ["2.7", "2.8", "2.9", "pre"]
     steps:
       - name: Checkout to the tag
         uses: actions/checkout@v4
@@ -94,11 +91,13 @@ jobs:
         run: |
           if [[ "${{ matrix.torch }}" == "2.7" || "${{ matrix.torch }}" == "2.8" ]]; then
             cuda_version="12.8"
+          elif [[ "${{ matrix.torch }}" == "2.9" ]]; then
+            cuda_version="13.0"
           else
             cuda_version="12.4"
           fi
-          if [[ "${{ matrix.torch }}" == "2.9" ]]; then
-            bash scripts/build_linux_wheel_torch_nightly.sh ${{ matrix.python }} ${{ matrix.torch }} 12.8
+          if [[ "${{ matrix.torch }}" == "pre" ]]; then
+            bash scripts/build_linux_wheel_torch_nightly.sh ${{ matrix.python }} ${{ matrix.torch }} 13.0
           else
             bash scripts/build_linux_wheel.sh ${{ matrix.python }} ${{ matrix.torch }} $cuda_version
           fi
@@ -122,10 +121,7 @@ jobs:
     strategy:
       matrix:
         python: ["3.10", "3.11", "3.12", "3.13"]
-        torch: ["2.5", "2.6", "2.7", "2.8", "2.9"]
-        exclude:
-          - python: "3.13"
-            torch: "2.5"
+        torch: ["2.7", "2.8", "2.9", "pre"]
     steps:
       - name: Checkout to the tag
         uses: actions/checkout@v4
@@ -144,11 +140,15 @@ jobs:
             SET CUDA_VERSION=12.8
           ) ELSE IF "%TORCH_VERSION%"=="2.8" (
             SET CUDA_VERSION=12.8
+          ) ELSE IF "%TORCH_VERSION%"=="2.9" (
+            SET CUDA_VERSION=13.0
+          ) ELSE IF "%TORCH_VERSION%"=="pre" (
+            SET CUDA_VERSION=13.0
           ) ELSE (
             SET CUDA_VERSION=12.4
           )
           call C:\Users\muyangl\miniconda3\condabin\activate.bat activate
-          IF "%TORCH_VERSION%"=="2.9" (
+          IF "%TORCH_VERSION%"=="pre" (
             call scripts\build_windows_wheel_torch_nightly.cmd %PYTHON_VERSION% %TORCH_VERSION% %CUDA_VERSION%
           ) ELSE (
             call scripts\build_windows_wheel.cmd %PYTHON_VERSION% %TORCH_VERSION% %CUDA_VERSION%
