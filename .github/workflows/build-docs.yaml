@@ -32,9 +32,10 @@ jobs:
           source $(conda info --base)/etc/profile.d/conda.sh
           conda activate nunchaku-docs || { echo "Failed to activate conda env"; exit 1; }
           which python
+          pip install uv
           conda install -c conda-forge gxx=11 gcc=11
           echo "Installing dependencies"
-          pip install -e ".[dev,docs]"
+          uv pip install -e ".[dev,docs]"
       - name: Build docs
         run: |
           source $(conda info --base)/etc/profile.d/conda.sh
