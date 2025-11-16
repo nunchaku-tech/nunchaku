@@ -29,7 +29,7 @@ dependencies = [
   "protobuf",
   "sentencepiece",
   "torchvision>=0.20",
-  "transformers>=4.54,<4.57",
+  "transformers>=4.54",
 ]
 optional-dependencies.ci = [
   "accelerate==1.9",

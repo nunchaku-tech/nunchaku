@@ -11,6 +11,7 @@ from .utils import run_test
     [
         (1024, 1024, 50, "flashattn2", False, 0.139 if get_precision() == "int4" else 0.146),
         (2048, 512, 25, "nunchaku-fp16", False, 0.168 if get_precision() == "int4" else 0.156),
+        (2048, 512, 25, "custom", False, 0.168 if get_precision() == "int4" else 0.156),
     ],
 )
 def test_flux_dev(

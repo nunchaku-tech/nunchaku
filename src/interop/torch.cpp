@@ -42,7 +42,7 @@ Tensor from_torch(at::Tensor input) {
     return result;
 }
 
-at::Tensor to_torch(Tensor input) {
+at::Tensor to_torch(Tensor input, bool inplace) {
     assert(input.is_contiguous());
 
     std::vector<int64_t> shape;
@@ -69,8 +69,14 @@ at::Tensor to_torch(Tensor input) {
         opts = opts.device(format("cuda:{}", input.device().idx));
     }
 
-    at::Tensor result = torch::empty(at::IntArrayRef(shape), opts);
-    from_torch(result).copy_(input);
+    at::Tensor result;
+
+    if (inplace) {
+        result = torch::from_blob(input.data_ptr(), at::IntArrayRef(shape), opts);
+    } else {
+        result = at::empty(at::IntArrayRef(shape), opts);
+        from_torch(result).copy_(input);
+    }
 
     return result;
 }
