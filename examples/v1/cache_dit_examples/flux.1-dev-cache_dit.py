@@ -30,10 +30,7 @@ cache_dit.enable_cache(
 
 print(f"Running FLUX.1-dev with cache-dit on GPU 0 ({precision})...")
 image = pipeline(
-    "A cat holding a sign that says hello world",
-    num_inference_steps=50,
-    generator=generator,
-    guidance_scale=3.5
+    "A cat holding a sign that says hello world", num_inference_steps=50, generator=generator, guidance_scale=3.5
 ).images[0]
 image.save(f"flux.1-dev-cache-dit-{precision}.png")
 
