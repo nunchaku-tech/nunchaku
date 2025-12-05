@@ -1,5 +1,5 @@
 """
-This module provides Nunchaku FluxTransformer2DModel and its building blocks in Python.
+This module provides Nunchaku ZImageTransformer2DModel and its building blocks in Python.
 """
 
 import json
@@ -223,7 +223,7 @@ class NunchakuZImageTransformer2DModel(ZImageTransformer2DModel, NunchakuModelLo
         offload = kwargs.get("offload", False)
 
         if offload:
-            raise NotImplementedError("Offload is not supported for FluxTransformer2DModelV2")
+            raise NotImplementedError("Offload is not supported for ZImageTransformer2DModel")
 
         torch_dtype = kwargs.get("torch_dtype", torch.bfloat16)
 
@@ -247,12 +247,7 @@ class NunchakuZImageTransformer2DModel(ZImageTransformer2DModel, NunchakuModelLo
         print(f"quantization_config: {quantization_config}, rank={rank}, skip_refiners={skip_refiners}")
 
         transformer._patch_model(skip_refiners=skip_refiners, precision=precision, rank=rank)
-
         transformer = transformer.to_empty(device=device)
-        # converted_state_dict = convert_flux_state_dict(model_state_dict)
-
         transformer.load_state_dict(model_state_dict)
-
-        print(f"transformer type: {type(transformer)}")
 
         return transformer
