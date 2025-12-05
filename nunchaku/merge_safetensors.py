@@ -34,7 +34,7 @@ from .utils import load_state_dict_in_safetensors
 
 
 def merge_safetensors(
-    pretrained_model_name_or_path: str | os.PathLike[str], **kwargs
+    pretrained_model_name_or_path: str | os.PathLike[str], model_class: str, **kwargs
 ) -> tuple[dict[str, torch.Tensor], dict[str, str]]:
     """
     Merge split safetensors model files into a single state dict and metadata.
@@ -108,6 +108,9 @@ def merge_safetensors(
     state_dict.update(transformer_block_sd)
 
     rank = next((v.shape[1] for k, v in transformer_block_sd.items() if ".lora_down" in k), 32)
+    if "ZImage" in model_class:
+        rank = next((v.shape[1] for k, v in transformer_block_sd.items() if ".proj_down" in k), 32)
+        skip_refiners = not any(("refiner" in k and "attention.to_qkv" in k) for k in transformer_block_sd.keys())
 
     precision = "int4"
     for v in state_dict.values():
@@ -134,10 +137,12 @@ def merge_safetensors(
         },
         "rank": rank,
     }
+    if "ZImage" in model_class:
+        quantization_config["skip_refiners"] = skip_refiners
     return state_dict, {
         "config": Path(config_path).read_text(),
         "comfy_config": Path(comfy_config_path).read_text(),
-        "model_class": "NunchakuFluxTransformer2dModel",
+        "model_class": model_class,
         "quantization_config": json.dumps(quantization_config),
     }
 
@@ -151,10 +156,20 @@ if __name__ == "__main__":
         required=True,
         help="Path to model directory. It can also be a huggingface repo.",
     )
+    parser.add_argument(
+        "-m",
+        "--model-class",
+        type=str,
+        required=True,
+        help="Specify model class. E.g. NunchakuFluxTransformer2dModel or NunchakuZImageTransformer2DModel",
+    )
     parser.add_argument("-o", "--output-path", type=Path, required=True, help="Path to output path")
     args = parser.parse_args()
-    state_dict, metadata = merge_safetensors(args.input_path)
+    state_dict, metadata = merge_safetensors(args.input_path, args.model_class)
     output_path = Path(args.output_path)
+    print(f"    --input-path: {args.input_path}")
+    print(f"    --model-class: {args.model_class}")
+    print(f"    --output-path: {args.output_path}")
     dirpath = output_path.parent
     dirpath.mkdir(parents=True, exist_ok=True)
     save_file(state_dict, output_path, metadata=metadata)

@@ -1,0 +1,258 @@
+"""
+This module provides Nunchaku FluxTransformer2DModel and its building blocks in Python.
+"""
+
+import json
+import os
+from pathlib import Path
+from typing import List, Optional
+
+import torch
+from diffusers.models.attention import FeedForward
+from diffusers.models.attention_processor import Attention
+from diffusers.models.transformers.transformer_z_image import FeedForward as ZImageFeedForward
+from diffusers.models.transformers.transformer_z_image import ZImageTransformer2DModel, ZImageTransformerBlock
+from huggingface_hub import utils
+
+from nunchaku.models.unets.unet_sdxl import NunchakuSDXLFeedForward
+
+from ...utils import get_precision
+from ..attention import NunchakuBaseAttention
+from ..attention_processors.zimage import NunchakuZSingleStreamAttnProcessor
+from ..linear import SVDQW4A4Linear
+from ..utils import fuse_linears
+from .utils import NunchakuModelLoaderMixin
+
+
+class NunchakuZImageAttention(NunchakuBaseAttention):
+    """
+    Nunchaku-optimized Attention module for ZImage with quantized and fused QKV projections.
+
+    Parameters
+    ----------
+    other : Attention
+        The original Attention module in ZImage model.
+    processor : str, optional
+        The attention processor to use ("flashattn2" or "nunchaku-fp16").
+    **kwargs
+        Additional arguments for quantization.
+    """
+
+    def __init__(self, orig_attn: Attention, processor: str = "flashattn2", **kwargs):
+        super(NunchakuZImageAttention, self).__init__(processor)
+        self.inner_dim = orig_attn.inner_dim
+        self.query_dim = orig_attn.query_dim
+        self.use_bias = orig_attn.use_bias
+        self.dropout = orig_attn.dropout
+        self.out_dim = orig_attn.out_dim
+        self.context_pre_only = orig_attn.context_pre_only
+        self.pre_only = orig_attn.pre_only
+        self.heads = orig_attn.heads
+        self.rescale_output_factor = orig_attn.rescale_output_factor
+        self.is_cross_attention = orig_attn.is_cross_attention
+
+        # region sub-modules
+        self.norm_q = orig_attn.norm_q
+        self.norm_k = orig_attn.norm_k
+        with torch.device("meta"):
+            to_qkv = fuse_linears([orig_attn.to_q, orig_attn.to_k, orig_attn.to_v])
+        self.to_qkv = SVDQW4A4Linear.from_linear(to_qkv, **kwargs)
+        self.to_out = orig_attn.to_out
+        self.to_out[0] = SVDQW4A4Linear.from_linear(self.to_out[0], **kwargs)
+        # end of region
+
+    def forward(
+        self,
+        hidden_states: torch.Tensor,
+        encoder_hidden_states: Optional[torch.Tensor] = None,
+        attention_mask: Optional[torch.Tensor] = None,
+        **cross_attention_kwargs,
+    ) -> torch.Tensor:
+        """
+        Forward pass for NunchakuZImageAttention.
+
+        Parameters
+        ----------
+        hidden_states : torch.Tensor
+            Input tensor.
+        encoder_hidden_states : torch.Tensor, optional
+            Encoder hidden states for cross-attention.
+        attention_mask : torch.Tensor, optional
+            Attention mask.
+        **cross_attention_kwargs
+            Additional arguments for cross attention.
+
+        Returns
+        -------
+        Output of the attention processor.
+        """
+        return self.processor(
+            attn=self,
+            hidden_states=hidden_states,
+            encoder_hidden_states=encoder_hidden_states,
+            attention_mask=attention_mask,
+            **cross_attention_kwargs,
+        )
+
+    def set_processor(self, processor: str):
+        """
+        Set the attention processor.
+
+        Parameters
+        ----------
+        processor : str
+            Name of the processor ("flashattn2" or "nunchaku-fp16").
+
+            - ``"flashattn2"``: Standard FlashAttention-2. See :class:`~nunchaku.models.attention_processors.zimage.NunchakuZImageFA2Processor`.
+
+        Raises
+        ------
+        ValueError
+            If the processor is not supported.
+        """
+        if processor == "flashattn2":
+            self.processor = NunchakuZSingleStreamAttnProcessor()
+        else:
+            raise ValueError(f"Processor {processor} is not supported")
+
+
+def _convert_z_image_ff(z_ff: ZImageFeedForward) -> FeedForward:
+    """Replace custom FeedForward module in `ZImageTransformerBlock`s with standard FeedForward in diffusers lib."""
+    assert isinstance(z_ff, ZImageFeedForward)
+    assert z_ff.w1.in_features == z_ff.w3.in_features
+    assert z_ff.w1.out_features == z_ff.w3.out_features
+    assert z_ff.w1.out_features == z_ff.w2.in_features
+    converted_ff = FeedForward(
+        dim=z_ff.w1.in_features,
+        dim_out=z_ff.w2.out_features,
+        dropout=0.0,
+        activation_fn="swiglu",
+        inner_dim=z_ff.w2.in_features,
+        bias=False,
+    ).to(dtype=z_ff.w1.weight.dtype, device=z_ff.w1.weight.device)
+    return converted_ff
+
+
+class NunchakuZImageFeedForward(NunchakuSDXLFeedForward):
+    """
+    Quantized feed-forward block for :class:`NunchakuZImageTransformerBlock`.
+
+    Replaces linear layers in a FeedForward block with :class:`~nunchaku.models.linear.SVDQW4A4Linear` for quantized inference.
+
+    Parameters
+    ----------
+    ff : FeedForward
+        Source ZImage FeedForward module to quantize.
+    **kwargs :
+        Additional arguments for SVDQW4A4Linear.
+    """
+
+    def __init__(self, ff: ZImageFeedForward, **kwargs):
+        converted_ff = _convert_z_image_ff(ff)
+        # forward pass are equivalent to NunchakuSDXLFeedForward
+        NunchakuSDXLFeedForward.__init__(self, converted_ff, **kwargs)
+
+
+class NunchakuZImageTransformer2DModel(ZImageTransformer2DModel, NunchakuModelLoaderMixin):
+    """
+    Nunchaku-optimized ZImageTransformer2DModel.
+    """
+
+    def _patch_model(self, skip_refiners: bool = False, **kwargs):
+        """
+        Patch the model by replacing attention and feed_forward modules in the orginal ZImageTransformerBlock.
+
+        Parameters
+        ----------
+        skip_refiners: bool
+            Default to `False`
+            if `True`, transformer blocks of `noise_refiner` and `context_refiner` will NOT be replaced.
+        **kwargs
+            Additional arguments for quantization.
+
+        Returns
+        -------
+        self : NunchakuZImageTransformer2DModel
+            The patched model.
+        """
+
+        def _patch_transformer_block(block_list: List[ZImageTransformerBlock]):
+            for _, block in enumerate(block_list):
+                block.attention = NunchakuZImageAttention(block.attention, **kwargs)
+                block.feed_forward = NunchakuZImageFeedForward(block.feed_forward, **kwargs)
+
+        def _convert_feed_forward(block_list: List[ZImageTransformerBlock]):
+            for _, block in enumerate(block_list):
+                block.feed_forward = _convert_z_image_ff(block.feed_forward)
+
+        _patch_transformer_block(self.layers)
+        if skip_refiners:
+            _convert_feed_forward(self.noise_refiner)
+            _convert_feed_forward(self.context_refiner)
+        else:
+            _patch_transformer_block(self.noise_refiner)
+            _patch_transformer_block(self.context_refiner)
+        return self
+
+    @classmethod
+    @utils.validate_hf_hub_args
+    def from_pretrained(cls, pretrained_model_name_or_path: str | os.PathLike[str], **kwargs):
+        """
+        Load a pretrained NunchakuZImageTransformer2DModel from a safetensors file.
+
+        Parameters
+        ----------
+        pretrained_model_name_or_path : str or os.PathLike
+            Path to the safetensors file. It can be a local file or a remote HuggingFace path.
+        **kwargs
+            Additional arguments (e.g., device, torch_dtype).
+
+        Returns
+        -------
+        NunchakuZImageTransformer2DModel
+            The loaded and quantized model.
+
+        Raises
+        ------
+        NotImplementedError
+            If offload is requested.
+        AssertionError
+            If the file is not a safetensors file.
+        """
+        device = kwargs.get("device", "cpu")
+        offload = kwargs.get("offload", False)
+
+        if offload:
+            raise NotImplementedError("Offload is not supported for FluxTransformer2DModelV2")
+
+        torch_dtype = kwargs.get("torch_dtype", torch.bfloat16)
+
+        if isinstance(pretrained_model_name_or_path, str):
+            pretrained_model_name_or_path = Path(pretrained_model_name_or_path)
+
+        assert pretrained_model_name_or_path.is_file() or pretrained_model_name_or_path.name.endswith(
+            (".safetensors", ".sft")
+        ), "Only safetensors are supported"
+        transformer, model_state_dict, metadata = cls._build_model(pretrained_model_name_or_path, **kwargs)
+        quantization_config = json.loads(metadata.get("quantization_config", "{}"))
+
+        rank = quantization_config.get("rank", 32)
+        skip_refiners = quantization_config.get("skip_refiners", False)
+        transformer = transformer.to(torch_dtype)
+
+        precision = get_precision()
+        if precision == "fp4":
+            precision = "nvfp4"
+
+        print(f"quantization_config: {quantization_config}, rank={rank}, skip_refiners={skip_refiners}")
+
+        transformer._patch_model(skip_refiners=skip_refiners, precision=precision, rank=rank)
+
+        transformer = transformer.to_empty(device=device)
+        # converted_state_dict = convert_flux_state_dict(model_state_dict)
+
+        transformer.load_state_dict(model_state_dict)
+
+        print(f"transformer type: {type(transformer)}")
+
+        return transformer
