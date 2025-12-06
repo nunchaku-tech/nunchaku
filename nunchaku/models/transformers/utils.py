@@ -13,6 +13,7 @@ from huggingface_hub import constants, hf_hub_download
 from torch import nn
 
 from ...utils import load_state_dict_in_safetensors
+from ..linear import SVDQW4A4Linear
 
 # Get log level from environment variable (default to INFO)
 log_level = os.getenv("LOG_LEVEL", "INFO").upper()
@@ -145,3 +146,18 @@ class NunchakuModelLoaderMixin:
         with torch.device("meta"):
             transformer = cls.from_config(config).to(kwargs.get("torch_dtype", torch.bfloat16))
         return transformer, unquantized_part_path, transformer_block_path
+
+
+def patch_scale_key(transformer_from_config: nn.Module, state_dict_from_checkpoint: dict):
+    state_dict = transformer_from_config.state_dict()
+    for k in state_dict.keys():
+        if k not in state_dict_from_checkpoint:
+            assert ".wcscales" in k
+            state_dict_from_checkpoint[k] = torch.ones_like(state_dict[k])
+        else:
+            assert state_dict[k].dtype == state_dict_from_checkpoint[k].dtype
+
+    for n, m in transformer_from_config.named_modules():
+        if isinstance(m, SVDQW4A4Linear):
+            if m.wtscale is not None:
+                m.wtscale = state_dict_from_checkpoint.pop(f"{n}.wtscale", 1.0)

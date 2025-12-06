@@ -26,7 +26,7 @@ from ..embeddings import NunchakuFluxPosEmbed, pack_rotemb
 from ..linear import SVDQW4A4Linear
 from ..normalization import NunchakuAdaLayerNormZero, NunchakuAdaLayerNormZeroSingle
 from ..utils import fuse_linears
-from .utils import NunchakuModelLoaderMixin
+from .utils import NunchakuModelLoaderMixin, patch_scale_key
 
 
 class NunchakuFluxAttention(NunchakuBaseAttention):
@@ -421,20 +421,7 @@ class NunchakuFluxTransformer2DModelV2(FluxTransformer2DModel, NunchakuModelLoad
         transformer = transformer.to_empty(device=device)
         converted_state_dict = convert_flux_state_dict(model_state_dict)
 
-        state_dict = transformer.state_dict()
-
-        for k in state_dict.keys():
-            if k not in converted_state_dict:
-                assert ".wcscales" in k
-                converted_state_dict[k] = torch.ones_like(state_dict[k])
-            else:
-                assert state_dict[k].dtype == converted_state_dict[k].dtype
-
-        # Load the wtscale from the converted state dict.
-        for n, m in transformer.named_modules():
-            if isinstance(m, SVDQW4A4Linear):
-                if m.wtscale is not None:
-                    m.wtscale = converted_state_dict.pop(f"{n}.wtscale", 1.0)
+        patch_scale_key(transformer, converted_state_dict)
 
         transformer.load_state_dict(converted_state_dict)
 

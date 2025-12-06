@@ -21,7 +21,7 @@ from ..attention import NunchakuBaseAttention
 from ..attention_processors.zimage import NunchakuZSingleStreamAttnProcessor
 from ..linear import SVDQW4A4Linear
 from ..utils import fuse_linears
-from .utils import NunchakuModelLoaderMixin
+from .utils import NunchakuModelLoaderMixin, patch_scale_key
 
 
 class NunchakuZImageAttention(NunchakuBaseAttention):
@@ -248,6 +248,9 @@ class NunchakuZImageTransformer2DModel(ZImageTransformer2DModel, NunchakuModelLo
 
         transformer._patch_model(skip_refiners=skip_refiners, precision=precision, rank=rank)
         transformer = transformer.to_empty(device=device)
+
+        patch_scale_key(transformer, model_state_dict)
+
         transformer.load_state_dict(model_state_dict)
 
         return transformer
