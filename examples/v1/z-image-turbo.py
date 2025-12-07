@@ -6,8 +6,9 @@ from nunchaku.utils import get_precision
 
 if __name__ == "__main__":
     precision = get_precision()  # auto-detect your precision is 'int4' or 'fp4' based on your GPU
+    rank = 32 # you can also use rank=32 model to improve the speed
     transformer = NunchakuZImageTransformer2DModel.from_pretrained(
-        f"nunchaku-tech/nunchaku-z-image-turbo/svdq-{precision}_r128-z-image-turbo.safetensors"
+        f"nunchaku-tech/nunchaku-z-image-turbo/svdq-{precision}_r{rank}-z-image-turbo.safetensors"
     )
 
     pipe = ZImagePipeline.from_pretrained(
@@ -28,4 +29,4 @@ if __name__ == "__main__":
         generator=torch.Generator().manual_seed(12345),
     ).images[0]
 
-    image.save(f"z-image-turbo-{precision}.png")
+    image.save(f"z-image-turbo-{precision}_r{rank}.png")
