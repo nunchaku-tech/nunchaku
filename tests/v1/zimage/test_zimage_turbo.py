@@ -80,7 +80,7 @@ def test_zimage_turbo(rank: int, expected_lpips: dict[str, float]):
         / f"{precision}_r{rank}-{dtype_str}"
         / f"{folder_name}-bs{batch_size}"
     )
-    path = (f"nunchaku-tech/nunchaku-z-image-turbo/svdq-{precision}_r{rank}-z-image-turbo.safetensors",)
+    path = f"nunchaku-tech/nunchaku-z-image-turbo/svdq-{precision}_r{rank}-z-image-turbo.safetensors"
     transformer = NunchakuZImageTransformer2DModel.from_pretrained(path, torch_dtype=torch_dtype)
 
     pipe = ZImagePipeline.from_pretrained(repo_id, transformer=transformer, torch_dtype=torch_dtype).to("cuda")
