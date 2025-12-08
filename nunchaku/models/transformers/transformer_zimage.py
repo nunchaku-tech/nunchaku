@@ -101,9 +101,9 @@ class NunchakuZImageAttention(NunchakuBaseAttention):
         Parameters
         ----------
         processor : str
-            Name of the processor ("flashattn2" or "nunchaku-fp16").
+            Name of the processor ("flashattn2").
 
-            - ``"flashattn2"``: Standard FlashAttention-2. See :class:`~nunchaku.models.attention_processors.zimage.NunchakuZImageFA2Processor`.
+            - ``"flashattn2"``: Standard FlashAttention-2. See :class:`~nunchaku.models.attention_processors.zimage.NunchakuZSingleStreamAttnProcessor`.
 
         Raises
         ------
@@ -117,7 +117,20 @@ class NunchakuZImageAttention(NunchakuBaseAttention):
 
 
 def _convert_z_image_ff(z_ff: ZImageFeedForward) -> FeedForward:
-    """Replace custom FeedForward module in `ZImageTransformerBlock`s with standard FeedForward in diffusers lib."""
+    """
+    Replace custom FeedForward module in `ZImageTransformerBlock`s with standard FeedForward in diffusers lib.
+
+    Parameters
+    ----------
+    z_ff : ZImageFeedForward
+        The feed forward sub-module in the ZImageTransformerBlock module
+
+    Returns
+    -------
+    FeedForward
+        A diffusers FeedForward module which is equivalent to the input `z_ff`
+
+    """
     assert isinstance(z_ff, ZImageFeedForward)
     assert z_ff.w1.in_features == z_ff.w3.in_features
     assert z_ff.w1.out_features == z_ff.w3.out_features

@@ -149,6 +149,16 @@ class NunchakuModelLoaderMixin:
 
 
 def patch_scale_key(transformer_from_config: nn.Module, state_dict_from_checkpoint: dict):
+    """
+    Modify scale parameters so that the state dict from the checkpoint file can be loaded to the transformer model created from the config.
+
+    Parameters
+    ----------
+    transformer_from_config : nn.Module
+        The transformer model created from the `config.json`
+    state_dict_from_checkpoint : dict
+        The state dict loaded from the checkpoint file (typically .safetensors)
+    """
     state_dict = transformer_from_config.state_dict()
     for k in state_dict.keys():
         if k not in state_dict_from_checkpoint:

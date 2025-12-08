@@ -47,6 +47,8 @@ def merge_safetensors(
     ----------
     pretrained_model_name_or_path : str or os.PathLike
         Path to the model directory or HuggingFace repo.
+    model_class : str
+        Specify model class. E.g. NunchakuFluxTransformer2dModel or NunchakuZImageTransformer2DModel
     **kwargs
         Additional keyword arguments for subfolder, comfy_config_path, and HuggingFace download options.
 
