@@ -1,3 +1,7 @@
+"""
+Attention processor implementations for :class:`~nunchaku.models.transformers.transformer_zimage.NunchakuZImageAttention`.
+"""
+
 from typing import Optional
 
 import torch
@@ -6,11 +10,16 @@ from diffusers.models.transformers.transformer_z_image import ZSingleStreamAttnP
 
 
 class NunchakuZSingleStreamAttnProcessor(ZSingleStreamAttnProcessor):
+    """
+    Nunchaku attention processor for Z-Image-Turbo.
+    Adapted from diffusers.models.transformers.transformer_z_image.ZSingleStreamAttnProcessor.
+
+    """
 
     def __init__(self):
         super().__init__()
 
-    # Apapted from diffusers.models.transformers.transformer_z_image.ZSingleStreamAttnProcessor#__call__
+    # Adapted from diffusers.models.transformers.transformer_z_image.ZSingleStreamAttnProcessor#__call__
     def __call__(
         self,
         attn,
@@ -19,6 +28,9 @@ class NunchakuZSingleStreamAttnProcessor(ZSingleStreamAttnProcessor):
         attention_mask: Optional[torch.Tensor] = None,
         freqs_cis: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
+        """
+        Forward pass of the attention module. Adapted from diffusers.models.transformers.transformer_z_image.ZSingleStreamAttnProcessor#__call__.
+        """
 
         qkv = attn.to_qkv(hidden_states)
         query, key, value = qkv.chunk(3, dim=-1)
