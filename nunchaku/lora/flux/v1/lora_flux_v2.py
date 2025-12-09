@@ -1,7 +1,8 @@
 import logging
 import re
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -11,62 +12,30 @@ from nunchaku.lora.flux.nunchaku_converter import pack_lowrank_weight, reorder_a
 
 logger = logging.getLogger(__name__)
 
-_RE_QKV_DBL_DECOMP = re.compile(r"^(transformer_blocks\.\d+)\.attn\.to_(q|k|v)(?=\.|$)")
-_RE_QKV_DBL_FUSED = re.compile(r"^(transformer_blocks\.\d+)\.attn\.to_qkv(?=\.|$)")
-_RE_ADDQKV_DBL_DECOMP = re.compile(r"^(transformer_blocks\.\d+)\.attn\.add_(q|k|v)_proj(?=\.|$)")
-_RE_ADDQKV_DBL_FUSED = re.compile(r"^(transformer_blocks\.\d+)\.attn\.add_qkv_proj(?=\.|$)")
-
-_RE_QKV_SGL_DECOMP = re.compile(r"^(single_transformer_blocks\.\d+)\.attn\.to_(q|k|v)(?=\.|$)")
-_RE_QKV_SGL_FUSED = re.compile(r"^(single_transformer_blocks\.\d+)\.attn\.to_qkv(?=\.|$)")
-
-_RE_OUTPROJ_DBL = re.compile(r"^(transformer_blocks\.\d+)\.out_proj(?=\.|$)")
-_RE_OUTPROJ_CTX_DBL = re.compile(r"^(transformer_blocks\.\d+)\.out_proj_context(?=\.|$)")
-_RE_TOOUT_DBL = re.compile(r"^(transformer_blocks\.\d+)\.attn\.to_out(?=\.|$)")
-_RE_TOADDOUT_DBL = re.compile(r"^(transformer_blocks\.\d+)\.attn\.to_add_out(?=\.|$)")
-
-_RE_PROJOUT_SGL = re.compile(r"^(single_transformer_blocks\.\d+)\.proj_out(?=\.|$)")
-_RE_PROJMLP_SGL = re.compile(r"^(single_transformer_blocks\.\d+)\.proj_mlp(?=\.|$)")
-_RE_TOOUT_SGL = re.compile(r"^(single_transformer_blocks\.\d+)\.attn\.to_out(?=\.|$)")
-
-_RE_NORM_SGL = re.compile(r"^(single_transformer_blocks\.\d+)\.norm\.linear(?=\.|$)")
-_RE_NORM1_DBL = re.compile(r"^(transformer_blocks\.\d+)\.norm1\.linear(?=\.|$)")
-_RE_NORM1CTX_DBL = re.compile(r"^(transformer_blocks\.\d+)\.norm1_context\.linear(?=\.|$)")
-
-_RE_FF_DBL_FC1 = re.compile(r"^(transformer_blocks\.\d+)\.ff\.net\.0(?:\.proj)?(?=\.|$)")
-_RE_FF_DBL_FC2 = re.compile(r"^(transformer_blocks\.\d+)\.ff\.net\.2(?=\.|$)")
-_RE_FFCTX_DBL_FC1 = re.compile(r"^(transformer_blocks\.\d+)\.ff_context\.net\.0(?:\.proj)?(?=\.|$)")
-_RE_FFCTX_DBL_FC2 = re.compile(r"^(transformer_blocks\.\d+)\.ff_context\.net\.2(?=\.|$)")
-
-_RE_MLP_IMG_FC1 = re.compile(r"^(transformer_blocks\.\d+\.img_mlp\.net\.0(?:\.proj)?)(?=\.|$)")
-_RE_MLP_IMG_FC2 = re.compile(r"^(transformer_blocks\.\d+\.img_mlp\.net\.2)(?=\.|$)")
-_RE_MLP_TXT_FC1 = re.compile(r"^(transformer_blocks\.\d+\.txt_mlp\.net\.0(?:\.proj)?)(?=\.|$)")
-_RE_MLP_TXT_FC2 = re.compile(r"^(transformer_blocks\.\d+\.txt_mlp\.net\.2)(?=\.|$)")
-
-_RE_LORA_SUFFIX = re.compile(r"\.(?P<tag>lora(?:[._](?:A|B|down|up)))(?:\.[^.]+)*\.weight$")
+_RE_LORA_SUFFIX = re.compile(
+    r"\.(?P<tag>lora(?:[._](?:A|B|down|up)))(?:\.[^.]+)*\.weight$"
+)
 _RE_ALPHA_SUFFIX = re.compile(r"\.(?:alpha|lora_alpha)(?:\.[^.]+)*$")
 
-_RE_QKV_DBL_DECOMP_ALT = re.compile(r"^(transformer_blocks\.\d+)\.attn\.(q|k|v)_proj(?=\.|$)")
-_RE_IMGMOD_LINEAR = re.compile(r"^(transformer_blocks\.\d+)\.img_mod\.1(?=\.|$)")
-_RE_TXTMOD_LINEAR = re.compile(r"^(transformer_blocks\.\d+)\.txt_mod\.1(?=\.|$)")
 
-
-def _classify_and_map_key(key: str) -> Optional[Tuple[str, str, Optional[str], str]]:
+def _parse_lora_suffix(k: str) -> Optional[Tuple[str, str]]:
     """
-    key -> (group, base_key, comp, ab)
+    Split a raw key into (base_key, ab_tag).
+
+    ab_tag is one of:
+      - "A" / "B"     : low-rank factors
+      - "alpha"       : LoRA scale
+    Returns None if the key does not look like a LoRA-related parameter.
+
+    This is just the extraction of the original suffix-handling block.
     """
-    k = key
-    if k.startswith("transformer."):
-        k = k[len("transformer.") :]
-
-    if k.startswith("diffusion_model."):
-        k = k[len("diffusion_model.") :]
-
-    base = None
-    ab = None
+    base: Optional[str] = None
+    ab: Optional[str] = None
 
     m = _RE_LORA_SUFFIX.search(k)
     if m:
-        tag = m.group("tag")  # lora_A / lora_B / lora.down / lora.up
+        # e.g. ".lora_A.weight", ".lora.down.weight", ".lora.B.something.weight"
+        tag = m.group("tag")  # lora_A / lora_B / lora.down / lora.up / ...
         base = k[: m.start()]
         if "lora_A" in tag or tag.endswith(".A"):
             ab = "A"
@@ -79,11 +48,13 @@ def _classify_and_map_key(key: str) -> Optional[Tuple[str, str, Optional[str], s
         else:
             return None
     else:
+        # alpha-style keys
         m = _RE_ALPHA_SUFFIX.search(k)
         if m:
             ab = "alpha"
             base = k[: m.start()]
         else:
+            # Backwards-compatible string-based fallbacks
             if ".lora_A" in k:
                 ab = "A"
                 base = k.replace(".lora_A.weight", "").replace(".lora_A", "")
@@ -102,112 +73,567 @@ def _classify_and_map_key(key: str) -> Optional[Tuple[str, str, Optional[str], s
             else:
                 return None
 
-    # QKV (double)
-    m = _RE_QKV_DBL_FUSED.match(base)
-    if m:
-        return ("qkv", f"{m.group(1)}.attn.to_qkv", None, ab)
+    if base is None or ab is None:
+        return None
+    return base, ab
 
-    m = _RE_QKV_DBL_DECOMP.match(base)
-    if m:
-        return ("qkv", f"{m.group(1)}.attn.to_qkv", m.group(2).upper(), ab)
+@dataclass(frozen=True)
+class LoraBaseRule:
+    """
+    Single LoRA base-key naming rule.
 
-    # ADD_QKV (double)
-    m = _RE_ADDQKV_DBL_FUSED.match(base)
-    if m:
-        return ("add_qkv", f"{m.group(1)}.attn.add_qkv_proj", None, ab)
+    - group: how this LoRA behaves downstream ("qkv", "add_qkv", "regular", ...)
+    - pattern: regex to match the *base* (without lora suffix / alpha)
+    - base_transform: converts a regex match to canonical module name
+    - component_transform:
+        For QKV-type rules, returns "Q"/"K"/"V" or None.
+    - description: human readable explanation (for docs / debugging).
+    """
+    name: str
+    group: str
+    pattern: re.Pattern
+    description: str
+    base_transform: Callable[[re.Match], str]
+    component_transform: Optional[Callable[[re.Match], Optional[str]]] = None
 
-    m = _RE_ADDQKV_DBL_DECOMP.match(base)
-    if m:
-        return ("add_qkv", f"{m.group(1)}.attn.add_qkv_proj", m.group(2).upper(), ab)
 
-    m = _RE_QKV_DBL_DECOMP_ALT.match(base)
-    if m:
-        return ("qkv", f"{m.group(1)}.attn.to_qkv", m.group(2).upper(), ab)
+def _build_lora_base_rules() -> List[LoraBaseRule]:
+    rules: List[LoraBaseRule] = []
 
-    # QKV (single)
-    m = _RE_QKV_SGL_FUSED.match(base)
-    if m:
-        return ("qkv", f"{m.group(1)}.attn.to_qkv", None, ab)
+    # --- QKV (double blocks, transformer_blocks.*) ----------------------------
 
-    m = _RE_QKV_SGL_DECOMP.match(base)
-    if m:
-        return ("qkv", f"{m.group(1)}.attn.to_qkv", m.group(2).upper(), ab)
+    # Double-stream attention, fused QKV projection:
+    #   transformer_blocks.{i}.attn.to_qkv[.lora_*]
+    rules.append(
+        LoraBaseRule(
+            name="dbl_qkv_fused",
+            group="qkv",
+            pattern=re.compile(
+                r"^(transformer_blocks\.\d+)\.attn\.to_qkv(?=\.|$)"
+            ),
+            description=(
+                "Double-stream attention fused QKV projection: "
+                "transformer_blocks.{i}.attn.to_qkv"
+            ),
+            base_transform=lambda m: f"{m.group(1)}.attn.to_qkv",
+        )
+    )
 
-    # out/ff (double)
-    m = _RE_OUTPROJ_CTX_DBL.match(base)
-    if m:
-        return ("regular", f"{m.group(1)}.attn.to_add_out", None, ab)
+    # Double-stream attention, separate Q/K/V projections:
+    #   transformer_blocks.{i}.attn.to_q / to_k / to_v
+    rules.append(
+        LoraBaseRule(
+            name="dbl_qkv_decomp",
+            group="qkv",
+            pattern=re.compile(
+                r"^(transformer_blocks\.\d+)\.attn\.to_(q|k|v)(?=\.|$)"
+            ),
+            description=(
+                "Double-stream attention split Q/K/V projections: "
+                "transformer_blocks.{i}.attn.to_q|to_k|to_v "
+                "→ canonical .attn.to_qkv with component Q/K/V"
+            ),
+            base_transform=lambda m: f"{m.group(1)}.attn.to_qkv",
+            component_transform=lambda m: m.group(2).upper(),
+        )
+    )
 
-    m = _RE_TOADDOUT_DBL.match(base)
-    if m:
-        return ("regular", f"{m.group(1)}.attn.to_add_out", None, ab)
+    # Double-stream attention, fused additive QKV projection:
+    #   transformer_blocks.{i}.attn.add_qkv_proj
+    rules.append(
+        LoraBaseRule(
+            name="dbl_addqkv_fused",
+            group="add_qkv",
+            pattern=re.compile(
+                r"^(transformer_blocks\.\d+)\.attn\.add_qkv_proj(?=\.|$)"
+            ),
+            description=(
+                "Double-stream attention fused additive QKV projection: "
+                "transformer_blocks.{i}.attn.add_qkv_proj"
+            ),
+            base_transform=lambda m: f"{m.group(1)}.attn.add_qkv_proj",
+        )
+    )
 
-    m = _RE_OUTPROJ_DBL.match(base)
-    if m:
-        return ("regular", f"{m.group(1)}.attn.to_out.0", None, ab)
+    # Double-stream attention, separate additive Q/K/V projections:
+    #   transformer_blocks.{i}.attn.add_q_proj / add_k_proj / add_v_proj
+    rules.append(
+        LoraBaseRule(
+            name="dbl_addqkv_decomp",
+            group="add_qkv",
+            pattern=re.compile(
+                r"^(transformer_blocks\.\d+)\.attn\.add_(q|k|v)_proj(?=\.|$)"
+            ),
+            description=(
+                "Double-stream attention split additive Q/K/V projections: "
+                "transformer_blocks.{i}.attn.add_q_proj|add_k_proj|add_v_proj "
+                "→ canonical .attn.add_qkv_proj with component Q/K/V"
+            ),
+            base_transform=lambda m: f"{m.group(1)}.attn.add_qkv_proj",
+            component_transform=lambda m: m.group(2).upper(),
+        )
+    )
 
-    m = _RE_TOOUT_DBL.match(base)
-    if m:
-        return ("regular", f"{m.group(1)}.attn.to_out.0", None, ab)
+    # Alternate naming for double-stream Q/K/V projections:
+    #   transformer_blocks.{i}.attn.q_proj / k_proj / v_proj
+    rules.append(
+        LoraBaseRule(
+            name="dbl_qkv_alt_proj",
+            group="qkv",
+            pattern=re.compile(
+                r"^(transformer_blocks\.\d+)\.attn\.(q|k|v)_proj(?=\.|$)"
+            ),
+            description=(
+                "Double-stream attention split Q/K/V projections using *_proj "
+                "suffix: transformer_blocks.{i}.attn.q_proj|k_proj|v_proj "
+                "→ canonical .attn.to_qkv with component Q/K/V"
+            ),
+            base_transform=lambda m: f"{m.group(1)}.attn.to_qkv",
+            component_transform=lambda m: m.group(2).upper(),
+        )
+    )
 
-    m = _RE_FF_DBL_FC1.match(base)
-    if m:
-        return ("regular", f"{m.group(1)}.mlp_fc1", None, ab)
+    # --- QKV (single blocks, single_transformer_blocks.*) ---------------------
 
-    m = _RE_FF_DBL_FC2.match(base)
-    if m:
-        return ("regular", f"{m.group(1)}.mlp_fc2", None, ab)
+    # Single-stream attention, fused QKV projection:
+    #   single_transformer_blocks.{i}.attn.to_qkv
+    rules.append(
+        LoraBaseRule(
+            name="sgl_qkv_fused",
+            group="qkv",
+            pattern=re.compile(
+                r"^(single_transformer_blocks\.\d+)\.attn\.to_qkv(?=\.|$)"
+            ),
+            description=(
+                "Single-stream attention fused QKV projection: "
+                "single_transformer_blocks.{i}.attn.to_qkv"
+            ),
+            base_transform=lambda m: f"{m.group(1)}.attn.to_qkv",
+        )
+    )
 
-    m = _RE_FFCTX_DBL_FC1.match(base)
-    if m:
-        return ("regular", f"{m.group(1)}.mlp_context_fc1", None, ab)
+    # Single-stream attention, split Q/K/V projections:
+    #   single_transformer_blocks.{i}.attn.to_q / to_k / to_v
+    rules.append(
+        LoraBaseRule(
+            name="sgl_qkv_decomp",
+            group="qkv",
+            pattern=re.compile(
+                r"^(single_transformer_blocks\.\d+)\.attn\.to_(q|k|v)(?=\.|$)"
+            ),
+            description=(
+                "Single-stream attention split Q/K/V projections: "
+                "single_transformer_blocks.{i}.attn.to_q|to_k|to_v "
+                "→ canonical .attn.to_qkv with component Q/K/V"
+            ),
+            base_transform=lambda m: f"{m.group(1)}.attn.to_qkv",
+            component_transform=lambda m: m.group(2).upper(),
+        )
+    )
 
-    m = _RE_FFCTX_DBL_FC2.match(base)
-    if m:
-        return ("regular", f"{m.group(1)}.mlp_context_fc2", None, ab)
+    # --- Attention output and add-output projections (double blocks) ---------
 
-    # single
-    m = _RE_PROJOUT_SGL.match(base)
-    if m:
-        return ("single_proj_out", f"{m.group(1)}.proj_out", None, ab)
+    # Context branch out-projection:
+    #   transformer_blocks.{i}.out_proj_context → attn.to_add_out
+    rules.append(
+        LoraBaseRule(
+            name="dbl_outproj_ctx",
+            group="regular",
+            pattern=re.compile(
+                r"^(transformer_blocks\.\d+)\.out_proj_context(?=\.|$)"
+            ),
+            description=(
+                "Context out projection mapped to shared add-out head: "
+                "transformer_blocks.{i}.out_proj_context → "
+                "transformer_blocks.{i}.attn.to_add_out"
+            ),
+            base_transform=lambda m: f"{m.group(1)}.attn.to_add_out",
+        )
+    )
 
-    m = _RE_PROJMLP_SGL.match(base)
-    if m:
-        return ("regular", f"{m.group(1)}.mlp_fc1", None, ab)
+    # Direct attention add-out projection:
+    #   transformer_blocks.{i}.attn.to_add_out
+    rules.append(
+        LoraBaseRule(
+            name="dbl_to_add_out",
+            group="regular",
+            pattern=re.compile(
+                r"^(transformer_blocks\.\d+)\.attn\.to_add_out(?=\.|$)"
+            ),
+            description=(
+                "Attention add-out projection: "
+                "transformer_blocks.{i}.attn.to_add_out"
+            ),
+            base_transform=lambda m: f"{m.group(1)}.attn.to_add_out",
+        )
+    )
 
-    m = _RE_TOOUT_SGL.match(base)
-    if m:
-        return ("regular", f"{m.group(1)}.attn.to_out", None, ab)
+    # Main attention out projection from older checkpoints:
+    #   transformer_blocks.{i}.out_proj → attn.to_out.0
+    rules.append(
+        LoraBaseRule(
+            name="dbl_outproj",
+            group="regular",
+            pattern=re.compile(
+                r"^(transformer_blocks\.\d+)\.out_proj(?=\.|$)"
+            ),
+            description=(
+                "Main attention out projection mapped to SVDQW4A4Linear slot 0: "
+                "transformer_blocks.{i}.out_proj → "
+                "transformer_blocks.{i}.attn.to_out.0"
+            ),
+            base_transform=lambda m: f"{m.group(1)}.attn.to_out.0",
+        )
+    )
 
-    # norm.linear
-    m = _RE_NORM_SGL.match(base)
-    if m:
-        return ("regular", f"{m.group(1)}.norm.linear", None, ab)
+    # New-style attention out projection:
+    #   transformer_blocks.{i}.attn.to_out[.0]
+    rules.append(
+        LoraBaseRule(
+            name="dbl_to_out",
+            group="regular",
+            pattern=re.compile(
+                r"^(transformer_blocks\.\d+)\.attn\.to_out(?=\.|$)"
+            ),
+            description=(
+                "Main attention out projection: "
+                "transformer_blocks.{i}.attn.to_out"
+            ),
+            base_transform=lambda m: f"{m.group(1)}.attn.to_out.0",
+        )
+    )
 
-    m = _RE_NORM1_DBL.match(base)
-    if m:
-        return ("regular", f"{m.group(1)}.norm1.linear", None, ab)
+    # --- Feed-forward (double blocks) ----------------------------------------
 
-    m = _RE_NORM1CTX_DBL.match(base)
-    if m:
-        return ("regular", f"{m.group(1)}.norm1_context.linear", None, ab)
+    # FFN first linear (with optional .proj suffix):
+    #   transformer_blocks.{i}.ff.net.0[.proj] → mlp_fc1
+    rules.append(
+        LoraBaseRule(
+            name="dbl_ff_fc1",
+            group="regular",
+            pattern=re.compile(
+                r"^(transformer_blocks\.\d+)\.ff\.net\.0(?:\.proj)?(?=\.|$)"
+            ),
+            description=(
+                "Feed-forward first projection: "
+                "transformer_blocks.{i}.ff.net.0[.proj] → "
+                "transformer_blocks.{i}.mlp_fc1"
+            ),
+            base_transform=lambda m: f"{m.group(1)}.mlp_fc1",
+        )
+    )
 
-    m = _RE_MLP_IMG_FC1.match(base) or _RE_MLP_TXT_FC1.match(base)
-    if m:
-        return ("regular", m.group(1), None, ab)
+    # FFN second linear:
+    #   transformer_blocks.{i}.ff.net.2 → mlp_fc2
+    rules.append(
+        LoraBaseRule(
+            name="dbl_ff_fc2",
+            group="regular",
+            pattern=re.compile(
+                r"^(transformer_blocks\.\d+)\.ff\.net\.2(?=\.|$)"
+            ),
+            description=(
+                "Feed-forward second projection: "
+                "transformer_blocks.{i}.ff.net.2 → "
+                "transformer_blocks.{i}.mlp_fc2"
+            ),
+            base_transform=lambda m: f"{m.group(1)}.mlp_fc2",
+        )
+    )
 
-    m = _RE_MLP_IMG_FC2.match(base) or _RE_MLP_TXT_FC2.match(base)
-    if m:
-        return ("regular", m.group(1), None, ab)
+    # Context FFN first linear:
+    #   transformer_blocks.{i}.ff_context.net.0[.proj] → mlp_context_fc1
+    rules.append(
+        LoraBaseRule(
+            name="dbl_ffctx_fc1",
+            group="regular",
+            pattern=re.compile(
+                r"^(transformer_blocks\.\d+)\.ff_context\.net\.0(?:\.proj)?(?=\.|$)"
+            ),
+            description=(
+                "Context feed-forward first projection: "
+                "transformer_blocks.{i}.ff_context.net.0[.proj] → "
+                "transformer_blocks.{i}.mlp_context_fc1"
+            ),
+            base_transform=lambda m: f"{m.group(1)}.mlp_context_fc1",
+        )
+    )
 
-    m = _RE_IMGMOD_LINEAR.match(base)
-    if m:
-        return ("regular", f"{m.group(1)}.img_mod.1", None, ab)
+    # Context FFN second linear:
+    #   transformer_blocks.{i}.ff_context.net.2 → mlp_context_fc2
+    rules.append(
+        LoraBaseRule(
+            name="dbl_ffctx_fc2",
+            group="regular",
+            pattern=re.compile(
+                r"^(transformer_blocks\.\d+)\.ff_context\.net\.2(?=\.|$)"
+            ),
+            description=(
+                "Context feed-forward second projection: "
+                "transformer_blocks.{i}.ff_context.net.2 → "
+                "transformer_blocks.{i}.mlp_context_fc2"
+            ),
+            base_transform=lambda m: f"{m.group(1)}.mlp_context_fc2",
+        )
+    )
 
-    m = _RE_TXTMOD_LINEAR.match(base)
-    if m:
-        return ("regular", f"{m.group(1)}.txt_mod.1", None, ab)
+    # --- Single-block attention / MLP heads ----------------------------------
 
+    # Single-block shared output head, later split into attn.to_out + mlp_fc2:
+    #   single_transformer_blocks.{i}.proj_out
+    rules.append(
+        LoraBaseRule(
+            name="sgl_proj_out",
+            group="single_proj_out",
+            pattern=re.compile(
+                r"^(single_transformer_blocks\.\d+)\.proj_out(?=\.|$)"
+            ),
+            description=(
+                "Single-block shared output head: "
+                "single_transformer_blocks.{i}.proj_out "
+                "→ split into attn.to_out and mlp_fc2"
+            ),
+            base_transform=lambda m: f"{m.group(1)}.proj_out",
+        )
+    )
+
+    # Single-block MLP first linear:
+    #   single_transformer_blocks.{i}.proj_mlp → mlp_fc1
+    rules.append(
+        LoraBaseRule(
+            name="sgl_proj_mlp",
+            group="regular",
+            pattern=re.compile(
+                r"^(single_transformer_blocks\.\d+)\.proj_mlp(?=\.|$)"
+            ),
+            description=(
+                "Single-block MLP first projection: "
+                "single_transformer_blocks.{i}.proj_mlp → "
+                "single_transformer_blocks.{i}.mlp_fc1"
+            ),
+            base_transform=lambda m: f"{m.group(1)}.mlp_fc1",
+        )
+    )
+
+    # Single-block attention out projection:
+    #   single_transformer_blocks.{i}.attn.to_out
+    rules.append(
+        LoraBaseRule(
+            name="sgl_to_out",
+            group="regular",
+            pattern=re.compile(
+                r"^(single_transformer_blocks\.\d+)\.attn\.to_out(?=\.|$)"
+            ),
+            description=(
+                "Single-block attention out projection: "
+                "single_transformer_blocks.{i}.attn.to_out"
+            ),
+            base_transform=lambda m: f"{m.group(1)}.attn.to_out",
+        )
+    )
+
+    # --- Layer norms / AdaNorm -----------------------------------------------
+
+    # Single-block norm:
+    #   single_transformer_blocks.{i}.norm.linear
+    rules.append(
+        LoraBaseRule(
+            name="sgl_norm",
+            group="regular",
+            pattern=re.compile(
+                r"^(single_transformer_blocks\.\d+)\.norm\.linear(?=\.|$)"
+            ),
+            description=(
+                "Single-block AdaNorm linear: "
+                "single_transformer_blocks.{i}.norm.linear"
+            ),
+            base_transform=lambda m: f"{m.group(1)}.norm.linear",
+        )
+    )
+
+    # Double-block norm1:
+    #   transformer_blocks.{i}.norm1.linear
+    rules.append(
+        LoraBaseRule(
+            name="dbl_norm1",
+            group="regular",
+            pattern=re.compile(
+                r"^(transformer_blocks\.\d+)\.norm1\.linear(?=\.|$)"
+            ),
+            description=(
+                "Double-block AdaNorm-1 linear: "
+                "transformer_blocks.{i}.norm1.linear"
+            ),
+            base_transform=lambda m: f"{m.group(1)}.norm1.linear",
+        )
+    )
+
+    # Double-block norm1_context:
+    #   transformer_blocks.{i}.norm1_context.linear
+    rules.append(
+        LoraBaseRule(
+            name="dbl_norm1_ctx",
+            group="regular",
+            pattern=re.compile(
+                r"^(transformer_blocks\.\d+)\.norm1_context\.linear(?=\.|$)"
+            ),
+            description=(
+                "Double-block context AdaNorm-1 linear: "
+                "transformer_blocks.{i}.norm1_context.linear"
+            ),
+            base_transform=lambda m: f"{m.group(1)}.norm1_context.linear",
+        )
+    )
+
+    # --- Image / text MLP heads on double blocks -----------------------------
+
+    # Image MLP first linear:
+    #   transformer_blocks.{i}.img_mlp.net.0[.proj]
+    rules.append(
+        LoraBaseRule(
+            name="dbl_img_mlp_fc1",
+            group="regular",
+            pattern=re.compile(
+                r"^(transformer_blocks\.\d+\.img_mlp\.net\.0(?:\.proj)?)(?=\.|$)"
+            ),
+            description=(
+                "Per-block image MLP first projection: "
+                "transformer_blocks.{i}.img_mlp.net.0[.proj]"
+            ),
+            base_transform=lambda m: m.group(1),
+        )
+    )
+
+    # Image MLP second linear:
+    #   transformer_blocks.{i}.img_mlp.net.2
+    rules.append(
+        LoraBaseRule(
+            name="dbl_img_mlp_fc2",
+            group="regular",
+            pattern=re.compile(
+                r"^(transformer_blocks\.\d+\.img_mlp\.net\.2)(?=\.|$)"
+            ),
+            description=(
+                "Per-block image MLP second projection: "
+                "transformer_blocks.{i}.img_mlp.net.2"
+            ),
+            base_transform=lambda m: m.group(1),
+        )
+    )
+
+    # Text MLP first linear:
+    #   transformer_blocks.{i}.txt_mlp.net.0[.proj]
+    rules.append(
+        LoraBaseRule(
+            name="dbl_txt_mlp_fc1",
+            group="regular",
+            pattern=re.compile(
+                r"^(transformer_blocks\.\d+\.txt_mlp\.net\.0(?:\.proj)?)(?=\.|$)"
+            ),
+            description=(
+                "Per-block text MLP first projection: "
+                "transformer_blocks.{i}.txt_mlp.net.0[.proj]"
+            ),
+            base_transform=lambda m: m.group(1),
+        )
+    )
+
+    # Text MLP second linear:
+    #   transformer_blocks.{i}.txt_mlp.net.2
+    rules.append(
+        LoraBaseRule(
+            name="dbl_txt_mlp_fc2",
+            group="regular",
+            pattern=re.compile(
+                r"^(transformer_blocks\.\d+\.txt_mlp\.net\.2)(?=\.|$)"
+            ),
+            description=(
+                "Per-block text MLP second projection: "
+                "transformer_blocks.{i}.txt_mlp.net.2"
+            ),
+            base_transform=lambda m: m.group(1),
+        )
+    )
+
+    # --- Image / text modulation linears on double blocks --------------------
+
+    # Image modulation linear:
+    #   transformer_blocks.{i}.img_mod.1
+    rules.append(
+        LoraBaseRule(
+            name="dbl_img_mod",
+            group="regular",
+            pattern=re.compile(
+                r"^(transformer_blocks\.\d+)\.img_mod\.1(?=\.|$)"
+            ),
+            description=(
+                "Image modulation linear: "
+                "transformer_blocks.{i}.img_mod.1"
+            ),
+            base_transform=lambda m: f"{m.group(1)}.img_mod.1",
+        )
+    )
+
+    # Text modulation linear:
+    #   transformer_blocks.{i}.txt_mod.1
+    rules.append(
+        LoraBaseRule(
+            name="dbl_txt_mod",
+            group="regular",
+            pattern=re.compile(
+                r"^(transformer_blocks\.\d+)\.txt_mod\.1(?=\.|$)"
+            ),
+            description=(
+                "Text modulation linear: "
+                "transformer_blocks.{i}.txt_mod.1"
+            ),
+            base_transform=lambda m: f"{m.group(1)}.txt_mod.1",
+        )
+    )
+
+    return rules
+
+
+_LORA_BASE_RULES: List[LoraBaseRule] = _build_lora_base_rules()
+
+def _classify_and_map_key(key: str) -> Optional[Tuple[str, str, Optional[str], str]]:
+    """
+    Map a raw LoRA parameter key to:
+        (group, base_key, component, ab_tag)
+
+    - group    : "qkv", "add_qkv", "regular", "single_proj_out"
+    - base_key : canonical module path inside the target model
+    - component: for QKV-style rules, one of {"Q", "K", "V"} or None
+    - ab_tag   : "A", "B", or "alpha"
+
+    This function is now entirely driven by _LORA_BASE_RULES so adding,
+    removing or changing supported naming schemes only touches the rule table.
+    """
+    k = key
+
+    # Strip optional model prefixes first (as in the original code)
+    if k.startswith("transformer."):
+        k = k[len("transformer.") :]
+    if k.startswith("diffusion_model."):
+        k = k[len("diffusion_model.") :]
+
+    # 1) Parse suffix to get base + A/B/alpha
+    parsed_suffix = _parse_lora_suffix(k)
+    if parsed_suffix is None:
+        return None
+    base, ab = parsed_suffix
+
+    # 2) Match the base part against the rule table
+    for rule in _LORA_BASE_RULES:
+        m = rule.pattern.match(base)
+        if not m:
+            continue
+
+        base_key = rule.base_transform(m)
+        comp = rule.component_transform(m) if rule.component_transform else None
+        return rule.group, base_key, comp, ab
+
+    # 3) No rule matched
     return None
 
 
@@ -264,6 +690,15 @@ def _resolve_module_name(model: nn.Module, name: str) -> Tuple[str, Optional[nn.
 def _is_indexable_module(m):
     return isinstance(m, (nn.ModuleList, nn.Sequential, list, tuple))
 
+def describe_supported_lora_naming_rules() -> str:
+    """
+    Return a human-readable summary of all supported LoRA base-key naming rules.
+    Useful for debugging and documentation.
+    """
+    lines = []
+    for r in _LORA_BASE_RULES:
+        lines.append(f"- {r.name}: {r.description}")
+    return "\n".join(lines)
 
 def _get_module_by_name(model: nn.Module, name: str) -> Optional[nn.Module]:
     """
