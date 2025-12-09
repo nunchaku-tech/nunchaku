@@ -492,10 +492,173 @@ def _build_lora_base_rules() -> List[LoraBaseRule]:
         )
     )
 
+    # --- UNet-style external LoRA naming (underscore, lora_unet_*) -----------
+
+    # lora_unet_transformer_blocks_0_attn_add_{q|k|v}_proj
+    #   → treat as double-stream additive Q/K/V projections:
+    #     transformer_blocks.0.attn.add_qkv_proj with component Q/K/V
+    rules.append(
+        LoraBaseRule(
+            name="unet_dbl_addqkv_decomp",
+            group="add_qkv",
+            pattern=re.compile(r"^lora_unet_transformer_blocks_(\d+)_attn_add_(q|k|v)_proj$"),
+            description=(
+                "UNet-style double-stream additive Q/K/V projections: "
+                "lora_unet_transformer_blocks_{i}_attn_add_q|k|v_proj "
+                "→ transformer_blocks.{i}.attn.add_qkv_proj with component Q/K/V"
+            ),
+            base_transform=lambda m: f"transformer_blocks.{m.group(1)}.attn.add_qkv_proj",
+            component_transform=lambda m: m.group(2).upper(),
+        )
+    )
+
+    # lora_unet_transformer_blocks_0_attn_to_{q|k|v}
+    #   → treat as double-stream Q/K/V projections:
+    #     transformer_blocks.0.attn.to_qkv with component Q/K/V
+    rules.append(
+        LoraBaseRule(
+            name="unet_dbl_qkv_decomp",
+            group="qkv",
+            pattern=re.compile(r"^lora_unet_transformer_blocks_(\d+)_attn_to_(q|k|v)$"),
+            description=(
+                "UNet-style double-stream Q/K/V projections: "
+                "lora_unet_transformer_blocks_{i}_attn_to_q|k|v "
+                "→ transformer_blocks.{i}.attn.to_qkv with component Q/K/V"
+            ),
+            base_transform=lambda m: f"transformer_blocks.{m.group(1)}.attn.to_qkv",
+            component_transform=lambda m: m.group(2).upper(),
+        )
+    )
+
+    # lora_unet_transformer_blocks_0_attn_to_add_out
+    #   → transformer_blocks.0.attn.to_add_out
+    rules.append(
+        LoraBaseRule(
+            name="unet_dbl_to_add_out",
+            group="regular",
+            pattern=re.compile(r"^lora_unet_transformer_blocks_(\d+)_attn_to_add_out$"),
+            description=(
+                "UNet-style attention add-out projection: "
+                "lora_unet_transformer_blocks_{i}_attn_to_add_out "
+                "→ transformer_blocks.{i}.attn.to_add_out"
+            ),
+            base_transform=lambda m: f"transformer_blocks.{m.group(1)}.attn.to_add_out",
+        )
+    )
+
+    # lora_unet_transformer_blocks_0_attn_to_out_0
+    #   → transformer_blocks.0.attn.to_out.0
+    rules.append(
+        LoraBaseRule(
+            name="unet_dbl_to_out_0",
+            group="regular",
+            pattern=re.compile(r"^lora_unet_transformer_blocks_(\d+)_attn_to_out_0$"),
+            description=(
+                "UNet-style attention out projection (slot 0): "
+                "lora_unet_transformer_blocks_{i}_attn_to_out_0 "
+                "→ transformer_blocks.{i}.attn.to_out.0"
+            ),
+            base_transform=lambda m: f"transformer_blocks.{m.group(1)}.attn.to_out.0",
+        )
+    )
+
+    # lora_unet_transformer_blocks_0_img_mlp_net_0_proj
+    #   → transformer_blocks.0.img_mlp.net.0.proj
+    rules.append(
+        LoraBaseRule(
+            name="unet_img_mlp_fc1",
+            group="regular",
+            pattern=re.compile(r"^lora_unet_transformer_blocks_(\d+)_img_mlp_net_0_proj$"),
+            description=(
+                "UNet-style image MLP first projection: "
+                "lora_unet_transformer_blocks_{i}_img_mlp_net_0_proj "
+                "→ transformer_blocks.{i}.img_mlp.net.0.proj"
+            ),
+            base_transform=lambda m: f"transformer_blocks.{m.group(1)}.img_mlp.net.0.proj",
+        )
+    )
+
+    # lora_unet_transformer_blocks_0_img_mlp_net_2
+    #   → transformer_blocks.0.img_mlp.net.2
+    rules.append(
+        LoraBaseRule(
+            name="unet_img_mlp_fc2",
+            group="regular",
+            pattern=re.compile(r"^lora_unet_transformer_blocks_(\d+)_img_mlp_net_2$"),
+            description=(
+                "UNet-style image MLP second projection: "
+                "lora_unet_transformer_blocks_{i}_img_mlp_net_2 "
+                "→ transformer_blocks.{i}.img_mlp.net.2"
+            ),
+            base_transform=lambda m: f"transformer_blocks.{m.group(1)}.img_mlp.net.2",
+        )
+    )
+
+    # lora_unet_transformer_blocks_0_img_mod_1
+    #   → transformer_blocks.0.img_mod.1
+    rules.append(
+        LoraBaseRule(
+            name="unet_img_mod_1",
+            group="regular",
+            pattern=re.compile(r"^lora_unet_transformer_blocks_(\d+)_img_mod_1$"),
+            description=(
+                "UNet-style image modulation linear: "
+                "lora_unet_transformer_blocks_{i}_img_mod_1 "
+                "→ transformer_blocks.{i}.img_mod.1"
+            ),
+            base_transform=lambda m: f"transformer_blocks.{m.group(1)}.img_mod.1",
+        )
+    )
+
+    # lora_unet_transformer_blocks_0_txt_mlp_net_0_proj
+    #   → transformer_blocks.0.txt_mlp.net.0.proj
+    rules.append(
+        LoraBaseRule(
+            name="unet_txt_mlp_fc1",
+            group="regular",
+            pattern=re.compile(r"^lora_unet_transformer_blocks_(\d+)_txt_mlp_net_0_proj$"),
+            description=(
+                "UNet-style text MLP first projection: "
+                "lora_unet_transformer_blocks_{i}_txt_mlp_net_0_proj "
+                "→ transformer_blocks.{i}.txt_mlp.net.0.proj"
+            ),
+            base_transform=lambda m: f"transformer_blocks.{m.group(1)}.txt_mlp.net.0.proj",
+        )
+    )
+
+    # lora_unet_transformer_blocks_0_txt_mlp_net_2
+    #   → transformer_blocks.0.txt_mlp.net.2
+    rules.append(
+        LoraBaseRule(
+            name="unet_txt_mlp_fc2",
+            group="regular",
+            pattern=re.compile(r"^lora_unet_transformer_blocks_(\d+)_txt_mlp_net_2$"),
+            description=(
+                "UNet-style text MLP second projection: "
+                "lora_unet_transformer_blocks_{i}_txt_mlp_net_2 "
+                "→ transformer_blocks.{i}.txt_mlp.net.2"
+            ),
+            base_transform=lambda m: f"transformer_blocks.{m.group(1)}.txt_mlp.net.2",
+        )
+    )
+
+    # lora_unet_transformer_blocks_0_txt_mod_1
+    #   → transformer_blocks.0.txt_mod.1
+    rules.append(
+        LoraBaseRule(
+            name="unet_txt_mod_1",
+            group="regular",
+            pattern=re.compile(r"^lora_unet_transformer_blocks_(\d+)_txt_mod_1$"),
+            description=(
+                "UNet-style text modulation linear: "
+                "lora_unet_transformer_blocks_{i}_txt_mod_1 "
+                "→ transformer_blocks.{i}.txt_mod.1"
+            ),
+            base_transform=lambda m: f"transformer_blocks.{m.group(1)}.txt_mod.1",
+        )
+    )
+
     return rules
-
-
-_LORA_BASE_RULES: List[LoraBaseRule] = _build_lora_base_rules()
 
 
 def _classify_and_map_key(key: str) -> Optional[Tuple[str, str, Optional[str], str]]:
@@ -511,6 +674,8 @@ def _classify_and_map_key(key: str) -> Optional[Tuple[str, str, Optional[str], s
     This function is now entirely driven by _LORA_BASE_RULES so adding,
     removing or changing supported naming schemes only touches the rule table.
     """
+    _LORA_BASE_RULES: List[LoraBaseRule] = _build_lora_base_rules()
+
     k = key
 
     # Strip optional model prefixes first (as in the original code)
@@ -598,6 +763,8 @@ def describe_supported_lora_naming_rules() -> str:
     Return a human-readable summary of all supported LoRA base-key naming rules.
     Useful for debugging and documentation.
     """
+    _LORA_BASE_RULES: List[LoraBaseRule] = _build_lora_base_rules()
+
     lines = []
     for r in _LORA_BASE_RULES:
         lines.append(f"- {r.name}: {r.description}")
