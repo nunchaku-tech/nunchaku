@@ -5,6 +5,7 @@ Implements the :class:`NunchakuFluxTransformer2dModel`, a quantized transformer 
 import json
 import logging
 import os
+import platform
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional, Union
 
@@ -33,6 +34,25 @@ log_level = os.getenv("LOG_LEVEL", "INFO").upper()
 # Configure logging
 logging.basicConfig(level=getattr(logging, log_level, logging.INFO), format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
+
+def _pin_state_dict(sd: dict[str, Any]) -> dict[str, Any]:
+    """
+    Pin CPU tensors in a state_dict to accelerate many small H2D copies.
+
+    This is especially beneficial when loading weights that are transferred to CUDA in many chunks,
+    where pageable CPU memory can severely degrade effective transfer speed.
+    """
+    out: dict[str, Any] = {}
+    for k, v in sd.items():
+        if isinstance(v, torch.Tensor) and v.device.type == "cpu" and v.numel() > 0:
+            try:
+                out[k] = v if v.is_pinned() else v.pin_memory()
+            except Exception:
+                # Fallback: keep original tensor if pinning is not supported for some reason.
+                out[k] = v
+        else:
+            out[k] = v
+    return out
 
 
 class NunchakuFluxTransformerBlocks(nn.Module):
@@ -581,6 +601,14 @@ class NunchakuFluxTransformer2dModel(FluxTransformer2DModel, NunchakuModelLoader
             # get the default LoRA branch and all the vectors
             quantized_part_sd = load_file(transformer_block_path)
             unquantized_part_sd = load_file(unquantized_part_path)
+
+        pin_memory = kwargs.get("pin_memory", "auto")
+        if pin_memory == "auto":
+            pin_memory = platform.machine().lower() in ("aarch64", "arm64")
+        if pin_memory and isinstance(device, torch.device) and device.type == "cuda":
+            quantized_part_sd = _pin_state_dict(quantized_part_sd)
+            unquantized_part_sd = _pin_state_dict(unquantized_part_sd)
+
         new_quantized_part_sd = {}
         for k, v in quantized_part_sd.items():
             if v.ndim == 1:
