@@ -7,7 +7,9 @@ modules for improved performance and memory efficiency.
 import json
 import logging
 import os
+import platform
 from pathlib import Path
+from typing import Any
 
 import torch
 from accelerate import init_empty_weights
@@ -23,6 +25,8 @@ log_level = os.getenv("LOG_LEVEL", "INFO").upper()
 # Configure logging
 logging.basicConfig(level=getattr(logging, log_level, logging.INFO), format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
+
+from ...utils import pin_state_dict, resolve_pin_memory
 
 
 class NunchakuT5EncoderModel(T5EncoderModel):
@@ -110,6 +114,11 @@ class NunchakuT5EncoderModel(T5EncoderModel):
         device = kwargs.get("device", "cuda")
         if isinstance(device, str):
             device = torch.device(device)
+
+        pin_memory = resolve_pin_memory(kwargs.get("pin_memory", "auto"), device)
+        if pin_memory:
+            state_dict = pin_state_dict(state_dict)
+
         t5_encoder.to_empty(device=device)
         t5_encoder.load_state_dict(state_dict, strict=True)
 
