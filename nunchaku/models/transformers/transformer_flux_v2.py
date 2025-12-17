@@ -4,6 +4,7 @@ This module provides Nunchaku FluxTransformer2DModel and its building blocks in 
 
 import json
 import os
+import platform
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple, Union
 
@@ -27,6 +28,7 @@ from ..linear import SVDQW4A4Linear
 from ..normalization import NunchakuAdaLayerNormZero, NunchakuAdaLayerNormZeroSingle
 from ..utils import fuse_linears
 from .utils import NunchakuModelLoaderMixin
+from ...utils import pin_state_dict, resolve_pin_memory
 
 
 class NunchakuFluxAttention(NunchakuBaseAttention):
@@ -435,6 +437,11 @@ class NunchakuFluxTransformer2DModelV2(FluxTransformer2DModel, NunchakuModelLoad
             if isinstance(m, SVDQW4A4Linear):
                 if m.wtscale is not None:
                     m.wtscale = converted_state_dict.pop(f"{n}.wtscale", 1.0)
+
+        # Optional pinned-memory staging to accelerate CPU->GPU weight loading.
+        pin_memory = resolve_pin_memory(kwargs.get("pin_memory", "auto"), device)
+        if pin_memory:
+            converted_state_dict = pin_state_dict(converted_state_dict)
 
         transformer.load_state_dict(converted_state_dict)
 

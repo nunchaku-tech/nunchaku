@@ -5,6 +5,7 @@ This module provides implementations of NunchakuQwenImageTransformer2DModel and 
 import gc
 import json
 import os
+import platform
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 from warnings import warn
@@ -27,6 +28,7 @@ from ..attention_processors.qwenimage import NunchakuQwenImageNaiveFA2Processor
 from ..linear import AWQW4A16Linear, SVDQW4A4Linear
 from ..utils import CPUOffloadManager, fuse_linears
 from .utils import NunchakuModelLoaderMixin
+from ...utils import pin_state_dict, resolve_pin_memory
 
 logger = diffusers_logging.get_logger(__name__)
 
@@ -418,6 +420,12 @@ class NunchakuQwenImageTransformer2DModel(QwenImageTransformer2DModel, NunchakuM
             if isinstance(m, SVDQW4A4Linear):
                 if m.wtscale is not None:
                     m.wtscale = model_state_dict.pop(f"{n}.wtscale", 1.0)
+
+        # Optional pinned-memory staging to accelerate CPU->GPU weight loading.
+        pin_memory = resolve_pin_memory(kwargs.get("pin_memory", "auto"), device)
+        if pin_memory:
+            model_state_dict = pin_state_dict(model_state_dict)
+
         transformer.load_state_dict(model_state_dict)
         transformer.set_offload(offload)
 

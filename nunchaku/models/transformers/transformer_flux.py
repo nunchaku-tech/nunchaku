@@ -5,6 +5,7 @@ Implements the :class:`NunchakuFluxTransformer2dModel`, a quantized transformer 
 import json
 import logging
 import os
+import platform
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional, Union
 
@@ -23,6 +24,7 @@ from ..._C import utils as cutils
 from ...lora.flux.nunchaku_converter import fuse_vectors, to_nunchaku
 from ...lora.flux.utils import is_nunchaku_format
 from ...utils import check_hardware_compatibility, get_precision, load_state_dict_in_safetensors, pad_tensor
+from ...utils import pin_state_dict, resolve_pin_memory
 from .utils import NunchakuModelLoaderMixin
 
 SVD_RANK = 32
@@ -33,7 +35,6 @@ log_level = os.getenv("LOG_LEVEL", "INFO").upper()
 # Configure logging
 logging.basicConfig(level=getattr(logging, log_level, logging.INFO), format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
-
 
 class NunchakuFluxTransformerBlocks(nn.Module):
     """
@@ -581,6 +582,12 @@ class NunchakuFluxTransformer2dModel(FluxTransformer2DModel, NunchakuModelLoader
             # get the default LoRA branch and all the vectors
             quantized_part_sd = load_file(transformer_block_path)
             unquantized_part_sd = load_file(unquantized_part_path)
+
+        pin_memory = resolve_pin_memory(kwargs.get("pin_memory", "auto"), device)
+        if pin_memory:
+            quantized_part_sd = pin_state_dict(quantized_part_sd)
+            unquantized_part_sd = pin_state_dict(unquantized_part_sd)
+
         new_quantized_part_sd = {}
         for k, v in quantized_part_sd.items():
             if v.ndim == 1:
