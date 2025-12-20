@@ -36,7 +36,7 @@ optional-dependencies.ci = [
   "accelerate==1.9",
   "controlnet-aux==0.0.10",
   "datasets==3.6",
-  "diffusers @ git+https://github.com/huggingface/diffusers@041501a",
+  "diffusers @ git+https://github.com/huggingface/diffusers@262ce19",
   "facexlib==0.3",
   "huggingface-hub==0.34",
   "image-gen-aux @ git+https://github.com/asomoza/image_gen_aux.git@e08ae3d",

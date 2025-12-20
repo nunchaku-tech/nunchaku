@@ -59,7 +59,7 @@ dataset = [
 def test_zimage_turbo(rank: int, expected_lpips: dict[str, float]):
     if f"{precision}-{dtype_str}" not in expected_lpips:
         return
-    
+
     if not already_generate(save_dir_16bit, len(dataset)):
         pipe = ZImagePipeline.from_pretrained(repo_id, torch_dtype=torch_dtype).to("cuda")
         run_pipeline(
