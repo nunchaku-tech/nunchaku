@@ -6,7 +6,7 @@ from nunchaku.utils import get_precision
 
 if __name__ == "__main__":
     precision = get_precision()  # auto-detect your precision is 'int4' or 'fp4' based on your GPU
-    rank = 32  # you can also use rank=32 model to improve the speed
+    rank = 128  # Use 32 for faster sampling; 256 (INT4 only) for best quality
     transformer = NunchakuZImageTransformer2DModel.from_pretrained(
         f"nunchaku-tech/nunchaku-z-image-turbo/svdq-{precision}_r{rank}-z-image-turbo.safetensors"
     )
