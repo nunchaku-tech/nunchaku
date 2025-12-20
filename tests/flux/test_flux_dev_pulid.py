@@ -31,7 +31,7 @@ def test_flux_dev_pulid():
 
     pipeline.transformer.forward = MethodType(pulid_forward, pipeline.transformer)
 
-    id_image = load_image("https://github.com/ToTheBeginning/PuLID/blob/main/example_inputs/liuyifei.png?raw=true")
+    id_image = load_image("https://raw.githubusercontent.com/ToTheBeginning/PuLID/main/example_inputs/liuyifei.png")
 
     image = pipeline(
         "A woman holding a sign that says hello world",
