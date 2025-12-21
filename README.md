@@ -17,17 +17,18 @@ Join our user groups on [**Discord**](https://discord.gg/Wk6PnwX9Sm) and [**WeCh
 
 ## News
 
+- **[2025-12-20]** 🔥 Release **4-bit [Tongyi-MAI/Z-Image-Turbo](https://huggingface.co/Tongyi-MAI/Z-Image-Turbo)**! Download on [Hugging Face](https://huggingface.co/nunchaku-tech/nunchaku-z-image-turbo) or [ModelScope](https://modelscope.cn/models/nunchaku-tech/nunchaku-z-image-turbo), and try it with our [example script](examples/v1/z-image-turbo.py).
 - **[2025-09-25]** 🔥 Release **4-bit [4/8-step lightning Qwen-Image-Edit-2509](https://huggingface.co/lightx2v/Qwen-Image-Lightning)**! Download on [Hugging Face](https://huggingface.co/nunchaku-tech/nunchaku-qwen-image-edit-2509) or [ModelScope](https://modelscope.cn/models/nunchaku-tech/nunchaku-qwen-image-edit-2509), and try it with our [example script](examples/v1/qwen-image-edit-2509-lightning.py).
 - **[2025-09-24]** 🔥 Released **4-bit [Qwen-Image-Edit-2509](https://huggingface.co/Qwen/Qwen-Image-Edit-2509)**! Models are available on [Hugging Face](https://huggingface.co/nunchaku-tech/nunchaku-qwen-image-edit-2509). Try them out with our [example script](examples/v1/qwen-image-edit-2509.py). Lightning models will follow up!
 - **[2025-09-09]** 🔥 Released [**4-bit Qwen-Image-Edit**](https://huggingface.co/Qwen/Qwen-Image-Edit) together with the [4/8-step Lightning](https://huggingface.co/lightx2v/Qwen-Image-Lightning) variants! Models are available on [Hugging Face](https://huggingface.co/nunchaku-tech/nunchaku-qwen-image-edit). Try them out with our [example script](examples/v1/qwen-image-edit.py).
 - **[2025-09-04]** 🚀 Official release of **Nunchaku v1.0.0**! Qwen-Image now supports **asynchronous offloading**, reducing VRAM usage to as little as **3 GiB** with no performance loss. Check out the [tutorial](https://nunchaku.tech/docs/nunchaku/usage/qwenimage.html) to get started.
-- **[2025-08-27]** 🔥 Release **4-bit [4/8-step lightning Qwen-Image](https://huggingface.co/lightx2v/Qwen-Image-Lightning)**! Download on [Hugging Face](https://huggingface.co/nunchaku-tech/nunchaku-qwen-image) or [ModelScope](https://modelscope.cn/models/nunchaku-tech/nunchaku-qwen-image), and try it with our [example script](examples/v1/qwen-image-lightning.py).
-- **[2025-08-15]** 🔥 Our **4-bit Qwen-Image** models are now live on [Hugging Face](https://huggingface.co/nunchaku-tech/nunchaku-qwen-image)! Get started with our [example script](examples/v1/qwen-image.py). *ComfyUI, LoRA, and CPU offloading support are coming soon!*
-- **[2025-08-15]** 🚀 The **Python backend** is now available! Explore our Pythonic FLUX models [here](nunchaku/models/transformers/transformer_flux_v2.py) and see the modular **4-bit linear layer** [here](nunchaku/models/linear.py).
 
 <details>
 <summary>More</summary>
 
+- **[2025-08-27]** 🔥 Release **4-bit [4/8-step lightning Qwen-Image](https://huggingface.co/lightx2v/Qwen-Image-Lightning)**! Download on [Hugging Face](https://huggingface.co/nunchaku-tech/nunchaku-qwen-image) or [ModelScope](https://modelscope.cn/models/nunchaku-tech/nunchaku-qwen-image), and try it with our [example script](examples/v1/qwen-image-lightning.py).
+- **[2025-08-15]** 🔥 Our **4-bit Qwen-Image** models are now live on [Hugging Face](https://huggingface.co/nunchaku-tech/nunchaku-qwen-image)! Get started with our [example script](examples/v1/qwen-image.py). *ComfyUI, LoRA, and CPU offloading support are coming soon!*
+- **[2025-08-15]** 🚀 The **Python backend** is now available! Explore our Pythonic FLUX models [here](nunchaku/models/transformers/transformer_flux_v2.py) and see the modular **4-bit linear layer** [here](nunchaku/models/linear.py).
 - **[2025-07-31]** 🚀 **[FLUX.1-Krea-dev](https://www.krea.ai/blog/flux-krea-open-source-release) is now supported!** Check out our new [example script](./examples/flux.1-krea-dev.py) to get started.
 - **[2025-07-13]** 🚀 The official [**Nunchaku documentation**](https://nunchaku.tech/docs/nunchaku/) is now live! Explore comprehensive guides and resources to help you get started.
 - **[2025-06-29]** 🔥 Support **FLUX.1-Kontext**! Try out our [example script](./examples/flux.1-kontext-dev.py) to see it in action! Our demo is available at this [link](https://svdquant.mit.edu/kontext/)!
