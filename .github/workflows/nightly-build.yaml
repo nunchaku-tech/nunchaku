@@ -121,7 +121,7 @@ jobs:
     strategy:
       matrix:
         python: ["3.10", "3.11", "3.12", "3.13"]
-        torch: ["2.9", "pre"]
+        torch: ["2.7", "2.8", "2.9", "pre"]
     steps:
       - name: Checkout to the tag
         uses: actions/checkout@v4
