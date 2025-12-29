@@ -23,7 +23,7 @@ classifiers = [
 dynamic = [ "version" ]
 dependencies = [
   "accelerate>=1.9",
-  "diffusers>=0.35.1",
+  "diffusers>=0.36",
   "einops",
   "huggingface-hub>=0.34",
   "peft>=0.17",
@@ -36,7 +36,7 @@ optional-dependencies.ci = [
   "accelerate==1.9",
   "controlnet-aux==0.0.10",
   "datasets==3.6",
-  "diffusers @ git+https://github.com/huggingface/diffusers@262ce19",
+  "diffusers==0.36",
   "facexlib==0.3",
   "huggingface-hub==0.34",
   "image-gen-aux @ git+https://github.com/asomoza/image_gen_aux.git@e08ae3d",
