@@ -10,6 +10,7 @@ on:
       - "scripts/**"
       - ".github/workflows/pr-test.yaml"
       - "!nunchaku/__version__.py"
+      - ".pyproject.toml"
   workflow_dispatch:
     inputs:
       ref:
