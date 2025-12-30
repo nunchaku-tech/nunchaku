@@ -1,3 +1,4 @@
+# Please install cache-dit with `pip install cache-dit`.
 import cache_dit
 import torch
 from cache_dit import DBCacheConfig
