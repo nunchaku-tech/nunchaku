@@ -34,6 +34,7 @@ dependencies = [
 ]
 optional-dependencies.ci = [
   "accelerate==1.9",
+  "cache-dit==1.1.9",
   "controlnet-aux==0.0.10",
   "datasets==3.6",
   "diffusers==0.36",
@@ -58,6 +59,7 @@ optional-dependencies.demo = [
   "spaces",
 ]
 optional-dependencies.dev = [
+  "cache-dit>=1.1.9",
   "controlnet-aux",
   "datasets<4",
   "facexlib",

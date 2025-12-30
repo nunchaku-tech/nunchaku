@@ -25,7 +25,7 @@ Check out `DeepCompressor <github_deepcompressor_>`_ for the quantization librar
     usage/qencoder.rst
     usage/offload.rst
     usage/attention.rst
-    usage/fbcache.rst
+    usage/cache.rst
     usage/pulid.rst
     usage/ip_adapter.rst
     usage/zimage.rst
