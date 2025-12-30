@@ -1,6 +1,9 @@
 IP Adapter
 ==========
 
+.. warning::
+  IP Adapter support will be deprecated in March, 2026.
+
 .. image:: https://huggingface.co/datasets/nunchaku-tech/cdn/resolve/main/ComfyUI-nunchaku/workflows/nunchaku-flux.1-ip-adapter.png
 
 Nunchaku supports `IP Adapter <hf_ip-adapterv2_>`_, an adapter achieving image prompt capability for the FLUX.1-dev
@@ -28,7 +31,7 @@ The IP Adapter integration in Nunchaku follows these main steps:
 
 **Caching (Optional)**:
 
-Enable caching for faster inference and reduced memory usage with :func:`~nunchaku.caching.diffusers_adapters.apply_cache_on_pipe`. See :doc:`fbcache` for more details.
+Enable caching for faster inference and reduced memory usage with :func:`~nunchaku.caching.diffusers_adapters.apply_cache_on_pipe`. See :doc:`cache` for more details.
 
 **Image Generation**:
 

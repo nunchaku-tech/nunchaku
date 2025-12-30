@@ -1,7 +1,10 @@
+Cache
+=====
+
 .. _usage-fbcache:
 
 First-Block Cache
-=================
+-----------------
 
 Nunchaku supports `First-Block Cache (FB Cache) <fbcache>`_ for faster long-step denoising. Example usage:
 
@@ -23,7 +26,7 @@ Recommended value 0.12 gives 2× speedup for 50-step and 1.4× for 30-step denoi
 .. _usage-cache-dit:
 
 Cache-DiT
-=========
+---------
 
 Nunchaku supports `Cache-DiT <https://github.com/vipshop/cache-dit>`__ to enable further accelerated inference through various caching strategies, such as DB Cache.
 
