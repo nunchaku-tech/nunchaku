@@ -21,7 +21,7 @@ from ..attention import NunchakuBaseAttention
 from ..attention_processors.zimage import NunchakuZSingleStreamAttnProcessor
 from ..linear import SVDQW4A4Linear
 from ..utils import fuse_linears
-from .utils import NunchakuModelLoaderMixin, patch_scale_key
+from .utils import NunchakuModelLoaderMixin, convert_fp16, patch_scale_key
 
 
 class NunchakuZImageAttention(NunchakuBaseAttention):
@@ -259,10 +259,12 @@ class NunchakuZImageTransformer2DModel(ZImageTransformer2DModel, NunchakuModelLo
 
         print(f"quantization_config: {quantization_config}, rank={rank}, skip_refiners={skip_refiners}")
 
-        transformer._patch_model(skip_refiners=skip_refiners, precision=precision, rank=rank)
+        transformer._patch_model(skip_refiners=skip_refiners, precision=precision, rank=rank, **kwargs)
         transformer = transformer.to_empty(device=device)
 
         patch_scale_key(transformer, model_state_dict)
+        if torch_dtype == torch.float16:
+            convert_fp16(transformer, model_state_dict)
 
         transformer.load_state_dict(model_state_dict)
 

@@ -164,10 +164,21 @@ def patch_scale_key(transformer_from_config: nn.Module, state_dict_from_checkpoi
         if k not in state_dict_from_checkpoint:
             assert ".wcscales" in k
             state_dict_from_checkpoint[k] = torch.ones_like(state_dict[k])
-        else:
-            assert state_dict[k].dtype == state_dict_from_checkpoint[k].dtype
 
     for n, m in transformer_from_config.named_modules():
         if isinstance(m, SVDQW4A4Linear):
             if m.wtscale is not None:
                 m.wtscale = state_dict_from_checkpoint.pop(f"{n}.wtscale", 1.0)
+
+
+def convert_fp16(transformer_from_config: nn.Module, state_dict_from_checkpoint: dict):
+    state_dict = transformer_from_config.state_dict()
+    for k in state_dict.keys():
+        if state_dict[k].dtype != state_dict_from_checkpoint[k].dtype:
+            assert (
+                state_dict[k].dtype == torch.float16 and state_dict_from_checkpoint[k].dtype == torch.bfloat16
+            ), f"Unexpected dtype difference for key: {k}, model dtype: {state_dict[k].dtype}, \
+                checkpoint dtype: {state_dict_from_checkpoint[k].dtype}"
+            state_dict_from_checkpoint[k] = torch.nan_to_num(
+                state_dict_from_checkpoint[k].to(torch.float16), nan=0.0, posinf=65504, neginf=-65504
+            )
