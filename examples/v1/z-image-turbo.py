@@ -14,7 +14,9 @@ if __name__ == "__main__":
 
     pipe = ZImagePipeline.from_pretrained(
         "Tongyi-MAI/Z-Image-Turbo", transformer=transformer, torch_dtype=dtype, low_cpu_mem_usage=False
-    ).to("cuda")
+    )
+    pipe.enable_sequential_cpu_offload() # enable sequential CPU offload for low vram
+    # pipe = pipe.to("cuda") # or else comment the line above and uncomment this line to put all components to GPU
 
     prompt = "a young military male cooking in the kitchen for therapy"
 
