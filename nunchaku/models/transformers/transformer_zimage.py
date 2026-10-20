@@ -332,24 +332,19 @@ class NunchakuZImageTransformer2DModel(ZImageTransformer2DModel, NunchakuModelLo
             h.remove()
         self.rope_hook_handles.clear()
 
-    def forward(
-        self,
-        x: List[torch.Tensor],
-        t,
-        cap_feats: List[torch.Tensor],
-        patch_size=2,
-        f_patch_size=1,
-        return_dict: bool = True,
-    ):
+    def forward(self, x: List[torch.Tensor], t, cap_feats: List[torch.Tensor], *args, **kwargs):
         """
         Adapted from diffusers.models.transformers.transformer_z_image.ZImageTransformer2DModel#forward
 
         Register pre-forward hooks for caching and substitution of packed `freqs_cis` tensor for all attention submodules and unregister after forwarding is done.
+
+        The remaining arguments are passed through unchanged, since their order differs between diffusers versions
+        (<=0.36: ``patch_size, f_patch_size, return_dict``; >=0.37: ``return_dict, controlnet_block_samples, ...``).
         """
         rope_hook = NunchakuZImageRopeHook()
         self.register_rope_hook(rope_hook)
         try:
-            return super().forward(x, t, cap_feats, patch_size, f_patch_size, return_dict)
+            return super().forward(x, t, cap_feats, *args, **kwargs)
         finally:
             self.unregister_rope_hook()
             del rope_hook
