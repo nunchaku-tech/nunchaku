@@ -78,7 +78,7 @@ def compose_lora(
     >>> composed = compose_lora(lora_dicts)
     """
     if len(loras) == 1:
-        if is_nunchaku_format(loras[0][0]) and (loras[0][1] - 1) < 1e-5:
+        if is_nunchaku_format(loras[0][0]) and abs(loras[0][1] - 1) < 1e-5:
             if isinstance(loras[0][0], str):
                 return load_state_dict_in_safetensors(loras[0][0], device="cpu")
             else:
@@ -86,7 +86,10 @@ def compose_lora(
 
     composed = {}
     for lora, strength in loras:
-        assert not is_nunchaku_format(lora)
+        assert not is_nunchaku_format(lora), (
+            "compose_lora takes LoRAs in Diffusers format; "
+            "a Nunchaku-format LoRA can only be passed alone with strength 1"
+        )
         lora = to_diffusers(lora)
         for k, v in list(lora.items()):
             if v.ndim == 1:
